@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { reporters, statements } from "../src/blocks/index.js";
+import * as control from "../src/blocks/control.js";
+import * as data from "../src/blocks/data.js";
+import * as events from "../src/blocks/events.js";
+import * as looks from "../src/blocks/looks.js";
+import * as motion from "../src/blocks/motion.js";
+import * as operators from "../src/blocks/operators.js";
+import * as procedures from "../src/blocks/procedures.js";
+import * as sensing from "../src/blocks/sensing.js";
 import { comparison } from "../src/blocks/operators.js";
 import type { Ex } from "../src/types.js";
 import { anyEx, lit, numEx, strEx } from "../src/cast.js";
@@ -85,5 +93,24 @@ describe("comparison", () => {
   it("passes numeric literals to the helper as numbers", () => {
     expect(cmp({ OPERAND1: anyEx("v"), OPERAND2: lit("3") })).toBe("eq(v, 3)");
     expect(cmp({ OPERAND1: anyEx("v"), OPERAND2: lit("3.0") })).toBe('eq(v, "3.0")');
+  });
+});
+
+describe("category files", () => {
+  it("define disjoint opcodes, so merging them never shadows a handler", () => {
+    const tables = [
+      motion.motionStatements, motion.motionReporters, looks.looksStatements, looks.looksReporters,
+      events.eventStatements, control.controlStatements, sensing.sensingStatements, sensing.sensingReporters,
+      data.dataStatements, data.dataReporters, operators.operatorReporters,
+      procedures.procedureStatements, procedures.procedureReporters,
+    ];
+    const seen = new Set<string>();
+    for (const table of tables) {
+      for (const op of Object.keys(table)) {
+        expect(seen.has(op), `${op} defined twice`).toBe(false);
+        seen.add(op);
+      }
+    }
+    expect(seen.size).toBe(Object.keys(statements).length + Object.keys(reporters).length);
   });
 });

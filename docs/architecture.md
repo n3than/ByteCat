@@ -47,7 +47,7 @@ one stage:
 | `codegen.ts` | `compileProject`: the driver over all targets. |
 
 To support a new block, add a handler to the right `blocks/` file and a test in
-`packages/compiler/test/blocks.test.ts`. Handlers are tested against a stub `Gen`
+`packages/compiler/test/blocks.test.ts`. `tests/codegen-snapshots.test.ts` pins the generated JS of every example and bench project in `tests/__snapshots__/`: a refactor must leave them untouched, and an intentional codegen change updates them (`pnpm exec vitest run tests/codegen-snapshots.test.ts -u`) so the diff is reviewable. Handlers are tested against a stub `Gen`
 (`test/helpers.ts`), so they need no project.
 
 ## Generated code
