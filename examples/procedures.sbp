@@ -1,0 +1,62 @@
+# Custom blocks that never yield compile to plain functions; the rest stay generators. A second
+# sprite logs for the first three frames, so the log shows where step and fast yield.
+var n = 0
+
+sprite Main:
+  # A loop outside warp yields every iteration.
+  define step(k):
+    repeat k:
+      log("step")
+
+  # Warp: step's loop no longer yields when called from here.
+  define warp fast(k):
+    step(k)
+
+  # Never yields. stop("this script") returns from the procedure only.
+  define add(a, b):
+    n = a + b
+    if n > 100:
+      stop("this script")
+    log(join("n ", n))
+
+  # A wait makes it a generator, even though add does not yield.
+  define pause():
+    wait(0)
+    add(1, 2)
+
+  # Mutual recursion: is_odd waits, so both become generators.
+  define is_even(k):
+    if k = 0:
+      log("even")
+    else:
+      is_odd(k - 1)
+
+  define is_odd(k):
+    if k = 0:
+      log("odd")
+    else:
+      wait(0)
+      is_even(k - 1)
+
+  # Warp recursion that never yields.
+  define warp count(k):
+    if k > 0:
+      n += 1
+      count(k - 1)
+
+  when flag:
+    broadcast("go")
+    step(2)
+    fast(3)
+    pause()
+    add(200, 1)
+    log(join("after stop ", n))
+    is_even(3)
+    n = 0
+    count(500)
+    log(join("count ", n))
+
+sprite Ticker:
+  when receive "go":
+    repeat 3:
+      log("tick")

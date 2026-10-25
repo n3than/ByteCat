@@ -1,0 +1,26 @@
+# Comparisons against literals, which the compiler specializes: text literals compare as
+# case-insensitive text, numeric literals as numbers when the other side is numeric.
+var x = "Apple"
+var n = "10"
+var e = ""
+var sp = " "
+
+sprite Main:
+  when flag:
+    log(x = "apple")
+    log(x = "APPLE")
+    log(x < "banana")
+    log(x > "Ant")
+    log(n = "10.0")
+    log(n > 9)
+    log(n < "9")
+    log(n > "9 ")
+    log(e = "")
+    log(e = 0)
+    log(sp = " ")
+    log(sp = 0)
+    log(n = "1e1")
+    log(x = 0)
+    log(x > 5)
+    log(true = "TRUE")
+    log(length(x) = "5")
