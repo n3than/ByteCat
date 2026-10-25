@@ -12,9 +12,14 @@ export function compileProject(project: ProjectJson): CompileResult {
   const warnings = new Set<string>();
   const prelude: string[] = [];
   const stage = project.targets[0];
+  // Every costume, backdrop and sound name in the project (see TargetCodegen.any).
+  const assetNames = new Set<string>();
+  for (const target of project.targets) {
+    for (const asset of [...(target.costumes ?? []), ...(target.sounds ?? [])]) assetNames.add(asset.name);
+  }
 
   project.targets.forEach((target, index) => {
-    const gen = new TargetCodegen(target, index, stage, warnings, prelude);
+    const gen = new TargetCodegen(target, index, stage, warnings, prelude, assetNames);
     procedures.push(...gen.procedures());
     hats.push(...gen.hats());
   });

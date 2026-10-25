@@ -57,9 +57,42 @@ export function asBool(e: Ex): string {
   return `toBool(${e.c})`;
 }
 
+/**
+ * The number a literal can be stored as without anyone noticing, or undefined when it must stay
+ * text. This is TurboWarp's rule (`createConstantInput` in its irgen): with `n = +s`, the literal
+ * becomes a number when `n` is not NaN, `s` is not blank (or contains a tab), and `n.toString()`
+ * is exactly `s`. So "1", "0.5", "-3", "1e+21" and "Infinity" become numbers, while "1.0", " 1",
+ * "-0", "0x10", "1e3", "" and "abc" stay text, because turning those into numbers would change
+ * what `join`, `say` or a list shows. Storing numbers saves every later read a `toNum`.
+ */
+export function numericConstant(s: string): number | undefined {
+  const n = +s;
+  if (Number.isNaN(n)) return undefined;
+  if (s.trim() === "" && !s.includes("\t")) return undefined;
+  return n.toString() === s ? n : undefined;
+}
+
+/**
+ * An input passed on without a cast. A numeric literal (see `numericConstant`) is emitted as a
+ * JavaScript number, any other literal as a string.
+ */
 export function asAny(e: Ex): string {
-  if (e.k !== undefined) return JSON.stringify(e.k);
-  return e.c;
+  if (e.k === undefined) return e.c;
+  const n = numericConstant(e.k);
+  return n === undefined ? JSON.stringify(e.k) : numLiteral(n);
+}
+
+/**
+ * A literal that must stay a string. Used for inputs that name a costume, backdrop or sound, and
+ * (through `TargetCodegen.any`) for any literal equal to such a name. A number never matches a
+ * name (`Runtime.switchCostume` compares with `===`) but a string that matches no name and looks
+ * like a number picks the costume at that index, which is exactly what the number would have
+ * done. So keeping the string is always safe, and it keeps a costume named "2" reachable by
+ * `switch costume to "2"`. TurboWarp does the same, but only for names that exist
+ * (`preserveStrings`); the results are identical.
+ */
+export function asName(e: Ex): string {
+  return e.k !== undefined ? JSON.stringify(e.k) : e.c;
 }
 
 export function indent(lines: string[], levels = 1): string[] {

@@ -13,7 +13,7 @@ function* p1_0(t, th, a0) {
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
     rt.broadcast("go");
-    yield* p1_0(t, th, "3");
+    yield* p1_0(t, th, 3);
     S.l["list_h"].push(("done " + toStr(S.v["var_0"])));
 } },
 { target: 2, kind: "broadcast", arg: "go", fn: function* (t, th) {

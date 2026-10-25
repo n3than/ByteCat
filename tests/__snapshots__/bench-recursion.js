@@ -16,7 +16,7 @@ function p1_0(t, th, a0) {
 }
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
-    p1_0(t, th, "27");
+    p1_0(t, th, 27);
     S.l["list_q"].push(S.v["var_0"]);
     S.l["list_q"].push(S.l["list_1"].length);
 } },

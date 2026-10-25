@@ -28,7 +28,7 @@ function p1_3(t, th, a0, a1) {
 }
 function* p1_4(t, th) {
   yield* rt.wait(0);
-  p1_3(t, th, "1", "2");
+  p1_3(t, th, 1, 2);
 }
 function* p1_5(t, th, a0) {
   if (eq(a0, 0)) {
@@ -47,15 +47,15 @@ function p1_6(t, th, a0) {
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
     rt.broadcast("go");
-    yield* p1_0(t, th, "2");
+    yield* p1_0(t, th, 2);
     th.warp++;
-    try { yield* p1_2(t, th, "3"); } finally { th.warp--; }
+    try { yield* p1_2(t, th, 3); } finally { th.warp--; }
     yield* p1_4(t, th);
-    p1_3(t, th, "200", "1");
+    p1_3(t, th, 200, 1);
     S.l["list_e"].push(("after stop " + toStr(S.v["var_0"])));
-    yield* p1_1(t, th, "3");
-    S.v["var_0"] = "0";
-    p1_6(t, th, "500");
+    yield* p1_1(t, th, 3);
+    S.v["var_0"] = 0;
+    p1_6(t, th, 500);
     S.l["list_e"].push(("count " + toStr(S.v["var_0"])));
 } },
 { target: 2, kind: "broadcast", arg: "go", fn: function* (t, th) {

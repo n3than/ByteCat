@@ -36,6 +36,23 @@ describe("compileProject", () => {
     expect(compileProject(project(target(blocks))).warnings).toEqual(["event_whenbackdropswitchesto"]);
   });
 
+  it("passes numeric literals as numbers, but keeps a literal that names a costume as text", () => {
+    const set = (value: string): [string, Partial<Block>] => [
+      "data_setvariableto",
+      { inputs: { VALUE: [1, [10, value]] }, fields: { VARIABLE: ["v", "var_0"] } },
+    ];
+    const blocks = script(set("1"), set("1.0"), set("2"), [
+      "looks_switchcostumeto",
+      { inputs: { COSTUME: [1, [10, "1"]] } },
+    ]);
+    const sprite = target(blocks, { variables: { var_0: ["v", 0] }, costumes: [{ name: "2" }] as never });
+    const { code } = compileProject(project(sprite));
+    expect(code).toContain('t.v["var_0"] = 1;');
+    expect(code).toContain('t.v["var_0"] = "1.0";');
+    expect(code).toContain('t.v["var_0"] = "2";');
+    expect(code).toContain('rt.switchCostume(t, "1");');
+  });
+
   it("is deterministic", () => {
     const p = project(target(script(["motion_ifonedgebounce"])));
     expect(compileProject(p).code).toBe(compileProject(p).code);

@@ -1,7 +1,7 @@
 import type { Block, CompactPrimitive, Input, InputValue, Target } from "@bytecat/sb3";
 import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
 import { statements, reporters } from "./blocks/index.js";
-import { asAny, asBool, asNum, asStr, indent, lit } from "./cast.js";
+import { asAny, asBool, asName, asNum, asStr, indent, lit } from "./cast.js";
 import { Scope } from "./scope.js";
 import type { Ex, FieldRef, Gen, Proc } from "./types.js";
 
@@ -26,6 +26,8 @@ export class TargetCodegen implements Gen {
     stage: Target,
     private readonly warnings: Set<string>,
     prelude: string[],
+    /** Names of all costumes, backdrops and sounds in the project. */
+    private readonly assetNames: ReadonlySet<string> = new Set(),
   ) {
     this.scope = new Scope(target, stage, prelude);
     this.blocks = target.blocks;
@@ -170,7 +172,11 @@ export class TargetCodegen implements Gen {
   }
 
   any(b: Block, name: string): string {
-    return asAny(this.input(b, name));
+    const e = this.input(b, name);
+    // A literal equal to an asset name stays text, as in TurboWarp (`preserveStrings`): it may be
+    // stored in a variable or list and later reach `switch costume to`, where the text "2" picks
+    // the costume named "2" but the number 2 picks costume number 2.
+    return e.k !== undefined && this.assetNames.has(e.k) ? asName(e) : asAny(e);
   }
 
   // ---- statements ----
