@@ -70,6 +70,13 @@ describe("formatTable", () => {
     ]);
   });
 
+  it("keeps two significant digits for ratios below 1", async () => {
+    const slow = fake("slow", [{ runMs: 2000 }]);
+    const base = fake("scratch-vm", [{ runMs: 100 }]);
+    const r = await benchmark("b", project, ["ok"], [slow, base], { warmup: 0, runs: 1 });
+    expect(formatTable([r]).split("\n")[2]).toBe("| b | 2000.0 | 100.0 | 0.050x |");
+  });
+
   it("shows FAIL and no speedup for an incorrect engine", async () => {
     const bad = fake("bad", [{ log: ["wrong"], runMs: 10 }]);
     const base = fake("scratch-vm", [{ runMs: 100 }]);

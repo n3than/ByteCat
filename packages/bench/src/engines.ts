@@ -53,7 +53,9 @@ export const turbowarp: Engine = {
   async run(project, { timeoutMs }) {
     const r = await runProject(writeSb3(project), { timeoutMs, turbo: true, engine: "turbowarp" });
     // A script that fell back to TurboWarp's interpreter would not measure its compiler.
-    const error = r.compileErrors.length ? `TurboWarp could not compile: ${r.compileErrors.join("; ")}` : undefined;
+    const error = r.compileErrors.length
+      ? `TurboWarp could not compile: ${r.compileErrors.join("; ")}`
+      : r.compiledThreads === 0 ? "TurboWarp compiled no threads" : undefined;
     return { log: r.log, finished: r.finished, runMs: r.elapsedMs, ...(error ? { error } : {}) };
   },
 };

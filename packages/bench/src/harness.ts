@@ -88,7 +88,9 @@ export function formatTable(results: BenchResult[], baseline = "scratch-vm"): st
     const speed = (n: string) => {
       const e = by.get(n);
       if (!e || !base || !e.correct || !base.correct) return "";
-      return `${(base.medianMs / Math.max(e.medianMs, 0.01)).toFixed(1)}x`;
+      const ratio = base.medianMs / Math.max(e.medianMs, 0.01);
+      // Two significant digits below 1, so a much slower engine reads 0.05x rather than 0.0x.
+      return `${ratio < 1 ? ratio.toPrecision(2) : ratio.toFixed(1)}x`;
     };
     return [r.name, ...names.map(cell), ...names.filter((n) => n !== baseline).map(speed)];
   });

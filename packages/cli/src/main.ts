@@ -201,6 +201,11 @@ switch (command) {
         process.exit(2);
       }
     });
+    const selected = engines.map((e) => e.name);
+    if (!selected.includes(values.baseline!)) {
+      console.error(`--baseline must be one of the selected engines: ${selected.join(", ")}`);
+      process.exit(2);
+    }
     const runs = Number(values.runs);
     const warmup = Number(values.warmup);
     const timeoutMs = values.timeout === undefined ? 60_000 : Number(values.timeout);

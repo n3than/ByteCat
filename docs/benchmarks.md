@@ -50,8 +50,10 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
   result `FAIL`, so its timings always measure compiled code. Blocks that TurboWarp runs through
   its compatibility layer (calls back into interpreter block functions) still count as compiled,
   so benchmarks heavy in those blocks are not pure compiled-code timings for TurboWarp.
-- `pingpong` is slow on TurboWarp because each `broadcast_wait` waits for the next tick, while the
-  Bytecat runtime keeps stepping threads within the same frame.
+- `pingpong` is about 2x slower on TurboWarp than on scratch-vm. The cause is not known yet: both
+  wait a tick per `broadcast_wait`, so it may be TurboWarp's compiled `broadcast_wait` path or its
+  per-tick overhead. The Bytecat runtime keeps stepping threads within the same frame, which is
+  why it is faster than both here.
 - Numbers vary by machine and load. Compare ratios on the same machine, not absolute times.
 - Bytecat follows TurboWarp and has no list length limit. scratch-vm caps lists at 200000 items,
   so keep benchmark lists below that or the engines will disagree.
@@ -85,10 +87,10 @@ Treat it as an illustration, not a reference: Bytecat's `recursion` time varied 
 ```
 | benchmark | bytecat (ms) | scratch-vm (ms) | turbowarp (ms) | bytecat speedup | scratch-vm speedup |
 | --- | --- | --- | --- | --- | --- |
-| arith | 11.2 | 835.6 | 41.4 | 3.7x | 0.0x |
+| arith | 11.2 | 835.6 | 41.4 | 3.7x | 0.050x |
 | pingpong | 215.2 | 993.6 | 1947.2 | 9.0x | 2.0x |
-| recursion | 115.5 | 1197.0 | 40.8 | 0.4x | 0.0x |
-| sieve | 42.3 | 792.0 | 52.3 | 1.2x | 0.1x |
-| strings | 35.4 | 407.7 | 44.1 | 1.2x | 0.1x |
-| yield_loop | 203.9 | 821.7 | 269.6 | 1.3x | 0.3x |
+| recursion | 115.5 | 1197.0 | 40.8 | 0.35x | 0.034x |
+| sieve | 42.3 | 792.0 | 52.3 | 1.2x | 0.066x |
+| strings | 35.4 | 407.7 | 44.1 | 1.2x | 0.11x |
+| yield_loop | 203.9 | 821.7 | 269.6 | 1.3x | 0.33x |
 ```
