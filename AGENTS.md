@@ -17,6 +17,7 @@ pnpm bytecat compile examples/NAME.sbp -o out.js        # compile to a JS module
 pnpm bytecat bundle examples/NAME.sbp -o out.html       # standalone HTML player (open it with ?test for test mode)
 pnpm examples:html   # bundle every example into out/examples
 pnpm bytecat dump examples/NAME.sbp    # print the generated project.json
+pnpm bench           # time bench/*.sbp on each engine (add names, --engines, --runs); exits 1 on a wrong log
 pnpm docs            # regenerate the builtin tables in docs/pseudocode.md
 ```
 
@@ -28,6 +29,9 @@ item per line). Run `pnpm bytecat run examples/NAME.sbp --engine reference` to s
 check it is what Scratch should do, then save it as the expected file. Keep examples small,
 deterministic (no `random()`, `timer()` or user input in checked output) and finite (every script
 must stop; use `stop("all")` to end `forever` loops).
+
+A new benchmark goes in `bench/NAME.sbp` with a `bench/NAME.expected` file in the same way (see
+`docs/benchmarks.md`); `tests/bench.test.ts` checks every one on both engines.
 
 ## Automatic verification
 

@@ -1,0 +1,19 @@
+# Benchmark: naive recursive Fibonacci inside a warp procedure, with a list as the call stack.
+var result = 0
+list stack
+
+sprite Main:
+  define warp fib(n):
+    if n < 2:
+      result = n
+    else:
+      fib(n - 1)
+      stack.add(result)
+      fib(n - 2)
+      result += stack[stack.length]
+      stack.delete(stack.length)
+
+  when flag:
+    fib(27)
+    log(result)
+    log(stack.length)

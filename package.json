@@ -15,9 +15,11 @@
     "test:watch": "vitest",
     "examples": "tsx packages/cli/src/main.ts build examples -o out/examples",
     "examples:html": "tsx packages/cli/src/main.ts bundle examples -o out/examples",
+    "bench": "tsx packages/cli/src/main.ts bench",
     "docs": "tsx scripts/gen-docs.ts"
   },
   "devDependencies": {
+    "@bytecat/bench": "workspace:*",
     "@bytecat/compiler": "workspace:*",
     "@bytecat/player": "workspace:*",
     "@bytecat/pseudo": "workspace:*",
