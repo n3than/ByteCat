@@ -16,6 +16,7 @@ pnpm bytecat run examples/NAME.sbp --engine turbowarp  # run it in TurboWarp (co
 pnpm bytecat compile examples/NAME.sbp -o out.js        # compile to a JS module
 pnpm bytecat bundle examples/NAME.sbp -o out.html       # standalone HTML player (open it with ?test for test mode)
 pnpm examples:html   # bundle every example into out/examples
+pnpm web             # build the web app into out/web/index.html (docs/web.md)
 pnpm bytecat dump examples/NAME.sbp    # print the generated project.json
 pnpm bench           # time bench/*.sbp on each engine (add names, --engines, --runs); exits 1 on a wrong log
 pnpm docs            # regenerate the builtin tables in docs/pseudocode.md
