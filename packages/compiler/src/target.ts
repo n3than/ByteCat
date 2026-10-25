@@ -1,7 +1,9 @@
 import type { Block, CompactPrimitive, Input, InputValue, Target } from "@bytecat/sb3";
+import { TypeEnv } from "./analysis/env.js";
 import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
+import { ZERO, type TypeSet } from "./analysis/typeset.js";
 import { statements, reporters } from "./blocks/index.js";
-import { asAny, asBool, asName, asNum, asStr, indent, lit } from "./cast.js";
+import { anyEx, asAny, asBool, asNum, asStr, indent, lit, strEx } from "./cast.js";
 import { Scope } from "./scope.js";
 import type { Ex, FieldRef, Gen, Proc } from "./types.js";
 
@@ -12,6 +14,8 @@ export class TargetCodegen implements Gen {
   private readonly scope: Scope;
   procedure: Proc | undefined;
   private params = new Map<string, string>();
+  /** Type-environment keys of the current procedure's arguments, by argument name. */
+  private paramKeys = new Map<string, string>();
   private counter = 0;
   /** Set while compiling the body of a warp procedure, where loops never yield. */
   private inWarp = false;
@@ -23,9 +27,10 @@ export class TargetCodegen implements Gen {
   constructor(
     readonly target: Target,
     private readonly index: number,
-    stage: Target,
+    private readonly stage: Target,
     private readonly warnings: Set<string>,
     prelude: string[],
+    private readonly env: TypeEnv,
     /** Names of all costumes, backdrops and sounds in the project. */
     private readonly assetNames: ReadonlySet<string> = new Set(),
   ) {
@@ -54,6 +59,7 @@ export class TargetCodegen implements Gen {
   private procBody(proc: Proc, block: Block): string[] {
     this.params = new Map(proc.params.map((name, i) => [name, `a${i}`]));
     this.procedure = proc;
+    this.paramKeys = new Map(proc.params.map((name, i) => [name, TypeEnv.paramKey(proc.fn, i)]));
     this.inWarp = proc.warp;
     this.yields = false;
     const body = this.stack(block.next);
@@ -63,6 +69,7 @@ export class TargetCodegen implements Gen {
     }
     this.params = new Map();
     this.procedure = undefined;
+    this.paramKeys = new Map();
     this.inWarp = false;
     return body;
   }
@@ -147,8 +154,48 @@ export class TargetCodegen implements Gen {
     return this.params.get(name);
   }
 
+  paramType(name: string): TypeSet {
+    const key = this.paramKeys.get(name);
+    return key === undefined ? 0 : this.env.get(key);
+  }
+
+  noteCall(proc: Proc, args: TypeSet[]): void {
+    args.forEach((type, i) => this.env.note(TypeEnv.paramKey(proc.fn, i), type));
+  }
+
   variable(field: FieldRef): string {
     return this.scope.variable(field);
+  }
+
+  varType(field: FieldRef): TypeSet {
+    return this.env.get(this.varKey(field));
+  }
+
+  noteWrite(field: FieldRef, type: TypeSet): void {
+    this.env.note(this.varKey(field), type);
+  }
+
+  listType(field: FieldRef): TypeSet {
+    return this.env.get(this.listKey(field));
+  }
+
+  noteListWrite(field: FieldRef, type: TypeSet): void {
+    this.env.note(this.listKey(field), type);
+  }
+
+  private listKey(field: FieldRef): string {
+    const slot = this.scope.listSlot(field);
+    return TypeEnv.listKey(slot.owner === "t" ? this.index : 0, slot.key);
+  }
+
+  private varKey(field: FieldRef): string {
+    const slot = this.scope.variableSlot(field);
+    const key = TypeEnv.variableKey(slot.owner === "t" ? this.index : 0, slot.key);
+    // A variable the project never declares starts at 0 (see Scope).
+    if (slot.key.startsWith("missing:") || !(slot.key in (slot.owner === "t" ? this.target : this.stage).variables)) {
+      this.env.note(key, ZERO);
+    }
+    return key;
   }
 
   list(field: FieldRef): string {
@@ -172,11 +219,7 @@ export class TargetCodegen implements Gen {
   }
 
   any(b: Block, name: string): string {
-    const e = this.input(b, name);
-    // A literal equal to an asset name stays text, as in TurboWarp (`preserveStrings`): it may be
-    // stored in a variable or list and later reach `switch costume to`, where the text "2" picks
-    // the costume named "2" but the number 2 picks costume number 2.
-    return e.k !== undefined && this.assetNames.has(e.k) ? asName(e) : asAny(e);
+    return asAny(this.input(b, name));
   }
 
   // ---- statements ----
@@ -192,6 +235,14 @@ export class TargetCodegen implements Gen {
   // ---- inputs and reporters ----
 
   input(b: Block, name: string): Ex {
+    const e = this.rawInput(b, name);
+    // A literal equal to an asset name stays text, as in TurboWarp (`preserveStrings`): it may be
+    // stored in a variable or list and later reach `switch costume to`, where the text "2" picks
+    // the costume named "2" but the number 2 picks costume number 2.
+    return e.k !== undefined && !e.text && this.assetNames.has(e.k) ? lit(e.k, true) : e;
+  }
+
+  private rawInput(b: Block, name: string): Ex {
     const inp: Input | undefined = b.inputs[name];
     if (!inp) return lit("");
     const v: InputValue = inp[1] ?? (inp.length > 2 ? (inp as [3, InputValue, InputValue])[2] : null);
@@ -202,8 +253,8 @@ export class TargetCodegen implements Gen {
 
   private primitive(p: CompactPrimitive): Ex {
     switch (p[0]) {
-      case 12: return { c: this.variable([p[1], p[2]]), t: "any" };
-      case 13: return { c: `listContents(${this.list([p[1], p[2]])})`, t: "str" };
+      case 12: return anyEx(this.variable([p[1], p[2]]), this.varType([p[1], p[2]]));
+      case 13: return strEx(`listContents(${this.list([p[1], p[2]])})`);
       case 11: return lit(p[1]);
       default: return lit(String(p[1]));
     }

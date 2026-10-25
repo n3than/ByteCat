@@ -1,14 +1,22 @@
+import {
+  ANY, BOOL, INF, NUM, NUM_OR_NAN, STR, add, castNum, subtract as subtractTypes, typeOfValue, within, type TypeSet,
+} from "./analysis/typeset.js";
 import type { Ex } from "./types.js";
 
-/** A string literal known at compile time. */
-export function lit(value: string): Ex {
-  return { c: JSON.stringify(value), t: "str", k: value };
+/**
+ * A literal known at compile time. Its type is that of the value `asAny` passes on: a number for
+ * a numeric constant, else the string. `text` keeps it a string (see `TargetCodegen.input`).
+ */
+export function lit(value: string, text = false): Ex {
+  const n = text ? undefined : numericConstant(value);
+  return { c: JSON.stringify(value), t: typeOfValue(n ?? value), k: value, ...(text ? { text } : {}) };
 }
 
-export const numEx = (c: string): Ex => ({ c, t: "num" });
-export const boolEx = (c: string): Ex => ({ c, t: "bool" });
-export const strEx = (c: string): Ex => ({ c, t: "str" });
-export const anyEx = (c: string): Ex => ({ c, t: "any" });
+/** A number expression; without a more precise type it may be any number, NaN included. */
+export const numEx = (c: string, t: TypeSet = NUM_OR_NAN): Ex => ({ c, t });
+export const boolEx = (c: string): Ex => ({ c, t: BOOL });
+export const strEx = (c: string): Ex => ({ c, t: STR });
+export const anyEx = (c: string, t: TypeSet = ANY): Ex => ({ c, t });
 
 /** Scratch's number parsing for a literal: anything that is not a number is 0. */
 export function toNumber(s: string): number {
@@ -23,10 +31,30 @@ export function numLiteral(n: number): string {
   return n < 0 ? `(${n})` : String(n);
 }
 
-/** True when an expression is certainly a number: a numeric literal or an arithmetic result. */
+/** The type of an expression after Scratch's number cast; a literal is cast at compile time. */
+export function numType(e: Ex): TypeSet {
+  return e.k !== undefined ? typeOfValue(toNumber(e.k)) : castNum(e.t);
+}
+
+/**
+ * The type of `x + y` (or `x - y`) after both are cast to numbers. A sum overflows to Infinity
+ * only when both sides are huge: adding a finite number below 2^970 (half the spacing of doubles
+ * near the largest one) to any finite number rounds to a finite result. So a counter that adds a
+ * literal such as 1 never becomes infinite, which keeps NaN out of later products like `i * 0`.
+ */
+export function sumType(x: Ex, y: Ex, subtract = false): TypeSet {
+  const tx = numType(x);
+  const ty = numType(y);
+  const t = subtract ? subtractTypes(tx, ty) : add(tx, ty);
+  const small = (e: Ex) => e.k !== undefined && Math.abs(toNumber(e.k)) < 2 ** 970;
+  if ((small(x) && !(ty & INF)) || (small(y) && !(tx & INF))) return t & ~INF;
+  return t;
+}
+
+/** True when an expression is certainly a number other than NaN: a numeric literal or a typed value. */
 export function isNumeric(e: Ex): boolean {
   if (e.k !== undefined) return e.k.trim() !== "" && !Number.isNaN(Number(e.k));
-  return e.t === "num";
+  return within(e.t, NUM);
 }
 
 /** True for a literal that Scratch compares as text: not a number, or only whitespace. */
@@ -35,25 +63,26 @@ export function isTextLiteral(e: Ex): boolean {
 }
 
 // ---- casts: JavaScript source that evaluates the expression as the given type ----
+// A cast is left out when the expression's type proves it would return the value unchanged.
 
 export function asNum(e: Ex): string {
   if (e.k !== undefined) return numLiteral(toNumber(e.k));
-  if (e.t === "num") return e.c;
-  if (e.t === "bool") return `(+${e.c})`;
+  if (within(e.t, NUM)) return e.c;
+  if (within(e.t, BOOL)) return `(+${e.c})`;
   return `toNum(${e.c})`;
 }
 
 export function asStr(e: Ex): string {
   if (e.k !== undefined) return JSON.stringify(e.k);
-  if (e.t === "str") return e.c;
-  if (e.t === "num") return `("" + ${e.c})`;
-  if (e.t === "bool") return `(${e.c} ? "true" : "false")`;
+  if (within(e.t, STR)) return e.c;
+  if (within(e.t, NUM_OR_NAN)) return `("" + ${e.c})`;
+  if (within(e.t, BOOL)) return `(${e.c} ? "true" : "false")`;
   return `toStr(${e.c})`;
 }
 
 export function asBool(e: Ex): string {
   if (e.k !== undefined) return String(e.k !== "" && e.k !== "0" && e.k.toLowerCase() !== "false");
-  if (e.t === "bool") return e.c;
+  if (within(e.t, BOOL)) return e.c;
   return `toBool(${e.c})`;
 }
 
@@ -78,7 +107,7 @@ export function numericConstant(s: string): number | undefined {
  */
 export function asAny(e: Ex): string {
   if (e.k === undefined) return e.c;
-  const n = numericConstant(e.k);
+  const n = e.text ? undefined : numericConstant(e.k);
   return n === undefined ? JSON.stringify(e.k) : numLiteral(n);
 }
 

@@ -10,6 +10,7 @@ import * as procedures from "../src/blocks/procedures.js";
 import * as sensing from "../src/blocks/sensing.js";
 import { comparison } from "../src/blocks/operators.js";
 import type { Ex } from "../src/types.js";
+import { NUM, POS_INT, STR } from "../src/analysis/typeset.js";
 import { anyEx, lit, numEx, strEx } from "../src/cast.js";
 import { block, stubGen } from "./helpers.js";
 
@@ -44,7 +45,7 @@ describe("statement handlers", () => {
   });
 
   it("loops end each iteration with the loop yield", () => {
-    const g = stubGen({ TIMES: numEx("n") });
+    const g = stubGen({ TIMES: numEx("n", NUM) });
     expect(statements.control_repeat!(block("control_repeat"), g)).toEqual([
       "for (let r0 = Math.round(n); r0 > 0; r0--) {",
       "  body;",
@@ -67,14 +68,19 @@ describe("statement handlers", () => {
 });
 
 describe("reporter handlers", () => {
-  it("arithmetic is typed as a number", () => {
-    const g = stubGen({ NUM1: numEx("a"), NUM2: lit("2") });
-    expect(reporters.operator_add!(block("operator_add"), g)).toEqual({ c: "(a + 2)", t: "num" });
+  it("arithmetic is typed from its operands", () => {
+    const g = stubGen({ NUM1: anyEx("a", POS_INT), NUM2: lit("2") });
+    const sum = reporters.operator_add!(block("operator_add"), g)!;
+    expect(sum.c).toBe("(a + 2)");
+    // Two positive integers add up to a positive integer, or overflow to Infinity; never NaN.
+    expect(sum.t & ~NUM).toBe(0);
+    // An untyped operand is cast first.
+    expect(reporters.operator_add!(block("operator_add"), stubGen({ NUM1: anyEx("a"), NUM2: lit("2") }))!.c).toBe("(toNum(a) + 2)");
   });
 
   it("join casts both sides to text", () => {
     const g = stubGen({ STRING1: lit("a"), STRING2: numEx("n") });
-    expect(reporters.operator_join!(block("operator_join"), g)).toEqual({ c: '("a" + ("" + n))', t: "str" });
+    expect(reporters.operator_join!(block("operator_join"), g)).toEqual({ c: '("a" + ("" + n))', t: STR });
   });
 });
 
@@ -83,7 +89,14 @@ describe("comparison", () => {
   const cmp = (a: Record<string, Ex>) => comparison(b, stubGen(a), "===", "eq").c;
 
   it("uses plain operators for two numbers", () => {
+    expect(cmp({ OPERAND1: numEx("a", NUM), OPERAND2: lit("3") })).toBe("(a === 3)");
+  });
+
+  it("keeps Scratch's rules for a number that may be NaN, which compares as text", () => {
+    expect(comparison(b, stubGen({ OPERAND1: numEx("a"), OPERAND2: lit("3") }), "<", "lt").c).toBe("lt(a, 3)");
+    // NaN never equals a number, so equality with a number that cannot be NaN stays plain.
     expect(cmp({ OPERAND1: numEx("a"), OPERAND2: lit("3") })).toBe("(a === 3)");
+    expect(cmp({ OPERAND1: numEx("a"), OPERAND2: numEx("b") })).toBe("eq(a, b)");
   });
 
   it("lowercases when a side is a text literal", () => {

@@ -1,14 +1,15 @@
 import type { Block, Target } from "@bytecat/sb3";
-
-/** Static type of a generated expression, used to skip casts that cannot change the value. */
-export type Type = "num" | "str" | "bool" | "any";
+import type { TypeSet } from "./analysis/typeset.js";
 
 /** A generated JavaScript expression with what the compiler knows about its value. */
 export interface Ex {
   c: string; // JavaScript code
-  t: Type;
+  /** Every kind of value the expression can have at runtime (see analysis/typeset.ts). */
+  t: TypeSet;
   /** Set when the value is a literal known at compile time. */
   k?: string;
+  /** Set on a literal that must be passed on as text even when it looks like a number (asset names). */
+  text?: boolean;
 }
 
 export interface Proc {
@@ -48,9 +49,21 @@ export interface Gen {
   field(b: Block, name: string): string;
   /** JavaScript reference for a variable or list field. */
   variable(field: FieldRef): string;
+  /** Every type the variable can hold: its initial value and anything assigned anywhere in the project. */
+  varType(field: FieldRef): TypeSet;
+  /** Records an assignment of a value of this type to the variable. */
+  noteWrite(field: FieldRef, type: TypeSet): void;
+  /** Every type an item of the list can have: its initial items and anything added anywhere. */
+  listType(field: FieldRef): TypeSet;
+  /** Records that an item of this type is added to the list or replaces one of its items. */
+  noteListWrite(field: FieldRef, type: TypeSet): void;
   list(field: FieldRef): string;
   /** JavaScript name of a custom block argument, if the name is a parameter of the current procedure. */
   param(name: string): string | undefined;
+  /** Every type a custom block argument of the current procedure can receive. */
+  paramType(name: string): TypeSet;
+  /** Records the types of the arguments passed in a call. */
+  noteCall(proc: Proc, args: TypeSet[]): void;
   /** The custom block with this proccode, if the target defines it. */
   proc(proccode: string | undefined): Proc | undefined;
   /** Compiles the stack starting at a block id. */

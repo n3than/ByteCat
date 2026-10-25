@@ -7,13 +7,13 @@ function p1_0(t, th, a0) {
   S.l["list_b"].push(("arg " + toStr(a0)));
   S.l["list_b"].push(toStr(a0).length);
   S.l["list_b"].push(eq(a0, 1));
-  S.l["list_b"].push(lt(a0, 2));
+  S.l["list_b"].push(lt(a0, "2"));
 }
 function p1_1(t, th, a0) {
   rt.switchCostume(t, a0);
 }
 function p1_2(t, th, a0) {
-  S.l["list_b"].push((toNum(a0) + toNum(a0)));
+  S.l["list_b"].push((a0 + a0));
 }
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
