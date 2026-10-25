@@ -49,7 +49,8 @@ export async function benchmark(
     let error: string | undefined;
     for (let i = 0; i < warmup + runs; i++) {
       const r = await engine.run(project, { timeoutMs });
-      if (!r.finished) error ??= `did not finish within ${timeoutMs} ms`;
+      if (r.error) error ??= r.error;
+      else if (!r.finished) error ??= `did not finish within ${timeoutMs} ms`;
       else if (JSON.stringify(r.log) !== JSON.stringify(expected)) {
         error ??= `wrong output: got ${JSON.stringify(r.log)}, expected ${JSON.stringify(expected)}`;
       }

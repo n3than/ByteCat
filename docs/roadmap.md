@@ -21,7 +21,7 @@ stage exists.
    its costume bounds.
 4. **Benchmark harness** (done, `@bytecat/bench`). `pnpm bench` runs every `bench/*.sbp` through
    sb3 to JS, checks the `log` output against `.expected`, and times it against scratch-vm. The
-   TurboWarp comparison is being added separately, as another engine. See
+   It times Bytecat, scratch-vm and TurboWarp (compiler on) side by side. See
    [benchmarks.md](benchmarks.md).
 
 Out of scope for the proof of concept: pen, sound, clones, collision (`touching`), extensions,

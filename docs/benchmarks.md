@@ -4,14 +4,15 @@
 expected `log` output, and times it.
 
 ```sh
-pnpm bench                                   # every bench/*.sbp on bytecat and scratch-vm, 1 warmup + 5 timed runs
+pnpm bench                                   # every bench/*.sbp on every engine, 1 warmup + 5 timed runs
 pnpm bench arith sieve                       # only these benchmarks
 pnpm bench --engines bytecat --runs 10       # choose engines, timed runs and warmup runs (--warmup)
+pnpm bench --baseline turbowarp              # speedup columns relative to TurboWarp instead of scratch-vm
 pnpm bench --json -o out/bench.json          # raw results; -o writes them to a file as JSON
 ```
 
-The command prints a Markdown table (median milliseconds per engine and the speedup over
-scratch-vm) and each engine's compile time. It exits with code 1 if any engine produced a wrong
+The command prints a Markdown table (median milliseconds per engine and the speedup over the
+baseline engine, scratch-vm unless `--baseline` says otherwise) and each engine's compile time. It exits with code 1 if any engine produced a wrong
 log or did not finish, and prints the reason.
 
 ## The benchmarks
@@ -45,6 +46,12 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
   loop on its own 60 Hz interval. Benchmarks that yield on every iteration (`yield_loop`, and
   `pingpong` to a degree) therefore partly measure that pacing difference, not only block speed.
   The warp benchmarks are the cleanest comparison.
+- TurboWarp runs with its compiler on and no warp timer. A script it cannot compile marks the
+  result `FAIL`, so its timings always measure compiled code. Blocks that TurboWarp runs through
+  its compatibility layer (calls back into interpreter block functions) still count as compiled,
+  so benchmarks heavy in those blocks are not pure compiled-code timings for TurboWarp.
+- `pingpong` is slow on TurboWarp because each `broadcast_wait` waits for the next tick, while the
+  Bytecat runtime keeps stepping threads within the same frame.
 - Numbers vary by machine and load. Compare ratios on the same machine, not absolute times.
 - Bytecat follows TurboWarp and has no list length limit. scratch-vm caps lists at 200000 items,
   so keep benchmark lists below that or the engines will disagree.
@@ -57,39 +64,31 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
    should print, and save it as `bench/NAME.expected` (one `log()` item per line).
 3. Tune the loop counts until it takes about 0.3 to 2 seconds in scratch-vm (`pnpm bench NAME`).
 
-`tests/bench.test.ts` runs every benchmark once on both engines inside `pnpm test`, so a missing
+`tests/bench.test.ts` runs every benchmark once on every registered engine inside `pnpm test`, so a missing
 or wrong `.expected` file fails `pnpm verify`.
 
 ## Adding an engine
 
 An engine implements `Engine` from `@bytecat/bench`: a `name`, a `description`, and
-`run(project, { timeoutMs })`, which returns `{ log, finished, runMs, compileMs? }`. Register it
-before the CLI looks up engines:
-
-```ts
-import { registerEngine } from "@bytecat/bench";
-
-registerEngine({ name: "turbowarp", description: "...", async run(project, { timeoutMs }) { ... } });
-```
-
-It can then be selected with `pnpm bench --engines bytecat,scratch-vm,turbowarp`. Engines should run in turbo
-mode and time from the green flag to the last script stopping, like the built-in ones. TurboWarp is
-being added separately.
+`run(project, { timeoutMs })`, which returns `{ log, finished, runMs, compileMs?, error? }`. Add it
+to the registry in `packages/bench/src/engines.ts` (or call `registerEngine`) and both `pnpm bench`
+and `tests/bench.test.ts` pick it up. Engines should run in turbo mode and time from the green flag
+to the last script stopping, like the built-in `bytecat`, `scratch-vm` and `turbowarp`.
 
 ## Sample results
 
-A sample from one machine (Linux, Node 22), 2026-10-25, `pnpm bench --runs 3` (1 warmup run).
-Treat it as an illustration, not a reference.
+A sample from one machine (Linux, Node 22), 2026-10-25, `pnpm bench --runs 3 --baseline turbowarp`
+(1 warmup run). Speedups are relative to TurboWarp, so below 1.0x means TurboWarp was faster.
+Treat it as an illustration, not a reference: Bytecat's `recursion` time varied between 62 and
+116 ms across runs on the same machine.
 
 ```
-| benchmark | bytecat (ms) | scratch-vm (ms) | bytecat speedup |
-| --- | --- | --- | --- |
-| arith | 14.8 | 860.0 | 58.1x |
-| pingpong | 191.0 | 1002.6 | 5.2x |
-| recursion | 68.7 | 1088.2 | 15.8x |
-| sieve | 28.4 | 822.8 | 29.0x |
-| strings | 33.5 | 428.3 | 12.8x |
-| yield_loop | 186.7 | 903.3 | 4.8x |
-
-Compile time (not included above): arith 0.4 ms, pingpong 0.2 ms, recursion 0.3 ms, sieve 0.5 ms, strings 0.4 ms, yield_loop 0.2 ms
+| benchmark | bytecat (ms) | scratch-vm (ms) | turbowarp (ms) | bytecat speedup | scratch-vm speedup |
+| --- | --- | --- | --- | --- | --- |
+| arith | 11.2 | 835.6 | 41.4 | 3.7x | 0.0x |
+| pingpong | 215.2 | 993.6 | 1947.2 | 9.0x | 2.0x |
+| recursion | 115.5 | 1197.0 | 40.8 | 0.4x | 0.0x |
+| sieve | 42.3 | 792.0 | 52.3 | 1.2x | 0.1x |
+| strings | 35.4 | 407.7 | 44.1 | 1.2x | 0.1x |
+| yield_loop | 203.9 | 821.7 | 269.6 | 1.3x | 0.3x |
 ```

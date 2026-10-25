@@ -11,6 +11,8 @@ export interface EngineResult {
   runMs: number;
   /** Time spent compiling, for engines that compile ahead of the run. */
   compileMs?: number;
+  /** Set when the engine ran but not the way it is meant to be measured, e.g. a compiler fallback. */
+  error?: string;
 }
 
 /**
@@ -45,7 +47,18 @@ export const scratchVm: Engine = {
   },
 };
 
-const registry = new Map<string, Engine>([bytecat, scratchVm].map((e) => [e.name, e]));
+export const turbowarp: Engine = {
+  name: "turbowarp",
+  description: "TurboWarp's compiler (pinned scratch-vm fork), headless, turbo mode",
+  async run(project, { timeoutMs }) {
+    const r = await runProject(writeSb3(project), { timeoutMs, turbo: true, engine: "turbowarp" });
+    // A script that fell back to TurboWarp's interpreter would not measure its compiler.
+    const error = r.compileErrors.length ? `TurboWarp could not compile: ${r.compileErrors.join("; ")}` : undefined;
+    return { log: r.log, finished: r.finished, runMs: r.elapsedMs, ...(error ? { error } : {}) };
+  },
+};
+
+const registry = new Map<string, Engine>([bytecat, scratchVm, turbowarp].map((e) => [e.name, e]));
 
 /** Adds an engine (for example TurboWarp) so `pnpm bench --engines` can select it. */
 export function registerEngine(engine: Engine): void {

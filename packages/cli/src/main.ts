@@ -26,7 +26,8 @@ Commands:
                                   reference is scratch-vm, turbowarp is TurboWarp's VM with its compiler
         [--timeout ms] [--json] [--answer text]...
   bench [names...]                Time bench/NAME.sbp (default: every bench/*.sbp) on each engine and check its output
-        [--engines bytecat,scratch-vm] [--runs 5] [--warmup 1]
+        [--engines bytecat,scratch-vm,turbowarp] [--runs 5] [--warmup 1]   (default: every engine)
+        [--baseline scratch-vm]       Engine the speedup columns compare against
         [--json] [-o results.json]    Exits with code 1 if an engine gave a wrong log or did not finish
 `;
 
@@ -40,6 +41,7 @@ const { positionals, values } = parseArgs({
     answer: { type: "string", multiple: true },
     engine: { type: "string", default: "bytecat" },
     engines: { type: "string" },
+    baseline: { type: "string", default: "scratch-vm" },
     runs: { type: "string", default: "5" },
     warmup: { type: "string", default: "1" },
     help: { type: "boolean", short: "h" },
@@ -191,7 +193,7 @@ switch (command) {
     const names = files.length
       ? files.map((f) => basename(f, ".sbp"))
       : sbpFiles(dir).map((f) => basename(f, ".sbp"));
-    const engines = (values.engines ?? "bytecat,scratch-vm").split(",").map((n) => {
+    const engines = (values.engines ?? engineNames().join(",")).split(",").map((n) => {
       try {
         return getEngine(n.trim());
       } catch (e) {
@@ -228,7 +230,7 @@ switch (command) {
     if (values.json) {
       console.log(JSON.stringify(results, null, 2));
     } else {
-      console.log(formatTable(results));
+      console.log(formatTable(results, values.baseline));
       const compiles = results.flatMap((r) => r.engines.filter((e) => e.compileMs !== undefined).map((e) => `${r.name} ${e.compileMs!.toFixed(1)} ms`));
       if (compiles.length) console.log(`\nCompile time (not included above): ${compiles.join(", ")}`);
     }

@@ -45,6 +45,12 @@ describe("benchmark", () => {
     expect(r.engines[0]!.error).toMatch(/did not finish within 123 ms/);
   });
 
+  it("passes on an error the engine reports", async () => {
+    const e = fake("e", [{ error: "fell back to the interpreter" }]);
+    const r = await benchmark("b", project, ["ok"], [e], { warmup: 0, runs: 3 });
+    expect(r.engines[0]).toMatchObject({ correct: false, error: "fell back to the interpreter" });
+  });
+
   it("checks output during warmup too", async () => {
     const e = fake("e", [{ log: ["wrong"] }, { log: ["ok"] }]);
     const r = await benchmark("b", project, ["ok"], [e], { warmup: 1, runs: 2 });
