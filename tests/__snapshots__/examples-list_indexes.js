@@ -56,6 +56,10 @@ return [
     S.l["list_7"].push("");
     S.l["list_7"].push("abc");
     S.l["list_7"].push("0");
+    S.l["list_7"].push("LAST");
+    S.l["list_7"].push("Last");
+    S.l["list_7"].push("ALL");
+    S.l["list_7"].push("RANDOM");
     S.v["var_0"] = "0";
     while (!gt(S.v["var_0"], 3)) {
       if (!eq(S.v["var_0"], 2)) {

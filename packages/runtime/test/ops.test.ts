@@ -78,12 +78,12 @@ describe("strings and math", () => {
 // ---- list fast paths vs the original implementation ----
 
 // A copy of the list helpers as they were before the fast paths, kept here as the reference.
+// Keywords are case-sensitive, like scratch-vm's Cast.toListIndex and TurboWarp.
 const slow = {
   listIndex(index: Value, length: number): number {
     if (typeof index === "string") {
-      const s = index.toLowerCase();
-      if (s === "last") return length;
-      if (s === "random" || s === "any") return length > 0 ? 1 + Math.floor(Math.random() * length) : 0;
+      if (index === "last") return length;
+      if (index === "random" || index === "any") return length > 0 ? 1 + Math.floor(Math.random() * length) : 0;
     }
     const i = Math.floor(ops.toNum(index));
     return i < 1 || i > length ? 0 : i;
@@ -93,7 +93,7 @@ const slow = {
     return i === 0 ? "" : list[i - 1]!;
   },
   deleteOf(list: Value[], index: Value): void {
-    if (typeof index === "string" && index.toLowerCase() === "all") {
+    if (index === "all") {
       list.length = 0;
       return;
     }
@@ -175,6 +175,21 @@ describe("list helpers match the original implementation", () => {
       }
     });
   }
+
+  it("list keywords are case-sensitive", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    for (const word of ["LAST", "Last", "RANDOM", "Random", "ANY", "Any"]) expect(ops.listIndex(word, 3)).toBe(0);
+    expect(ops.listIndex("last", 3)).toBe(3);
+    expect(ops.listIndex("random", 3)).toBe(1);
+    expect(ops.listIndex("any", 3)).toBe(1);
+    const list: Value[] = [1, 2, 3];
+    ops.deleteOf(list, "ALL");
+    ops.deleteOf(list, "All");
+    expect(list).toEqual([1, 2, 3]);
+    ops.deleteOf(list, "all");
+    expect(list).toEqual([]);
+    expect(ops.itemOf([1, 2, 3], "LAST")).toBe("");
+  });
 
   it("deleteOf removes the last item with pop and the first with shift", () => {
     const list: Value[] = [1, 2, 3, 4];

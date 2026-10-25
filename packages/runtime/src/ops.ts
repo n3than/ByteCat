@@ -111,15 +111,15 @@ function tan(x: number): number {
 // ---- lists ----
 
 /**
- * Resolves a Scratch list index ("last", "random", 1-based numbers) against a list of `length`
- * items. Returns 0 when out of range. This is the general path for any index value; the list
- * helpers below skip it when the index is already a number.
+ * Resolves a Scratch list index ("last", "random", "any", 1-based numbers) against a list of
+ * `length` items. Returns 0 when out of range. The keywords are case-sensitive, as in scratch-vm
+ * and TurboWarp: "LAST" is ordinary text, which casts to 0. This is the general path for any
+ * index value; the list helpers below skip it when the index is already a number.
  */
 export function listIndex(index: Value, length: number): number {
   if (typeof index === "string") {
-    const s = index.toLowerCase();
-    if (s === "last") return length;
-    if (s === "random" || s === "any") return length > 0 ? 1 + Math.floor(Math.random() * length) : 0;
+    if (index === "last") return length;
+    if (index === "random" || index === "any") return length > 0 ? 1 + Math.floor(Math.random() * length) : 0;
   }
   const i = Math.floor(toNum(index));
   return i < 1 || i > length ? 0 : i;
@@ -152,7 +152,7 @@ export function deleteOf(list: Value[], index: Value): void {
     i = Math.floor(index);
     if (!(i >= 1 && i <= length)) return;
   } else {
-    if (typeof index === "string" && index.toLowerCase() === "all") {
+    if (index === "all") {
       list.length = 0;
       return;
     }
