@@ -23,7 +23,7 @@ sprite Cat:
 ```
 
 ```sh
-pnpm bytecat run examples/hello.sbp          # run on the Bytecat runtime (--engine reference: scratch-vm), print log() output
+pnpm bytecat run examples/hello.sbp          # run on the Bytecat runtime (--engine reference: scratch-vm, --engine turbowarp: TurboWarp), print log() output
 pnpm bytecat build examples/hello.sbp        # write examples/hello.sb3
 pnpm bytecat build examples -o out/examples  # build every .sbp in a folder
 pnpm bytecat bundle examples/hello.sbp       # write out/hello.html, a standalone page that plays the project
@@ -272,7 +272,7 @@ Say and think bubbles are printed to stderr. A project that never stops (for exa
 
 Examples live in `examples/NAME.sbp` with the expected `log` output in `examples/NAME.expected`.
 `pnpm test` builds each example, validates it against the official sb3 schema, runs it in
-scratch-vm, and compares the output. To add a test project, add both files.
+scratch-vm and in TurboWarp (compiler on), and compares the output. To add a test project, add both files.
 
 Two more optional files test what the canvas shows and how a project reacts to input. They run in
 a real browser (`tests/browser.test.ts`: the standalone HTML from `bytecat bundle`, opened with

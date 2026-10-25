@@ -3,9 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Runs .sb3 projects headlessly in the official scratch-vm, as the ground truth for Bytecat's output.",
-  "exports": { ".": "./src/index.ts" },
+  "description": "Runs .sb3 projects headlessly in the official scratch-vm or TurboWarp's compiling fork, as the ground truth for Bytecat's output.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "dependencies": {
-    "scratch-vm": "^5.0.300"
+    "scratch-vm": "^5.0.300",
+    "turbowarp-vm": "github:TurboWarp/scratch-vm#f26ff67e951258a84d25cad3acaf8804eb202318"
   }
 }

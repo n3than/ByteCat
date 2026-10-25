@@ -21,7 +21,8 @@ Commands:
   bundle <file.sbp|file.sb3|dir>  Write a standalone HTML player (default out/NAME.html; a directory bundles every .sbp)
         [-o out.html|outdir]
   run <file.sbp|file.sb3>         Run and print log() output and say bubbles
-        [--engine bytecat|reference]  bytecat (default) is the compiled runtime, reference is scratch-vm
+        [--engine bytecat|reference|turbowarp]  bytecat (default) is the compiled runtime,
+                                  reference is scratch-vm, turbowarp is TurboWarp's VM with its compiler
         [--timeout ms] [--json] [--answer text]...
 `;
 
@@ -145,13 +146,15 @@ switch (command) {
     need(1);
     const timeoutMs = values.timeout ? Number(values.timeout) : 10_000;
     const answers = values.answer ?? [];
-    if (values.engine === "reference") {
-      const result = await runProject(load(files[0]!), { timeoutMs, answers });
+    if (values.engine === "reference" || values.engine === "turbowarp") {
+      const engine = values.engine === "reference" ? "scratch" : "turbowarp";
+      const result = await runProject(load(files[0]!), { timeoutMs, answers, engine });
       if (values.json) {
         console.log(JSON.stringify(result, null, 2));
       } else {
         for (const line of result.log) console.log(line);
         for (const s of result.says) console.error(`[${s.sprite} ${s.kind}s] ${s.text}`);
+        for (const e of result.compileErrors) console.error(`warning: TurboWarp could not compile ${e}`);
         console.error(`${result.finished ? "finished" : "timed out"} in ${result.elapsedMs.toFixed(0)} ms`);
       }
       if (!result.finished) process.exitCode = 3;
@@ -171,7 +174,7 @@ switch (command) {
       }
       if (!finished) process.exitCode = 3;
     } else {
-      console.error(`unknown engine "${values.engine}" (expected bytecat or reference)`);
+      console.error(`unknown engine "${values.engine}" (expected bytecat, reference or turbowarp)`);
       process.exit(2);
     }
     break;

@@ -12,6 +12,7 @@ pnpm test            # all tests, including the browser tests
 pnpm typecheck       # tsc over every package
 pnpm bytecat run examples/NAME.sbp     # run a pseudocode or .sb3 project on the Bytecat runtime
 pnpm bytecat run examples/NAME.sbp --engine reference  # run it in scratch-vm instead (ground truth)
+pnpm bytecat run examples/NAME.sbp --engine turbowarp  # run it in TurboWarp (compiler on); must agree too
 pnpm bytecat compile examples/NAME.sbp -o out.js        # compile to a JS module
 pnpm bytecat bundle examples/NAME.sbp -o out.html       # standalone HTML player (open it with ?test for test mode)
 pnpm examples:html   # bundle every example into out/examples

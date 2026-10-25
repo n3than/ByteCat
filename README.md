@@ -14,8 +14,8 @@ Requires Node 22+ and pnpm 10.
 ```sh
 pnpm install
 pnpm exec playwright install chromium  # once: the browser tests render every example in Chromium
-pnpm verify                            # typecheck, then unit tests + every example in scratch-vm, the Bytecat runtime and a browser
-pnpm bytecat run examples/primes.sbp   # compile pseudocode and run it on the Bytecat runtime (--engine reference for scratch-vm)
+pnpm verify                            # typecheck, then unit tests + every example in scratch-vm, TurboWarp, the Bytecat runtime and a browser
+pnpm bytecat run examples/primes.sbp   # compile pseudocode and run it on the Bytecat runtime (--engine reference for scratch-vm, turbowarp for TurboWarp)
 pnpm bytecat compile examples/primes.sbp -o out/primes.js  # compile to a JS module
 pnpm bytecat bundle examples/render.sbp  # write out/render.html: a standalone page that plays the project
 pnpm bytecat build examples/primes.sbp # write examples/primes.sb3, open it in TurboWarp or Scratch
@@ -29,7 +29,7 @@ Test projects are written in Bytecat pseudocode, documented in [docs/pseudocode.
 | --- | --- | --- |
 | Pseudocode to sb3 | `@bytecat/pseudo` | working |
 | sb3 types, read/write | `@bytecat/sb3` | working |
-| Reference runner (scratch-vm) | `@bytecat/reference` | working |
+| Reference runner (scratch-vm, TurboWarp) | `@bytecat/reference` | working |
 | CLI | `@bytecat/cli` | working |
 | sb3 to JavaScript | `@bytecat/compiler` | working (headless) |
 | Runtime | `@bytecat/runtime` | working (headless) |
