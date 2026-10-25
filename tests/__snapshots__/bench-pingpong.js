@@ -12,7 +12,7 @@ return [
     S.l["list_6"].push(S.v["var_0"]);
 } },
 { target: 2, kind: "broadcast", arg: "ping", fn: function* (t, th) {
-    S.v["var_0"] = toNum(S.v["var_0"]) + 1;
+    S.v["var_0"] = S.v["var_0"] + 1;
 } },
 ];
 })

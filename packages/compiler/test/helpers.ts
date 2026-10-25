@@ -1,6 +1,7 @@
 import type { Block, ProjectJson, Target } from "@bytecat/sb3";
 import type { Ex, Gen } from "../src/types.js";
-import { asAny, asBool, asNum, asStr, indent } from "../src/cast.js";
+import { ANY } from "../src/analysis/typeset.js";
+import { asAny, asBool, asNum, asStr, indent, lit } from "../src/cast.js";
 
 export function block(opcode: string, extra: Partial<Block> = {}): Block {
   return { opcode, next: null, parent: null, inputs: {}, fields: {}, shadow: false, topLevel: false, ...extra };
@@ -23,7 +24,7 @@ export function stubGen(inputs: Record<string, Ex> = {}, fields: Record<string, 
     target: target({}),
     procedure: undefined,
     yielded: false,
-    input: (_b, name) => inputs[name] ?? { c: '""', t: "str", k: "" },
+    input: (_b, name) => inputs[name] ?? lit(""),
     num: (b, name) => asNum(g.input(b, name)),
     str: (b, name) => asStr(g.input(b, name)),
     bool: (b, name) => asBool(g.input(b, name)),
@@ -31,7 +32,13 @@ export function stubGen(inputs: Record<string, Ex> = {}, fields: Record<string, 
     field: (_b, name) => fields[name] ?? "",
     variable: (f) => `t.v[${JSON.stringify(f?.[1] ?? f?.[0])}]`,
     list: (f) => `t.l[${JSON.stringify(f?.[1] ?? f?.[0])}]`,
+    varType: () => ANY,
+    noteWrite: () => {},
+    listType: () => ANY,
+    noteListWrite: () => {},
     param: () => undefined,
+    paramType: () => ANY,
+    noteCall: () => {},
     proc: () => undefined,
     stack: () => [],
     substack: () => indent(["body;"]),

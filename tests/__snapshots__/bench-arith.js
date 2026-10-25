@@ -6,9 +6,9 @@ const S = rt.stage;
 function p1_0(t, th, a0) {
   S.v["var_0"] = 0;
   S.v["var_1"] = 1;
-  while (!gt(S.v["var_1"], a0)) {
-    S.v["var_0"] = mod(((toNum(S.v["var_0"]) * 31) + (toNum(S.v["var_1"]) * 7)), 1000003);
-    S.v["var_1"] = toNum(S.v["var_1"]) + 1;
+  while (!(S.v["var_1"] > a0)) {
+    S.v["var_0"] = mod(((toNum(S.v["var_0"]) * 31) + (S.v["var_1"] * 7)), 1000003);
+    S.v["var_1"] = S.v["var_1"] + 1;
   }
 }
 return [

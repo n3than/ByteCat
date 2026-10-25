@@ -44,6 +44,8 @@ one stage:
 | `blocks/*.ts` | One file per Scratch category (`motion`, `looks`, `events`, `control`, `sensing`, `data`, `operators`, `procedures`), each exporting handler tables keyed by opcode. A handler is a pure function of a block and a `Gen`; returning `undefined` makes the block unsupported. `blocks/index.ts` merges the tables. |
 | `analysis/yields.ts` | Pure question "can this stack yield?": the waiting statements, the loops, the nesting statements and calls to non-sync procedures. A test checks these tables against what every handler actually does, so they cannot drift. |
 | `analysis/procedures.ts` | `collectProcedures` (the custom-block table) and `analyzeSync`, which settles which procedures are plain functions rather than generators by repeating `stackYields` until nothing changes. Runs before any code is generated. |
+| `analysis/typeset.ts` | The static type lattice: a type is a bit set of runtime kinds (positive or negative integer or fraction, +0, -0, the infinities, NaN, numeric string, other string, boolean), with `castNum` and transfer functions for `+ - * / mod round`. Pure, and tested by sampling values of every kind. |
+| `analysis/env.ts` | `TypeEnv`: the whole-program types of variables, list items and procedure parameters, which codegen reads and widens until they stop changing. |
 | `target.ts` | `TargetCodegen`: implements `Gen` for one target, dispatches blocks to handlers and compiles procedures and hat scripts. It throws if the code it generates for a procedure disagrees with the analysis. |
 | `emit.ts` | `emitProgram`: assembles the final `function (rt)` text. |
 | `codegen.ts` | `compileProject`: the driver over all targets. |
@@ -76,6 +78,19 @@ named "2" but the number 2 picks costume number 2 (`TargetCodegen.any`; inputs t
 always keep the string). Numbers and strings only show up differently in `switch costume to` and in
 "contents of list", which counts a number by its text like TurboWarp (see
 [deviations.md](deviations.md)).
+
+Every generated expression carries a static type (`Ex.t`), and a cast is left out only when the
+type proves it would return its input unchanged, so leaving it out cannot change behaviour.
+Variables, list items and procedure parameters get one type each for the whole program, the union
+of everything ever stored in them, starting from the initial values. `compileProject` generates the
+code, collects the types stored in this pass, and generates again until they stop growing (or widens
+to "anything" after 20 passes). So a counter set to 1 and only ever increased stays a number that
+is never NaN: `i > n` becomes a plain JavaScript `>` and `i + 1` needs no `toNum`. Two rules keep
+counters precise. Equality with a number that cannot be NaN is `===` when the other side is a
+number or a non-numeric string, since NaN and such strings never equal a number either way. And
+adding a literal smaller than 2^970 to a finite number cannot overflow, so a counter stepped by a
+literal stays finite and `i * i` cannot be `Infinity * 0`, which would be NaN.
+`tests/type-inference.test.ts` checks the benchmark hot loops stay free of casts.
 
 Comparisons against a
 literal are specialized: a text literal makes it a lowercase string comparison, and a numeric

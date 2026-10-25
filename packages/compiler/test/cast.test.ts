@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { INF, NUM, POS_INT } from "../src/analysis/typeset.js";
+import { sumType } from "../src/cast.js";
 import { asAny, asBool, asName, asNum, asStr, isNumeric, numericConstant, isTextLiteral, lit, numEx, numLiteral, strEx, boolEx, anyEx } from "../src/cast.js";
 
 describe("literals", () => {
@@ -14,7 +16,9 @@ describe("literals", () => {
     expect(isNumeric(lit("12"))).toBe(true);
     expect(isNumeric(lit(" "))).toBe(false);
     expect(isNumeric(lit("abc"))).toBe(false);
-    expect(isNumeric(numEx("x"))).toBe(true);
+    expect(isNumeric(numEx("x", NUM))).toBe(true);
+    // A number that may be NaN compares as text in Scratch, so it is not numeric.
+    expect(isNumeric(numEx("x"))).toBe(false);
     expect(isNumeric(anyEx("x"))).toBe(false);
     expect(isTextLiteral(lit("abc"))).toBe(true);
     expect(isTextLiteral(lit(" "))).toBe(true);
@@ -83,10 +87,16 @@ describe("casts", () => {
   });
 
   it("skips casts that cannot change the value", () => {
-    expect(asNum(numEx("a"))).toBe("a");
+    expect(asNum(numEx("a", NUM))).toBe("a");
+    expect(asNum(anyEx("a", POS_INT))).toBe("a");
     expect(asStr(strEx("a"))).toBe("a");
     expect(asBool(boolEx("a"))).toBe("a");
     expect(asAny(anyEx("a"))).toBe("a");
+  });
+
+  it("casts a number that may be NaN", () => {
+    expect(asNum(numEx("a"))).toBe("toNum(a)");
+    expect(asStr(numEx("a"))).toBe('("" + a)');
   });
 
   it("converts between known types", () => {
@@ -100,5 +110,21 @@ describe("casts", () => {
     expect(asStr(anyEx("a"))).toBe("toStr(a)");
     expect(asBool(anyEx("a"))).toBe("toBool(a)");
     expect(asBool(strEx("a"))).toBe("toBool(a)");
+  });
+});
+
+describe("sumType", () => {
+  it("adding a small literal never overflows to Infinity", () => {
+    expect(sumType(anyEx("i", POS_INT), lit("1")) & INF).toBe(0);
+    expect(sumType(anyEx("i", POS_INT), lit("1"), true) & INF).toBe(0);
+    // A huge literal, or an operand that is already infinite, still can.
+    expect(sumType(anyEx("i", POS_INT), lit("1e308")) & INF).not.toBe(0);
+    expect(sumType(anyEx("i", POS_INT | INF), lit("1")) & INF).not.toBe(0);
+    expect(sumType(anyEx("i", POS_INT), anyEx("j", POS_INT)) & INF).not.toBe(0);
+  });
+
+  it("is right at the edge: the largest double plus just under 2^970 stays finite", () => {
+    expect(Number.MAX_VALUE + 2 ** 970 * (1 - 2 ** -52)).toBe(Number.MAX_VALUE);
+    expect(Number.MAX_VALUE + 2 ** 970).toBe(Infinity);
   });
 });
