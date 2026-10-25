@@ -1,6 +1,7 @@
 # Working on Bytecat
 
-Bytecat is a Scratch 3 to JavaScript transpiler, built as a proof of concept first. Read
+Bytecat is a Scratch 3 to JavaScript transpiler that matches TurboWarp's behaviour, not the exact
+Scratch specification. Read
 `docs/architecture.md` for the layout and `docs/roadmap.md` for what is in scope.
 
 ## Commands
@@ -11,8 +12,8 @@ pnpm verify          # typecheck, then all tests; must pass before you finish
 pnpm test            # all tests, including the browser tests
 pnpm typecheck       # tsc over every package
 pnpm bytecat run examples/NAME.sbp     # run a pseudocode or .sb3 project on the Bytecat runtime
-pnpm bytecat run examples/NAME.sbp --engine reference  # run it in scratch-vm instead (ground truth)
-pnpm bytecat run examples/NAME.sbp --engine turbowarp  # run it in TurboWarp (compiler on); must agree too
+pnpm bytecat run examples/NAME.sbp --engine reference  # run it in scratch-vm instead (second check)
+pnpm bytecat run examples/NAME.sbp --engine turbowarp  # run it in TurboWarp (compiler on): the behaviour oracle
 pnpm bytecat compile examples/NAME.sbp -o out.js        # compile to a JS module
 pnpm bytecat bundle examples/NAME.sbp -o out.html       # standalone HTML player (open it with ?test for test mode)
 pnpm examples:html   # bundle every example into out/examples

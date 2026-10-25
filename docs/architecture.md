@@ -4,7 +4,7 @@
  .sbp text ──@bytecat/pseudo──▶ .sb3 ──@bytecat/compiler──▶ JS ──@bytecat/runtime──▶ canvas (@bytecat/player)
                                   │                                         (all four run in the browser in @bytecat/web)
                                   │
-                                  └──@bytecat/reference──▶ scratch-vm (ground truth), TurboWarp (compiled)
+                                  └──@bytecat/reference──▶ TurboWarp (oracle, compiled), scratch-vm
 ```
 
 A pnpm workspace with one package per pipeline stage. Packages export TypeScript source directly
@@ -52,8 +52,10 @@ passes much heavier.
 
 - **Deterministic output.** Same input, same bytes: ids come from a counter and the zip has a
   fixed timestamp. This keeps snapshots and diffs meaningful.
-- **scratch-vm is the oracle.** Behaviour is checked by running the same `.sb3` in scratch-vm and
-  comparing the `log` list, not by asserting on generated code. Every example also runs in
-  TurboWarp with its compiler on, which must agree too and must compile every script.
+- **TurboWarp is the oracle.** Behaviour is checked by running the same `.sb3` in TurboWarp
+  (compiler on, every script must compile) and comparing the `log` list, not by asserting on
+  generated code. Every example also runs in scratch-vm as a second check; where scratch-vm
+  knowingly differs, its output goes in `NAME.scratch.expected` and the difference is listed in
+  [deviations.md](deviations.md).
 - **Errors point at source.** Every pseudocode error carries file, line and column; the lowering
   step also records a block id → source line map (`bytecat build --map`).
