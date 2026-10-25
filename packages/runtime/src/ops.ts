@@ -137,10 +137,7 @@ export function deleteOf(list: Value[], index: Value): void {
 
 export function insertAt(list: Value[], index: Value, item: Value): void {
   const i = listIndex(index, list.length + 1);
-  if (i === 0) return;
-  list.splice(i - 1, 0, item);
-  // Like scratch-vm: inserting into a full list drops the last item to stay at the limit.
-  if (list.length > 200000) list.pop();
+  if (i !== 0) list.splice(i - 1, 0, item);
 }
 
 export function replaceAt(list: Value[], index: Value, item: Value): void {

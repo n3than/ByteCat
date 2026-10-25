@@ -23,7 +23,7 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
 | --- | --- |
 | `arith` | A tight arithmetic loop (multiply, add, modulo) inside a `define warp` procedure. |
 | `recursion` | Naive recursive Fibonacci inside a warp procedure, with a list as the call stack. Procedure calls and list push/pop. |
-| `sieve` | Sieve of Eratosthenes over a 150000 item list (Scratch lists hold at most 200000 items). List reads and writes in nested loops. |
+| `sieve` | Sieve of Eratosthenes over a 150000 item list (kept under scratch-vm's 200000 item list cap). List reads and writes in nested loops. |
 | `strings` | Building a 100000 character string with `join` and `letter`, then scanning it. String concatenation and indexing. |
 | `yield_loop` | A plain `repeat` in a `when flag` script, not in warp mode, so it yields every iteration. Scheduler overhead. |
 | `pingpong` | Two sprites exchanging `broadcast_wait` messages 400000 times. Event dispatch and thread start/wait. |
@@ -46,8 +46,8 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
   `pingpong` to a degree) therefore partly measure that pacing difference, not only block speed.
   The warp benchmarks are the cleanest comparison.
 - Numbers vary by machine and load. Compare ratios on the same machine, not absolute times.
-- Both engines enforce Scratch's 200000 item list limit (see `examples/list_limit.sbp`), so a
-  benchmark that overflows a list measures truncated work.
+- Bytecat follows TurboWarp and has no list length limit. scratch-vm caps lists at 200000 items,
+  so keep benchmark lists below that or the engines will disagree.
 
 ## Adding a benchmark
 

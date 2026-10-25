@@ -243,11 +243,7 @@ class TargetCodegen {
         const v = this.variable(b.fields.VARIABLE);
         return [`${v} = toNum(${v}) + ${num("VALUE")};`];
       }
-      case "data_addtolist": {
-        // Scratch silently ignores adds beyond its 200000 item list limit.
-        const l = this.list(b.fields.LIST);
-        return [`if (${l}.length < 200000) ${l}.push(${any("ITEM")});`];
-      }
+      case "data_addtolist": return [`${this.list(b.fields.LIST)}.push(${any("ITEM")});`];
       case "data_deleteoflist": return [`deleteOf(${this.list(b.fields.LIST)}, ${any("INDEX")});`];
       case "data_deletealloflist": return [`${this.list(b.fields.LIST)}.length = 0;`];
       case "data_insertatlist": return [`insertAt(${this.list(b.fields.LIST)}, ${any("INDEX")}, ${any("ITEM")});`];
