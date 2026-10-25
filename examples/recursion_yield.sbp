@@ -1,0 +1,14 @@
+var n = 0
+sprite Main:
+  define down(k):
+    if k > 0:
+      n += 1
+      down(k - 1)
+  when flag:
+    broadcast("go")
+    down(3)
+    log(join("done ", n))
+sprite Ticker:
+  when receive "go":
+    repeat 3:
+      log("tick")

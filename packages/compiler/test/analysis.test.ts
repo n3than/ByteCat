@@ -130,12 +130,22 @@ describe("analyzeSync", () => {
     expect(syncOf(t)).toEqual({ outer: false, middle: false, inner: false, bystander: true });
   });
 
-  it("handles recursion", () => {
+  it("makes a non-warp procedure that calls itself a generator, as scratch-vm and TurboWarp do", () => {
+    const t = withProcs({ rec: { blocks: { start: call("rec") } } });
+    expect(syncOf(t)).toEqual({ rec: false });
+  });
+
+  it("keeps a warp procedure that calls itself sync", () => {
+    const t = withProcs({ rec: { warp: true, blocks: { start: call("rec") } } });
+    expect(syncOf(t)).toEqual({ rec: true });
+  });
+
+  it("only treats direct recursion as a yield", () => {
     const t = withProcs({
-      sync_rec: { blocks: { start: call("sync_rec") } },
-      async_rec: { blocks: { start: call("async_rec", { next: "w" }), w: block("control_wait") } },
+      a: { blocks: { start: call("b") } },
+      b: { blocks: { start: call("a") } },
     });
-    expect(syncOf(t)).toEqual({ sync_rec: true, async_rec: false });
+    expect(syncOf(t)).toEqual({ a: true, b: true });
   });
 
   it("makes a warp caller of a waiting procedure a generator", () => {

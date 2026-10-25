@@ -38,13 +38,15 @@ export interface YieldContext {
   procs: ReadonlyMap<string, Proc>;
   /** True inside a warp procedure, where loops never yield. */
   warp: boolean;
+  /** Proccode of the procedure being analysed; undefined in a hat script. */
+  proccode?: string | undefined;
 }
 
 /**
  * True when compiling the stack that starts at `id` produces code that can yield: a waiting
  * statement, a loop outside warp mode, or a call to a procedure not (yet) known to be sync.
  * It follows the same blocks the code generator does: the `next` chain and the substacks of
- * the statements in `SUBSTACKS`.
+ * the statements in `SUBSTACKS`. A direct recursive call outside warp mode counts as a yield.
  */
 export function stackYields(ctx: YieldContext, id: string | null | undefined): boolean {
   while (id) {
@@ -60,6 +62,8 @@ function statementYields(ctx: YieldContext, b: Block): boolean {
   if (YIELDING_STATEMENTS.has(b.opcode)) return true;
   if (LOOPS.has(b.opcode) && !ctx.warp) return true;
   if (b.opcode === "procedures_call") {
+    // Like scratch-vm and TurboWarp, a direct recursive call outside warp mode yields first.
+    if (!ctx.warp && b.mutation?.proccode === ctx.proccode) return true;
     const proc = b.mutation?.proccode ? ctx.procs.get(b.mutation.proccode) : undefined;
     return proc !== undefined && !proc.sync;
   }

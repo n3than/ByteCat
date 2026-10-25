@@ -21,6 +21,7 @@ export function stubGen(inputs: Record<string, Ex> = {}, fields: Record<string, 
   let n = 0;
   const g = {
     target: target({}),
+    procedure: undefined,
     yielded: false,
     input: (_b, name) => inputs[name] ?? { c: '""', t: "str", k: "" },
     num: (b, name) => asNum(g.input(b, name)),

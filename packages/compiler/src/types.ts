@@ -35,6 +35,8 @@ export type FieldRef = [string, string | null] | [string] | undefined;
 export interface Gen {
   /** The target being compiled. */
   readonly target: Target;
+  /** The custom block whose body is being compiled; undefined in a hat script. */
+  readonly procedure: Proc | undefined;
   /** An input as an expression. Missing inputs are the empty string. */
   input(b: Block, name: string): Ex;
   /** An input cast to a number, string, boolean, or left as is. */

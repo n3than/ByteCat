@@ -8,10 +8,14 @@ export const procedureStatements: Record<string, StatementHandler> = {
     const ids = JSON.parse(b.mutation?.argumentids ?? "[]") as string[];
     const args = ids.map((id) => g.any(b, id));
     const call = `${proc.fn}(${["t", "th", ...args].join(", ")});`;
+    // Like scratch-vm and TurboWarp, a direct recursive call outside warp mode yields first. A
+    // warp caller further up the stack (th.warp > 0) still skips the yield.
+    const recursive = proc === g.procedure && !proc.warp;
+    const lead = recursive ? g.y("if (th.warp === 0) yield;") : [];
     // A sync procedure never reads th.warp, so it needs no warp bookkeeping.
     if (proc.sync) return [call];
     g.markYields();
-    if (!proc.warp) return [`yield* ${call}`];
+    if (!proc.warp) return [...lead, `yield* ${call}`];
     return ["th.warp++;", `try { yield* ${call} } finally { th.warp--; }`];
   },
 };

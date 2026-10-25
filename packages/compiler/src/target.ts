@@ -10,6 +10,7 @@ export class TargetCodegen implements Gen {
   private readonly blocks: Record<string, Block>;
   private readonly procs: Map<string, Proc>;
   private readonly scope: Scope;
+  procedure: Proc | undefined;
   private params = new Map<string, string>();
   private counter = 0;
   /** Set while compiling the body of a warp procedure, where loops never yield. */
@@ -50,6 +51,7 @@ export class TargetCodegen implements Gen {
 
   private procBody(proc: Proc, block: Block): string[] {
     this.params = new Map(proc.params.map((name, i) => [name, `a${i}`]));
+    this.procedure = proc;
     this.inWarp = proc.warp;
     this.yields = false;
     const body = this.stack(block.next);
@@ -58,6 +60,7 @@ export class TargetCodegen implements Gen {
       throw new Error(`internal error: yield analysis disagrees with codegen for ${proc.fn}`);
     }
     this.params = new Map();
+    this.procedure = undefined;
     this.inWarp = false;
     return body;
   }

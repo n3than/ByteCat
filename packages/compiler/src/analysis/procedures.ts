@@ -6,7 +6,7 @@ export interface ProcedureTable {
   /** Custom blocks by proccode. */
   procs: Map<string, Proc>;
   /** Each procedure with its `procedures_definition` block, in block order. */
-  defs: { proc: Proc; definition: Block }[];
+  defs: { proc: Proc; proccode: string; definition: Block }[];
 }
 
 /** Finds the custom blocks a target defines. Every procedure starts out sync. */
@@ -29,8 +29,9 @@ export function collectProcedures(target: Target, index: number): ProcedureTable
     if (block.opcode !== "procedures_definition") continue;
     const protoId = block.inputs.custom_block?.[1];
     const proto = typeof protoId === "string" ? target.blocks[protoId] : undefined;
-    const proc = proto?.mutation?.proccode ? procs.get(proto.mutation.proccode) : undefined;
-    if (proc) defs.push({ proc, definition: block });
+    const proccode = proto?.mutation?.proccode;
+    const proc = proccode ? procs.get(proccode) : undefined;
+    if (proc && proccode) defs.push({ proc, proccode, definition: block });
   }
   return { procs, defs };
 }
@@ -43,9 +44,9 @@ export function collectProcedures(target: Target, index: number): ProcedureTable
 export function analyzeSync(target: Target, table: ProcedureTable): void {
   for (let changed = true; changed; ) {
     changed = false;
-    for (const { proc, definition } of table.defs) {
+    for (const { proc, proccode, definition } of table.defs) {
       if (!proc.sync) continue;
-      const ctx = { blocks: target.blocks, procs: table.procs, warp: proc.warp };
+      const ctx = { blocks: target.blocks, procs: table.procs, warp: proc.warp, proccode };
       if (stackYields(ctx, definition.next)) {
         proc.sync = false;
         changed = true;
