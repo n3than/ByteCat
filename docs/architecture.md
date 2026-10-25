@@ -42,7 +42,9 @@ one stage:
 | `cast.ts` | Pure helpers: literals, `asNum`/`asStr`/`asBool`/`asAny` casts that skip casts that cannot change the value, `indent`. |
 | `scope.ts` | `Scope`: variable and list fields → `t.v[id]` / `S.v[id]`, with the stale-id fallback and the startup prelude for unknown ones. |
 | `blocks/*.ts` | One file per Scratch category (`motion`, `looks`, `events`, `control`, `sensing`, `data`, `operators`, `procedures`), each exporting handler tables keyed by opcode. A handler is a pure function of a block and a `Gen`; returning `undefined` makes the block unsupported. `blocks/index.ts` merges the tables. |
-| `target.ts` | `TargetCodegen`: implements `Gen` for one target, dispatches blocks to handlers, compiles procedures (including the sync/yield fixpoint) and hat scripts. |
+| `analysis/yields.ts` | Pure question "can this stack yield?": the waiting statements, the loops, the nesting statements and calls to non-sync procedures. A test checks these tables against what every handler actually does, so they cannot drift. |
+| `analysis/procedures.ts` | `collectProcedures` (the custom-block table) and `analyzeSync`, which settles which procedures are plain functions rather than generators by repeating `stackYields` until nothing changes. Runs before any code is generated. |
+| `target.ts` | `TargetCodegen`: implements `Gen` for one target, dispatches blocks to handlers and compiles procedures and hat scripts. It throws if the code it generates for a procedure disagrees with the analysis. |
 | `emit.ts` | `emitProgram`: assembles the final `function (rt)` text. |
 | `codegen.ts` | `compileProject`: the driver over all targets. |
 
@@ -57,7 +59,7 @@ To support a new block, add a handler to the right `blocks/` file and a test in
 every iteration unless the script is in warp mode, and any blocked state (`wait`, `wait until`,
 `ask`) does `yield rt.WAIT`. A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
-never yields compiles to a plain function, which is much cheaper to call. Calls to a plain
+never yields compiles to a plain function, which is much cheaper to call. A direct recursive call in a non-warp procedure yields before the call (`if (th.warp === 0) yield;`), as scratch-vm and TurboWarp do, so such a procedure is a generator; a warp one stays plain. Calls to a plain
 function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
 reads it and a plain function contains none; a new runtime helper that reads `th.warp` would have
 to make its caller a generator. Comparisons against a

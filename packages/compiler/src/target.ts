@@ -1,4 +1,5 @@
 import type { Block, CompactPrimitive, Input, InputValue, Target } from "@bytecat/sb3";
+import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
 import { statements, reporters } from "./blocks/index.js";
 import { asAny, asBool, asNum, asStr, indent, lit } from "./cast.js";
 import { Scope } from "./scope.js";
@@ -7,15 +8,16 @@ import type { Ex, FieldRef, Gen, Proc } from "./types.js";
 /** Compiles the procedures and hat scripts of one target. */
 export class TargetCodegen implements Gen {
   private readonly blocks: Record<string, Block>;
-  private readonly procs = new Map<string, Proc>();
+  private readonly procs: Map<string, Proc>;
   private readonly scope: Scope;
+  procedure: Proc | undefined;
   private params = new Map<string, string>();
   private counter = 0;
   /** Set while compiling the body of a warp procedure, where loops never yield. */
   private inWarp = false;
   /** Set when the code compiled since the last reset can yield. */
   private yields = false;
-  /** Every procedure definition with its compiled body, from analyzeProcedures. */
+  /** Every procedure definition with its compiled body. */
   private readonly procDefs: { proc: Proc; body: string[] }[];
 
   constructor(
@@ -27,20 +29,11 @@ export class TargetCodegen implements Gen {
   ) {
     this.scope = new Scope(target, stage, prelude);
     this.blocks = target.blocks;
-    let n = 0;
-    for (const block of Object.values(this.blocks)) {
-      if (block.opcode !== "procedures_prototype" || !block.mutation?.proccode) continue;
-      const names = JSON.parse(block.mutation.argumentnames ?? "[]") as string[];
-      if (this.procs.has(block.mutation.proccode)) continue;
-      this.procs.set(block.mutation.proccode, {
-        fn: `p${index}_${n++}`,
-        params: names,
-        warp: block.mutation.warp === "true" || (block.mutation.warp as unknown) === true,
-        sync: true,
-      });
-    }
-    // Decide which procedures are sync before compiling any call to them (hats() relies on it).
-    this.procDefs = this.analyzeProcedures();
+    const table = collectProcedures(target, index);
+    this.procs = table.procs;
+    // Settle which procedures are sync before compiling any call to them.
+    analyzeSync(target, table);
+    this.procDefs = table.defs.map(({ proc, definition }) => ({ proc, body: this.procBody(proc, definition) }));
   }
 
   // ---- top level ----
@@ -56,41 +49,18 @@ export class TargetCodegen implements Gen {
     return out;
   }
 
-  /** Compiles every procedure body and settles which procedures are sync. */
-  private analyzeProcedures(): { proc: Proc; body: string[] }[] {
-    const defs: [Proc, Block][] = [];
-    for (const block of Object.values(this.blocks)) {
-      if (block.opcode !== "procedures_definition") continue;
-      const protoId = block.inputs.custom_block?.[1];
-      const proto = typeof protoId === "string" ? this.blocks[protoId] : undefined;
-      const proc = proto?.mutation?.proccode ? this.procs.get(proto.mutation.proccode) : undefined;
-      if (proc) defs.push([proc, block]);
-    }
-    // Every procedure starts out sync. Compiling a body that can yield (a wait, a loop outside
-    // warp, or a call to a procedure that can yield) makes it a generator, which can make its
-    // callers generators too, so repeat until nothing changes.
-    let bodies: string[][];
-    for (;;) {
-      let changed = false;
-      bodies = defs.map(([proc, block]) => {
-        const body = this.procBody(proc, block);
-        if (this.yields && proc.sync) {
-          proc.sync = false;
-          changed = true;
-        }
-        return body;
-      });
-      if (!changed) break;
-    }
-    return defs.map(([proc], i) => ({ proc, body: bodies[i]! }));
-  }
-
   private procBody(proc: Proc, block: Block): string[] {
     this.params = new Map(proc.params.map((name, i) => [name, `a${i}`]));
+    this.procedure = proc;
     this.inWarp = proc.warp;
     this.yields = false;
     const body = this.stack(block.next);
+    // The analysis and the handlers must agree, or a generator would be called as a plain function.
+    if (this.yields === proc.sync) {
+      throw new Error(`internal error: yield analysis disagrees with codegen for ${proc.fn}`);
+    }
     this.params = new Map();
+    this.procedure = undefined;
     this.inWarp = false;
     return body;
   }

@@ -21,6 +21,7 @@ export function stubGen(inputs: Record<string, Ex> = {}, fields: Record<string, 
   let n = 0;
   const g = {
     target: target({}),
+    procedure: undefined,
     yielded: false,
     input: (_b, name) => inputs[name] ?? { c: '""', t: "str", k: "" },
     num: (b, name) => asNum(g.input(b, name)),
@@ -35,7 +36,10 @@ export function stubGen(inputs: Record<string, Ex> = {}, fields: Record<string, 
     stack: () => [],
     substack: () => indent(["body;"]),
     tmp: () => `r${n++}`,
-    loopYield: () => ["  if (th.warp === 0) yield;"],
+    loopYield: () => {
+      g.yielded = true;
+      return ["  if (th.warp === 0) yield;"];
+    },
     y: (line) => {
       g.yielded = true;
       return [line];
