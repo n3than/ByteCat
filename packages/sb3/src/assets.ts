@@ -1,11 +1,9 @@
-import { createHash } from "node:crypto";
+import { md5 } from "./md5.js";
 import type { Costume } from "./types.js";
 
-const encoder = new TextEncoder();
+export { md5 } from "./md5.js";
 
-export function md5(data: Uint8Array): string {
-  return createHash("md5").update(data).digest("hex");
-}
+const encoder = new TextEncoder();
 
 export interface Asset {
   costume: Costume;
