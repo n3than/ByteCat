@@ -1,0 +1,20 @@
+# Real recursion: each call pushes its argument on a list used as a stack.
+var result = 1
+list stack
+
+sprite Main:
+  define factorial(n):
+    if n <= 1:
+      result = 1
+    else:
+      stack.add(n)
+      factorial(n - 1)
+      result *= stack[stack.length]
+      stack.delete(stack.length)
+
+  when flag:
+    factorial(5)
+    log(result)
+    factorial(10)
+    log(result)
+    log(stack.length)

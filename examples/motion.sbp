@@ -1,0 +1,20 @@
+# Sprite state: position, direction and costumes, read back with reporters.
+# (Size is left out: the headless reference VM has no renderer, so it cannot change size.)
+sprite Ball:
+  costume ball = circle "#ff4444"
+  costume box = square
+  position -100, 50
+  direction 90
+
+  when flag:
+    goto(0, 0)
+    move(30)
+    log(x_position())
+    turn_right(90)
+    move(20)
+    log(y_position())
+    log(direction())
+    switch_costume("box")
+    log(costume_name())
+    next_costume()
+    log(costume_number())

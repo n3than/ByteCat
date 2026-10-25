@@ -1,0 +1,11 @@
+{
+  "name": "@bytecat/pseudo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compiles Bytecat pseudocode (.sbp) into Scratch 3 projects (.sb3).",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@bytecat/sb3": "workspace:*"
+  }
+}

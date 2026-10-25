@@ -1,0 +1,18 @@
+# Two sprites talking through broadcasts. broadcast_wait blocks until every receiver finishes.
+var turn = 0
+
+sprite Ping:
+  when flag:
+    repeat 3:
+      turn += 1
+      log(join("ping ", turn))
+      broadcast_wait("ping")
+    broadcast("done")
+
+sprite Pong:
+  when receive "ping":
+    log(join("pong ", turn))
+
+  when receive "done":
+    log("game over")
+    stop("all")

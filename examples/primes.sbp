@@ -1,0 +1,22 @@
+# Sieve-free prime search: while loops, modulo, boolean variables and lists.
+var n = 2
+var d = 2
+var is_prime = 1
+list primes
+
+sprite Main:
+  when flag:
+    primes.clear()
+    while primes.length < 10:
+      is_prime = 1
+      d = 2
+      while d * d <= n and is_prime = 1:
+        if n % d = 0:
+          is_prime = 0
+        d += 1
+      if is_prime = 1:
+        primes.add(n)
+      n += 1
+    log(primes)
+    log(primes.contains(29))
+    log(primes.index_of(13))

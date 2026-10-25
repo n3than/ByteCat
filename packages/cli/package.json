@@ -1,0 +1,13 @@
+{
+  "name": "@bytecat/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The bytecat command line: build, inspect and run projects.",
+  "bin": { "bytecat": "./src/main.ts" },
+  "dependencies": {
+    "@bytecat/pseudo": "workspace:*",
+    "@bytecat/reference": "workspace:*",
+    "@bytecat/sb3": "workspace:*"
+  }
+}

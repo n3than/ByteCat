@@ -1,0 +1,7 @@
+node_modules/
+dist/
+out/
+*.tsbuildinfo
+*.sb3
+*.map.json
+.DS_Store

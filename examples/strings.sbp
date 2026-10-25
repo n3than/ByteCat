@@ -1,0 +1,14 @@
+# String reporters: join, letter, length, contains, and building a reversed string.
+var word = "bytecat"
+var reversed = ""
+var i = 0
+
+sprite Main:
+  when flag:
+    log(length(word))
+    log(letter(1, word))
+    log(contains(word, "cat"))
+    for i = 1 to length(word):
+      reversed = join(letter(i, word), reversed)
+    log(reversed)
+    log(join("a", "b", "c", 1 + 2))

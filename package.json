@@ -1,0 +1,32 @@
+{
+  "name": "bytecat",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bytecat": "tsx packages/cli/src/main.ts",
+    "build": "tsc -b",
+    "typecheck": "tsc -b && tsc -p tests",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "examples": "tsx packages/cli/src/main.ts build examples -o out/examples",
+    "docs": "tsx scripts/gen-docs.ts"
+  },
+  "devDependencies": {
+    "@bytecat/pseudo": "workspace:*",
+    "@bytecat/reference": "workspace:*",
+    "@types/node": "^22.10.0",
+    "scratch-parser": "^6.0.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

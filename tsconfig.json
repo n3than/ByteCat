@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/sb3" },
+    { "path": "packages/pseudo" },
+    { "path": "packages/reference" },
+    { "path": "packages/cli" }
+  ]
+}

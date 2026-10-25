@@ -1,0 +1,19 @@
+# Bubble sort on a list, using indexing, item replacement and nested loops.
+var i = 0
+var j = 0
+var tmp = 0
+var swapped = 1
+list items = [5, 3, 9, 1, 7, 2, 8]
+
+sprite Main:
+  when flag:
+    while swapped = 1:
+      swapped = 0
+      for j = 1 to items.length - 1:
+        if items[j] > items[j + 1]:
+          tmp = items[j]
+          items[j] = items[j + 1]
+          items[j + 1] = tmp
+          swapped = 1
+    for i = 1 to items.length:
+      log(items[i])

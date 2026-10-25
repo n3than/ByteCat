@@ -1,0 +1,10 @@
+# The smallest useful project: log a few values and finish.
+var count = 0
+
+sprite Cat:
+  when flag:
+    log("hello")
+    repeat 3:
+      count += 1
+      log(join("count is ", count))
+    say("done")

@@ -1,0 +1,11 @@
+{
+  "name": "@bytecat/sb3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scratch 3 project types plus .sb3 reading and writing.",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
+}

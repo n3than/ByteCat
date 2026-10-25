@@ -1,0 +1,11 @@
+{
+  "name": "@bytecat/reference",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Runs .sb3 projects headlessly in the official scratch-vm, as the ground truth for Bytecat's output.",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "scratch-vm": "^5.0.300"
+  }
+}
