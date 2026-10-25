@@ -7,13 +7,13 @@ expected `log` output, and times it.
 pnpm bench                                   # every bench/*.sbp on every engine, 1 warmup + 5 timed runs
 pnpm bench arith sieve                       # only these benchmarks
 pnpm bench --engines bytecat --runs 10       # choose engines, timed runs and warmup runs (--warmup)
-pnpm bench --baseline turbowarp              # speedup columns relative to TurboWarp instead of scratch-vm
+pnpm bench --baseline scratch-vm             # speedup columns relative to scratch-vm instead of TurboWarp
 pnpm bench --json -o out/bench.json          # raw results; -o writes them to a file as JSON
 ```
 
 The command prints a Markdown table (median milliseconds per engine and the speedup over the
-baseline engine: `--baseline` if given, otherwise scratch-vm when it is selected, otherwise the first
-selected engine other than bytecat) and each engine's compile time. It exits with code 1 if any engine produced a wrong
+baseline engine: `--baseline` if given, otherwise TurboWarp, then scratch-vm, when selected,
+otherwise the first selected engine other than bytecat) and each engine's compile time. It exits with code 1 if any engine produced a wrong
 log or did not finish, and prints the reason.
 
 ## The benchmarks
@@ -80,7 +80,7 @@ to the last script stopping, like the built-in `bytecat`, `scratch-vm` and `turb
 
 ## Sample results
 
-A sample from one machine (Linux, Node 22), 2026-10-25, `pnpm bench --runs 3 --baseline turbowarp`
+A sample from one machine (Linux, Node 22), 2026-10-25, `pnpm bench --runs 3`
 (1 warmup run). Speedups are relative to TurboWarp, so below 1.0x means TurboWarp was faster.
 Treat it as an illustration, not a reference: Bytecat's `recursion` time varied between 62 and
 116 ms across runs on the same machine.

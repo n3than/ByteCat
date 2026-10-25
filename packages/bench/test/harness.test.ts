@@ -63,7 +63,7 @@ describe("formatTable", () => {
     const fast = fake("fast", [{ runMs: 10 }]);
     const base = fake("scratch-vm", [{ runMs: 100 }]);
     const r = await benchmark("b", project, ["ok"], [fast, base], { warmup: 0, runs: 1 });
-    expect(formatTable([r]).split("\n")).toEqual([
+    expect(formatTable([r], "scratch-vm").split("\n")).toEqual([
       "| benchmark | fast (ms) | scratch-vm (ms) | fast speedup |",
       "| --- | --- | --- | --- |",
       "| b | 10.0 | 100.0 | 10.0x |",
@@ -74,19 +74,19 @@ describe("formatTable", () => {
     const slow = fake("slow", [{ runMs: 2000 }]);
     const base = fake("scratch-vm", [{ runMs: 100 }]);
     const r = await benchmark("b", project, ["ok"], [slow, base], { warmup: 0, runs: 1 });
-    expect(formatTable([r]).split("\n")[2]).toBe("| b | 2000.0 | 100.0 | 0.050x |");
+    expect(formatTable([r], "scratch-vm").split("\n")[2]).toBe("| b | 2000.0 | 100.0 | 0.050x |");
   });
 
   it("shows FAIL and no speedup for an incorrect engine", async () => {
     const bad = fake("bad", [{ log: ["wrong"], runMs: 10 }]);
     const base = fake("scratch-vm", [{ runMs: 100 }]);
     const r = await benchmark("b", project, ["ok"], [bad, base], { warmup: 0, runs: 1 });
-    expect(formatTable([r]).split("\n")[2]).toBe("| b | FAIL | 100.0 |  |");
+    expect(formatTable([r], "scratch-vm").split("\n")[2]).toBe("| b | FAIL | 100.0 |  |");
   });
 
   it("leaves speedups empty when the baseline engine did not run", async () => {
     const r = await benchmark("b", project, ["ok"], [fake("a", [{ runMs: 5 }])], { warmup: 0, runs: 1 });
-    expect(formatTable([r]).split("\n")[2]).toBe("| b | 5.0 |  |");
+    expect(formatTable([r], "scratch-vm").split("\n")[2]).toBe("| b | 5.0 |  |");
   });
 });
 
@@ -96,9 +96,10 @@ describe("pickBaseline", () => {
     expect(pickBaseline(["bytecat", "turbowarp"], "scratch-vm")).toBeUndefined();
   });
 
-  it("defaults to scratch-vm, then the first engine other than bytecat", () => {
-    expect(pickBaseline(["bytecat", "scratch-vm", "turbowarp"])).toBe("scratch-vm");
-    expect(pickBaseline(["bytecat", "turbowarp"])).toBe("turbowarp");
+  it("defaults to turbowarp, then scratch-vm, then the first engine other than bytecat", () => {
+    expect(pickBaseline(["bytecat", "scratch-vm", "turbowarp"])).toBe("turbowarp");
+    expect(pickBaseline(["bytecat", "scratch-vm"])).toBe("scratch-vm");
+    expect(pickBaseline(["bytecat", "other"])).toBe("other");
     expect(pickBaseline(["bytecat"])).toBe("bytecat");
   });
 });

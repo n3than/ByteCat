@@ -27,8 +27,8 @@ Commands:
         [--timeout ms] [--json] [--answer text]...
   bench [names...]                Time bench/NAME.sbp (default: every bench/*.sbp) on each engine and check its output
         [--engines bytecat,scratch-vm,turbowarp] [--runs 5] [--warmup 1]   (default: every engine)
-        [--baseline scratch-vm]       Engine the speedup columns compare against
-                                      (default: scratch-vm if selected, else the first selected engine other than bytecat)
+        [--baseline turbowarp]        Engine the speedup columns compare against (default: turbowarp, else
+                                      scratch-vm, if selected, else the first selected engine other than bytecat)
         [--json] [-o results.json]    Exits with code 1 if an engine gave a wrong log or did not finish
 `;
 
