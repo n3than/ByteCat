@@ -49,7 +49,8 @@ export async function benchmark(
     let error: string | undefined;
     for (let i = 0; i < warmup + runs; i++) {
       const r = await engine.run(project, { timeoutMs });
-      if (!r.finished) error ??= `did not finish within ${timeoutMs} ms`;
+      if (r.error) error ??= r.error;
+      else if (!r.finished) error ??= `did not finish within ${timeoutMs} ms`;
       else if (JSON.stringify(r.log) !== JSON.stringify(expected)) {
         error ??= `wrong output: got ${JSON.stringify(r.log)}, expected ${JSON.stringify(expected)}`;
       }
@@ -72,8 +73,19 @@ export async function benchmark(
   return { name, engines: stats };
 }
 
+/**
+ * The engine the speedup columns compare against: an explicit choice, otherwise turbowarp, then
+ * scratch-vm, when selected, otherwise the first selected engine other than bytecat. Returns undefined when an
+ * explicit choice is not among the selected engines.
+ */
+export function pickBaseline(selected: string[], explicit?: string): string | undefined {
+  if (explicit !== undefined) return selected.includes(explicit) ? explicit : undefined;
+  for (const n of ["turbowarp", "scratch-vm"]) if (selected.includes(n)) return n;
+  return selected.find((n) => n !== "bytecat") ?? selected[0];
+}
+
 /** Formats results as a Markdown table, with each engine's speed relative to the baseline engine. */
-export function formatTable(results: BenchResult[], baseline = "scratch-vm"): string {
+export function formatTable(results: BenchResult[], baseline = "turbowarp"): string {
   const names = [...new Set(results.flatMap((r) => r.engines.map((e) => e.engine)))];
   const header = ["benchmark", ...names.map((n) => `${n} (ms)`), ...names.filter((n) => n !== baseline).map((n) => `${n} speedup`)];
   const rows = results.map((r) => {
@@ -87,7 +99,9 @@ export function formatTable(results: BenchResult[], baseline = "scratch-vm"): st
     const speed = (n: string) => {
       const e = by.get(n);
       if (!e || !base || !e.correct || !base.correct) return "";
-      return `${(base.medianMs / Math.max(e.medianMs, 0.01)).toFixed(1)}x`;
+      const ratio = base.medianMs / Math.max(e.medianMs, 0.01);
+      // Two significant digits below 1, so a much slower engine reads 0.05x rather than 0.0x.
+      return `${ratio < 1 ? ratio.toPrecision(2) : ratio.toFixed(1)}x`;
     };
     return [r.name, ...names.map(cell), ...names.filter((n) => n !== baseline).map(speed)];
   });

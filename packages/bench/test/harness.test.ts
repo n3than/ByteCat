@@ -1,6 +1,6 @@
 import type { Project } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { benchmark, formatTable, type Engine, type EngineResult } from "../src/index.js";
+import { benchmark, formatTable, pickBaseline, type Engine, type EngineResult } from "../src/index.js";
 
 const project = {} as Project;
 
@@ -45,6 +45,12 @@ describe("benchmark", () => {
     expect(r.engines[0]!.error).toMatch(/did not finish within 123 ms/);
   });
 
+  it("passes on an error the engine reports", async () => {
+    const e = fake("e", [{ error: "fell back to the interpreter" }]);
+    const r = await benchmark("b", project, ["ok"], [e], { warmup: 0, runs: 3 });
+    expect(r.engines[0]).toMatchObject({ correct: false, error: "fell back to the interpreter" });
+  });
+
   it("checks output during warmup too", async () => {
     const e = fake("e", [{ log: ["wrong"] }, { log: ["ok"] }]);
     const r = await benchmark("b", project, ["ok"], [e], { warmup: 1, runs: 2 });
@@ -57,22 +63,43 @@ describe("formatTable", () => {
     const fast = fake("fast", [{ runMs: 10 }]);
     const base = fake("scratch-vm", [{ runMs: 100 }]);
     const r = await benchmark("b", project, ["ok"], [fast, base], { warmup: 0, runs: 1 });
-    expect(formatTable([r]).split("\n")).toEqual([
+    expect(formatTable([r], "scratch-vm").split("\n")).toEqual([
       "| benchmark | fast (ms) | scratch-vm (ms) | fast speedup |",
       "| --- | --- | --- | --- |",
       "| b | 10.0 | 100.0 | 10.0x |",
     ]);
   });
 
+  it("keeps two significant digits for ratios below 1", async () => {
+    const slow = fake("slow", [{ runMs: 2000 }]);
+    const base = fake("scratch-vm", [{ runMs: 100 }]);
+    const r = await benchmark("b", project, ["ok"], [slow, base], { warmup: 0, runs: 1 });
+    expect(formatTable([r], "scratch-vm").split("\n")[2]).toBe("| b | 2000.0 | 100.0 | 0.050x |");
+  });
+
   it("shows FAIL and no speedup for an incorrect engine", async () => {
     const bad = fake("bad", [{ log: ["wrong"], runMs: 10 }]);
     const base = fake("scratch-vm", [{ runMs: 100 }]);
     const r = await benchmark("b", project, ["ok"], [bad, base], { warmup: 0, runs: 1 });
-    expect(formatTable([r]).split("\n")[2]).toBe("| b | FAIL | 100.0 |  |");
+    expect(formatTable([r], "scratch-vm").split("\n")[2]).toBe("| b | FAIL | 100.0 |  |");
   });
 
   it("leaves speedups empty when the baseline engine did not run", async () => {
     const r = await benchmark("b", project, ["ok"], [fake("a", [{ runMs: 5 }])], { warmup: 0, runs: 1 });
-    expect(formatTable([r]).split("\n")[2]).toBe("| b | 5.0 |  |");
+    expect(formatTable([r], "scratch-vm").split("\n")[2]).toBe("| b | 5.0 |  |");
+  });
+});
+
+describe("pickBaseline", () => {
+  it("uses an explicit baseline only when it is selected", () => {
+    expect(pickBaseline(["bytecat", "turbowarp"], "turbowarp")).toBe("turbowarp");
+    expect(pickBaseline(["bytecat", "turbowarp"], "scratch-vm")).toBeUndefined();
+  });
+
+  it("defaults to turbowarp, then scratch-vm, then the first engine other than bytecat", () => {
+    expect(pickBaseline(["bytecat", "scratch-vm", "turbowarp"])).toBe("turbowarp");
+    expect(pickBaseline(["bytecat", "scratch-vm"])).toBe("scratch-vm");
+    expect(pickBaseline(["bytecat", "other"])).toBe("other");
+    expect(pickBaseline(["bytecat"])).toBe("bytecat");
   });
 });
