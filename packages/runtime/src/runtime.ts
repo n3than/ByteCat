@@ -25,6 +25,9 @@ export type ProgramFactory = (rt: Runtime) => Hat[];
 export const WAIT = 1;
 const STOP_ALL = Symbol("stop all");
 
+/** At most this many passes run after a thread starts before the scheduler reads the clock. */
+const START_CHECK = 4;
+
 export class Thread {
   done = false;
   /** Above zero while inside a "run without screen refresh" procedure. */
@@ -160,30 +163,33 @@ export class Runtime {
     const budget = (1000 / this.options.fps) * 0.75;
     const frameStart = performance.now();
     let lastCheck = frameStart;
-    // Starts at 1 every frame, so a stride learned on cheap passes never carries into heavy ones.
+    // Reading the clock costs about as much as a pass of one short thread, so it is read every
+    // `stride` passes: doubling (up to 128) while a stride takes under 0.25 ms, and back to 1 as
+    // soon as one takes longer. The clock's resolution is too coarse to size it from one pass.
     let stride = 1;
     let untilCheck = 1;
     this.redraw = false;
     for (;;) {
       let progressed = false;
       let finished = false;
+      const count = this.threads.length;
       // Threads started during this pass run in the same pass, as in Scratch.
       for (let i = 0; i < this.threads.length; i++) {
         const th = this.threads[i]!;
         if (!th.done && this.step(th) !== WAIT) progressed = true;
         if (th.done) finished = true;
       }
+      // A new thread can make passes much heavier, so read the clock within a few passes of one
+      // starting. Not on the very next pass: projects that start threads all the time (every
+      // broadcast and wait does) would then read it on nearly every pass.
+      if (this.threads.length !== count && untilCheck > START_CHECK) untilCheck = START_CHECK;
       if (finished) this.threads = this.threads.filter((th) => !th.done);
       if (!progressed || this.threads.length === 0) break;
       if (this.redraw && !this.options.turbo) break;
-      // Reading the clock costs about as much as a pass of one short thread, so read it every
-      // stride passes: doubling (up to 128) while a stride takes under 0.25 ms, halving when it
-      // takes longer, and back to 1 when passes turn heavy.
       if (--untilCheck === 0) {
         const now = performance.now();
         if (now - frameStart >= budget) break;
-        const took = now - lastCheck;
-        stride = took < 0.25 ? Math.min(stride * 2, 128) : took < 1 ? Math.max(stride >> 1, 1) : 1;
+        stride = now - lastCheck < 0.25 ? Math.min(stride * 2, 128) : 1;
         untilCheck = stride;
         lastCheck = now;
       }
