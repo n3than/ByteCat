@@ -1,10 +1,10 @@
 // Every example through the Bytecat pipeline (pseudocode -> project.json -> JS -> runtime),
-// checked against examples/<name>.expected and against the scratch-vm reference runner.
+// checked against examples/<name>.expected and against scratch-vm and TurboWarp.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { compile } from "@bytecat/compiler";
 import { compile as compilePseudo, compileToSb3 } from "@bytecat/pseudo";
-import { runProject } from "@bytecat/reference";
+import { engines, runProject } from "@bytecat/reference";
 import { Runtime } from "@bytecat/runtime";
 import { describe, expect, it } from "vitest";
 
@@ -32,8 +32,11 @@ describe("compiler and runtime", () => {
         .filter((l, i, a) => i < a.length - 1 || l !== "");
       expect(rt.log()).toEqual(expected);
 
-      const reference = await runProject(compileToSb3(source, file), { timeoutMs: 5000 });
-      expect(rt.log()).toEqual(reference.log);
+      const sb3 = compileToSb3(source, file);
+      for (const engine of engines) {
+        const reference = await runProject(sb3, { timeoutMs: 5000, engine });
+        expect(rt.log(), `differs from ${engine}`).toEqual(reference.log);
+      }
     });
   }
 });

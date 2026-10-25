@@ -1,4 +1,4 @@
-// Minimal typings for the parts of scratch-vm that the reference runner uses.
+// Minimal typings for the parts of scratch-vm (and TurboWarp's fork of it) that the reference runner uses.
 declare module "scratch-vm" {
   interface Variable {
     name: string;
@@ -22,10 +22,18 @@ declare module "scratch-vm" {
     loadProject(input: ArrayBuffer | Uint8Array | string | object): Promise<void>;
     setTurboMode(on: boolean): void;
     setCompatibilityMode(on: boolean): void;
+    /** TurboWarp only. */
+    setCompilerOptions(options: { enabled?: boolean; warpTimer?: boolean }): void;
     start(): void;
     stopAll(): void;
     quit(): void;
     greenFlag(): void;
   }
+  export default VirtualMachine;
+}
+
+// TurboWarp's fork, installed from GitHub under an alias. Same API, plus the compiler options.
+declare module "turbowarp-vm" {
+  import VirtualMachine from "scratch-vm";
   export default VirtualMachine;
 }

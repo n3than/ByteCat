@@ -1,4 +1,20 @@
-import VirtualMachine from "scratch-vm";
+import { createRequire } from "node:module";
+import ScratchVM from "scratch-vm";
+import TurboWarpVM from "turbowarp-vm";
+
+// TurboWarp's logger binds console methods when it loads, so silenced() cannot hide its warnings
+// about missing costume assets. Mute everything but errors on the shared logger instead.
+const twLog = createRequire(import.meta.url)("turbowarp-vm/src/util/log") as Record<string, unknown>;
+for (const level of ["debug", "log", "info", "warn", "warning"]) twLog[level] = () => {};
+
+/**
+ * Which VM runs the project. `scratch` is the official scratch-vm, the ground truth for behaviour.
+ * `turbowarp` is TurboWarp's fork with its JavaScript compiler enabled, the closest existing
+ * compiled Scratch engine and the one Bytecat is measured against.
+ */
+export type Engine = "scratch" | "turbowarp";
+
+export const engines: readonly Engine[] = ["scratch", "turbowarp"];
 
 export interface RunOptions {
   /** Stop after this many milliseconds even if scripts are still running. Default 10000. */
@@ -7,6 +23,8 @@ export interface RunOptions {
   answers?: string[];
   /** Run in turbo mode (no screen refresh between loop iterations). Default true. */
   turbo?: boolean;
+  /** The VM to run in. Default `scratch`. */
+  engine?: Engine;
 }
 
 export interface RunResult {
@@ -19,15 +37,27 @@ export interface RunResult {
   /** Whether every script finished before the timeout. */
   finished: boolean;
   elapsedMs: number;
+  /**
+   * Scripts that TurboWarp could not compile and ran in its interpreter instead, as
+   * "Sprite: message". Always empty for scratch-vm.
+   */
+  compileErrors: string[];
 }
 
 /**
- * Loads an .sb3 into scratch-vm, clicks the green flag, and waits for all scripts to stop.
- * This is the reference behaviour that Bytecat's compiled output is compared against.
+ * Loads an .sb3 into scratch-vm (or TurboWarp), clicks the green flag, and waits for all scripts to
+ * stop. This is the reference behaviour that Bytecat's compiled output is compared against.
  */
 export async function runProject(sb3: Uint8Array, options: RunOptions = {}): Promise<RunResult> {
-  const { timeoutMs = 10_000, answers = [], turbo = true } = options;
-  const vm = await silenced(async () => new VirtualMachine());
+  const { timeoutMs = 10_000, answers = [], turbo = true, engine = "scratch" } = options;
+  const vm = await silenced(async () => (engine === "turbowarp" ? new TurboWarpVM() : new ScratchVM()));
+  const compileErrors: string[] = [];
+  if (engine === "turbowarp") {
+    vm.setCompilerOptions({ enabled: true, warpTimer: false });
+    vm.runtime.on("COMPILE_ERROR", (target: { getName(): string }, error: unknown) => {
+      compileErrors.push(`${target.getName()}: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  }
   const says: RunResult["says"] = [];
   vm.runtime.on("SAY", (target: { getName(): string }, kind: "say" | "think", text: unknown) => {
     if (text !== "" && text !== undefined) says.push({ sprite: target.getName(), kind, text: String(text) });
@@ -67,7 +97,7 @@ export async function runProject(sb3: Uint8Array, options: RunOptions = {}): Pro
       if (target.isStage && v.type === "list" && v.name === "log") log = (v.value as unknown[]).map(String);
     }
   }
-  return { log, says, variables, finished, elapsedMs };
+  return { log, says, variables, finished, elapsedMs, compileErrors };
 }
 
 /** scratch-vm logs noisy warnings at startup and about the missing renderer; hide them while it sets up. */
