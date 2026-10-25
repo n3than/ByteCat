@@ -73,7 +73,6 @@ export async function benchmark(
   return { name, engines: stats };
 }
 
-/** Formats results as a Markdown table, with each engine's speed relative to the baseline engine. */
 /**
  * The engine the speedup columns compare against: an explicit choice, otherwise scratch-vm when it
  * is selected, otherwise the first selected engine other than bytecat. Returns undefined when an
@@ -85,6 +84,7 @@ export function pickBaseline(selected: string[], explicit?: string): string | un
   return selected.find((n) => n !== "bytecat") ?? selected[0];
 }
 
+/** Formats results as a Markdown table, with each engine's speed relative to the baseline engine. */
 export function formatTable(results: BenchResult[], baseline = "scratch-vm"): string {
   const names = [...new Set(results.flatMap((r) => r.engines.map((e) => e.engine)))];
   const header = ["benchmark", ...names.map((n) => `${n} (ms)`), ...names.filter((n) => n !== baseline).map((n) => `${n} speedup`)];
