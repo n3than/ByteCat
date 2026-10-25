@@ -8,9 +8,9 @@ const twLog = createRequire(import.meta.url)("turbowarp-vm/src/util/log") as Rec
 const twLogLevels = ["debug", "log", "info", "warn", "warning"];
 
 /**
- * Which VM runs the project. `scratch` is the official scratch-vm, the ground truth for behaviour.
- * `turbowarp` is TurboWarp's fork with its JavaScript compiler enabled, the closest existing
- * compiled Scratch engine and the one Bytecat is measured against.
+ * Which VM runs the project. `turbowarp` is TurboWarp's fork with its JavaScript compiler enabled,
+ * the oracle for behaviour and the engine Bytecat is measured against. `scratch` is the official
+ * scratch-vm, kept as a second check.
  */
 export type Engine = "scratch" | "turbowarp";
 

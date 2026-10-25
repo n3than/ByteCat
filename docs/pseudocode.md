@@ -273,6 +273,8 @@ Say and think bubbles are printed to stderr. A project that never stops (for exa
 Examples live in `examples/NAME.sbp` with the expected `log` output in `examples/NAME.expected`.
 `pnpm test` builds each example, validates it against the official sb3 schema, runs it in
 scratch-vm and in TurboWarp (compiler on), and compares the output. To add a test project, add both files.
+Bytecat follows TurboWarp: where scratch-vm knowingly differs, put scratch-vm's output in
+`examples/NAME.scratch.expected` and list the example in `docs/deviations.md`.
 
 Two more optional files test what the canvas shows and how a project reacts to input. They run in
 a real browser (`tests/browser.test.ts`: the standalone HTML from `bytecat bundle`, opened with

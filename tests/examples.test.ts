@@ -1,6 +1,8 @@
 // End-to-end check for every example: pseudocode -> .sb3 -> schema validation -> run in scratch-vm
 // and in TurboWarp (compiler on). An example passes when each engine's log() output matches
-// examples/<name>.expected line by line, and TurboWarp compiled every script.
+// examples/<name>.expected line by line, and TurboWarp compiled every script. Bytecat follows
+// TurboWarp, so an example where scratch-vm knowingly differs keeps scratch-vm's output in
+// examples/<name>.scratch.expected, and docs/deviations.md must name it.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { compileToSb3 } from "@bytecat/pseudo";
@@ -10,6 +12,13 @@ import { describe, expect, it } from "vitest";
 
 const dir = join(import.meta.dirname, "..", "examples");
 const examples = readdirSync(dir).filter((f) => f.endsWith(".sbp")).sort();
+const deviations = readFileSync(join(import.meta.dirname, "..", "docs", "deviations.md"), "utf8");
+
+it("lists every scratch-vm deviation in docs/deviations.md", () => {
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".scratch.expected"))) {
+    expect(deviations, `add examples/${file} to docs/deviations.md`).toContain(`examples/${file}`);
+  }
+});
 
 function validate(sb3: Uint8Array): Promise<void> {
   return new Promise((resolve, reject) =>
@@ -22,13 +31,15 @@ describe.each(engines)("examples in %s", (engine) => {
 
   for (const file of examples) {
     const name = file.replace(/\.sbp$/, "");
-    const expectedPath = join(dir, `${name}.expected`);
+    const scratchPath = join(dir, `${name}.scratch.expected`);
+    const expectedPath =
+      engine === "scratch" && existsSync(scratchPath) ? scratchPath : join(dir, `${name}.expected`);
 
     // Examples with scripted input would wait forever here; tests/browser.test.ts drives them.
     const test = existsSync(join(dir, `${name}.input`)) ? it.skip : it;
 
     test(name, async () => {
-      expect(existsSync(expectedPath), `missing examples/${name}.expected`).toBe(true);
+      expect(existsSync(expectedPath), `missing ${expectedPath}`).toBe(true);
       const sb3 = compileToSb3(readFileSync(join(dir, file), "utf8"), file);
       await validate(sb3);
       const result = await runProject(sb3, { timeoutMs: 5000, engine });
