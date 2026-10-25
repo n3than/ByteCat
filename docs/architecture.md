@@ -69,6 +69,13 @@ until most of the frame budget is used; it reads the clock every few hundred mic
 than after every pass, and within a few passes of a thread starting, since a new thread can make
 passes much heavier.
 
+The list helpers in `ops.ts` (`itemOf`, `replaceAt`, `deleteOf`, `insertAt`, `indexOf`) have fast
+paths for the common case of a number index (inlined floor and range check, no `listIndex`), and
+use `pop()` / `shift()` / `push()` / `unshift()` instead of `splice` when the position is the
+first or last. Strings and booleans take the general `listIndex` path. `ops.test.ts` compares every
+helper to a copy of the slow implementation for every kind of index, so the results must stay
+identical.
+
 ## Design rules
 
 - **Deterministic output.** Same input, same bytes: ids come from a counter and the zip has a
