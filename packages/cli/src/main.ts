@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "n
 import { basename, dirname, extname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { compile as compileToJs, compileProject, toModule } from "@bytecat/compiler";
-import { benchmark, engineNames, formatTable, getEngine, type BenchResult } from "@bytecat/bench";
+import { benchmark, engineNames, formatTable, getEngine, pickBaseline, type BenchResult } from "@bytecat/bench";
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
 import { runProject } from "@bytecat/reference";
@@ -28,6 +28,7 @@ Commands:
   bench [names...]                Time bench/NAME.sbp (default: every bench/*.sbp) on each engine and check its output
         [--engines bytecat,scratch-vm,turbowarp] [--runs 5] [--warmup 1]   (default: every engine)
         [--baseline scratch-vm]       Engine the speedup columns compare against
+                                      (default: scratch-vm if selected, else the first selected engine other than bytecat)
         [--json] [-o results.json]    Exits with code 1 if an engine gave a wrong log or did not finish
 `;
 
@@ -41,7 +42,7 @@ const { positionals, values } = parseArgs({
     answer: { type: "string", multiple: true },
     engine: { type: "string", default: "bytecat" },
     engines: { type: "string" },
-    baseline: { type: "string", default: "scratch-vm" },
+    baseline: { type: "string" },
     runs: { type: "string", default: "5" },
     warmup: { type: "string", default: "1" },
     help: { type: "boolean", short: "h" },
@@ -202,7 +203,8 @@ switch (command) {
       }
     });
     const selected = engines.map((e) => e.name);
-    if (!selected.includes(values.baseline!)) {
+    const baseline = pickBaseline(selected, values.baseline);
+    if (baseline === undefined) {
       console.error(`--baseline must be one of the selected engines: ${selected.join(", ")}`);
       process.exit(2);
     }
@@ -235,7 +237,7 @@ switch (command) {
     if (values.json) {
       console.log(JSON.stringify(results, null, 2));
     } else {
-      console.log(formatTable(results, values.baseline));
+      console.log(formatTable(results, baseline));
       const compiles = results.flatMap((r) => r.engines.filter((e) => e.compileMs !== undefined).map((e) => `${r.name} ${e.compileMs!.toFixed(1)} ms`));
       if (compiles.length) console.log(`\nCompile time (not included above): ${compiles.join(", ")}`);
     }

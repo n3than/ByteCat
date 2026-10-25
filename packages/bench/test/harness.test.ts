@@ -1,6 +1,6 @@
 import type { Project } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { benchmark, formatTable, type Engine, type EngineResult } from "../src/index.js";
+import { benchmark, formatTable, pickBaseline, type Engine, type EngineResult } from "../src/index.js";
 
 const project = {} as Project;
 
@@ -87,5 +87,18 @@ describe("formatTable", () => {
   it("leaves speedups empty when the baseline engine did not run", async () => {
     const r = await benchmark("b", project, ["ok"], [fake("a", [{ runMs: 5 }])], { warmup: 0, runs: 1 });
     expect(formatTable([r]).split("\n")[2]).toBe("| b | 5.0 |  |");
+  });
+});
+
+describe("pickBaseline", () => {
+  it("uses an explicit baseline only when it is selected", () => {
+    expect(pickBaseline(["bytecat", "turbowarp"], "turbowarp")).toBe("turbowarp");
+    expect(pickBaseline(["bytecat", "turbowarp"], "scratch-vm")).toBeUndefined();
+  });
+
+  it("defaults to scratch-vm, then the first engine other than bytecat", () => {
+    expect(pickBaseline(["bytecat", "scratch-vm", "turbowarp"])).toBe("scratch-vm");
+    expect(pickBaseline(["bytecat", "turbowarp"])).toBe("turbowarp");
+    expect(pickBaseline(["bytecat"])).toBe("bytecat");
   });
 });

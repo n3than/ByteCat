@@ -12,7 +12,8 @@ pnpm bench --json -o out/bench.json          # raw results; -o writes them to a 
 ```
 
 The command prints a Markdown table (median milliseconds per engine and the speedup over the
-baseline engine, scratch-vm unless `--baseline` says otherwise) and each engine's compile time. It exits with code 1 if any engine produced a wrong
+baseline engine: `--baseline` if given, otherwise scratch-vm when it is selected, otherwise the first
+selected engine other than bytecat) and each engine's compile time. It exits with code 1 if any engine produced a wrong
 log or did not finish, and prints the reason.
 
 ## The benchmarks
