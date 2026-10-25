@@ -396,6 +396,7 @@ fileInput.addEventListener("change", () => {
   fileInput.value = "";
 });
 $("back-to-editor").addEventListener("click", () => {
+  generation++; // a start still loading costumes must not install its player after this
   player?.dispose();
   player = null;
   loaded = null;

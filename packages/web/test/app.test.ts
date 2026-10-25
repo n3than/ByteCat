@@ -224,6 +224,24 @@ describe("web app", () => {
     await close();
   }, 60_000);
 
+  it("leaves the stage empty when going back to the editor while an .sb3 is still loading", async () => {
+    await open();
+    const bytes = [...writeSb3(example("render"))];
+    const player = await page.evaluate(async (bytes) => {
+      const app = (window as unknown as { bytecatApp: { player: unknown; openFile(f: File): Promise<void> } }).bytecatApp;
+      // The file name is shown right before the player starts loading costumes: go back then.
+      new MutationObserver((_, observer) => {
+        observer.disconnect();
+        document.getElementById("back-to-editor")!.click();
+      }).observe(document.getElementById("file-name")!, { childList: true });
+      await app.openFile(new File([new Uint8Array(bytes)], "render.sb3"));
+      return app.player;
+    }, bytes);
+    expect(player).toBeNull();
+    expect(await page.isVisible("#editor-wrap")).toBe(true);
+    await close();
+  }, 60_000);
+
   it("warns about unsupported blocks and costumes it cannot decode", async () => {
     const project = example("hello");
     const stage = project.json.targets[0]!;
