@@ -12,7 +12,7 @@ return [
     while (!(S.v["var_2"] > S.v["var_0"].length)) {
       S.v["var_1"] = (letterOf(S.v["var_2"], S.v["var_0"]) + S.v["var_1"]);
       S.v["var_2"] = S.v["var_2"] + 1;
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     S.l["list_5"].push(S.v["var_1"]);
     S.l["list_5"].push(("a" + ("b" + ("c" + ("" + (1 + 2))))));

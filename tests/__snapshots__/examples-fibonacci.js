@@ -19,7 +19,7 @@ return [
       p1_0(t, th, S.v["var_3"]);
       S.l["list_m"].push(S.v["var_0"]);
       S.v["var_3"] = S.v["var_3"] + 1;
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
 } },
 ];

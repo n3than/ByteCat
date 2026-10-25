@@ -14,13 +14,13 @@ return [
           S.v["var_2"] = 0;
         }
         S.v["var_1"] = S.v["var_1"] + 1;
-        if (th.warp === 0) yield;
+        if (th.warp === 0 && --rt.spin < 0) yield;
       }
       if ((S.v["var_2"] === 1)) {
         S.l["list_3"].push(S.v["var_0"]);
       }
       S.v["var_0"] = S.v["var_0"] + 1;
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     S.l["list_t"].push(listContents(S.l["list_3"]));
     S.l["list_t"].push(listContains(S.l["list_3"], 29));

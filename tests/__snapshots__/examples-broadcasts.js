@@ -9,7 +9,7 @@ return [
       S.v["var_0"] = S.v["var_0"] + 1;
       S.l["list_5"].push(("ping " + ("" + S.v["var_0"])));
       yield* rt.broadcastAndWait("ping");
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     rt.broadcast("done");
 } },

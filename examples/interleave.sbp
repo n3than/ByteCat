@@ -1,0 +1,29 @@
+# Two loops that are not in warp mode run side by side: each yields at the end of every
+# iteration, so their log lines alternate. A third script started by a broadcast from inside
+# one loop joins the rotation at once, in the same pass. A runtime that lets a thread skip its
+# loop yield while it runs alone must still interleave exactly like this.
+var a = 0
+var b = 0
+var c = 0
+
+sprite Loops:
+  when flag:
+    repeat 5:
+      a += 1
+      log(join("A", a))
+      if a = 3:
+        broadcast("go")
+    log("A done")
+
+  when flag:
+    repeat 5:
+      b += 1
+      log(join("B", b))
+    log("B done")
+
+sprite Receiver:
+  when receive "go":
+    repeat 3:
+      c += 1
+      log(join("C", c))
+    log("C done")

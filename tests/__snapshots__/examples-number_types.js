@@ -43,13 +43,13 @@ return [
     S.v["var_3"] = 1;
     for (let r0 = Math.round(3); r0 > 0; r0--) {
       S.v["var_3"] = S.v["var_3"] + S.v["var_3"];
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     S.l["list_b"].push(S.v["var_3"]);
     S.v["var_4"] = 1;
     for (let r1 = Math.round(3); r1 > 0; r1--) {
       S.v["var_4"] = (toStr(S.v["var_4"]) + "0");
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     S.l["list_b"].push((toNum(S.v["var_4"]) + 1));
     S.l["list_b"].push(gt(S.v["var_4"], 999));

@@ -13,6 +13,8 @@ export interface PlayerOptions {
    * when `step()` is called, so screenshots and pixel checks are deterministic.
    */
   test?: boolean;
+  /** Turbo mode: a redraw does not end the frame. Defaults to `test`. */
+  turbo?: boolean;
   answers?: string[];
   /** Called with the name of each costume image the browser cannot decode (it is skipped). */
   onAssetError?: (name: string) => void;
@@ -54,10 +56,10 @@ export function scratchKey(e: KeyboardEvent): string | null {
 }
 
 export async function createPlayer(options: PlayerOptions): Promise<Player> {
-  const { canvas, project, program, test = false } = options;
+  const { canvas, project, program, test = false, turbo = test } = options;
   const rt = new Runtime(project, program, {
     clock: test ? "virtual" : "real",
-    turbo: test,
+    turbo,
     ...(options.answers ? { answers: options.answers } : {}),
   });
   const costumes = await loadCostumes(options.assets, options.onAssetError);

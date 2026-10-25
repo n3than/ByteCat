@@ -6,7 +6,7 @@ const S = rt.stage;
 function* p1_0(t, th, a0) {
   for (let r0 = Math.round(a0); r0 > 0; r0--) {
     S.l["list_e"].push("step");
-    if (th.warp === 0) yield;
+    if (th.warp === 0 && --rt.spin < 0) yield;
   }
 }
 function* p1_1(t, th, a0) {
@@ -61,7 +61,7 @@ return [
 { target: 2, kind: "broadcast", arg: "go", fn: function* (t, th) {
     for (let r0 = Math.round(3); r0 > 0; r0--) {
       S.l["list_e"].push("tick");
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
 } },
 ];

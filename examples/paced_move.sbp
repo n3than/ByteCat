@@ -1,0 +1,14 @@
+# Frame pacing: a visible sprite moves 20 steps per iteration of a repeat loop that is not in
+# warp mode, and every iteration must be drawn in its own frame. paced_move.pixels runs the page
+# with turbo off and checks where the sprite is after frames 1, 5 and 10.
+stage:
+  backdrop night "#224488"
+
+sprite Mover:
+  costume box = square "#ff0000"
+  position -200, 0
+
+  when flag:
+    repeat 20:
+      move(20)
+    log("done")

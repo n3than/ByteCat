@@ -291,6 +291,24 @@ is fully opaque. Pick points well inside shapes, away from the 2px dark outline 
 100 100 #00cc00
 ```
 
+By default the page runs in turbo mode, where a loop runs as many iterations as fit in a frame, so
+probes only see the end result. Two more kinds of line make a `.pixels` file check what is on the
+canvas at a given frame, with the frame pacing of the live player:
+
+| Line | Effect |
+| --- | --- |
+| `turbo off` | Open the page with `?test&turbo=off`: a redraw ends the frame, so a loop that moves a visible sprite does one iteration per frame. |
+| `frame N` | The probes after this line (up to the next `frame` line) are read right after frame `N`, where frame 1 is the first one stepped after the green flag. A `frame` line applies until the next one, so put the probes checked after the run first. The test fails if the run ends before frame `N`. |
+
+```
+turbo off
+// checked after the run
+200 0 #ff0000
+frame 5
+// checked right after the fifth frame
+-110 0 #ff0000
+```
+
 `examples/NAME.input` is scripted input, one command per line, applied in order. Blank lines and
 `//` lines are ignored.
 

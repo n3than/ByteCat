@@ -18,7 +18,7 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 | `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
 | `packages/compiler` | `project.json` → one JavaScript program (`compile`, `toModule`, `load`). Reports unsupported opcodes as warnings. Split into small modules, see [Compiler modules](#compiler-modules). | runtime (types), sb3 |
 | `packages/runtime` | Headless scheduler (virtual or real clock), targets, say bubbles and the Scratch value helpers in `ops.ts` that generated code calls. | sb3 |
-| `packages/player` | Browser player: canvas renderer (`renderer.ts`), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild |
+| `packages/player` | Browser player: canvas renderer (`renderer.ts`), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild |
 | `packages/bench` | Benchmark harness: `Engine` implementations (Bytecat, scratch-vm, more via `registerEngine`), `benchmark` (warmup, timed runs, output check) and `formatTable`. See [benchmarks.md](benchmarks.md). | compiler, runtime, reference, sb3 |
 | `packages/web` | The web app (`pnpm web`): one HTML page that opens an `.sb3` or pseudocode, compiles it in the browser, plays it and offers downloads. See [web.md](web.md). | pseudo, sb3, compiler, player, esbuild |
 | `packages/cli` | The `bytecat` command (`pnpm bytecat ...`). Thin glue over the other packages. | all |
@@ -58,9 +58,9 @@ To support a new block, add a handler to the right `blocks/` file and a test in
 ## Generated code
 
 `compile` emits a single `function (rt)` expression. Given a `Runtime` it returns the list of hats
-(event kind plus script function). Each script is a generator function: loops `yield` at the end of
-every iteration unless the script is in warp mode, and any blocked state (`wait`, `wait until`,
-`ask`) does `yield rt.WAIT`. A custom block that can yield (a waiting block, a loop outside warp,
+(event kind plus script function). Each script is a generator function: loops end each iteration
+with `if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and any blocked state
+(`wait`, `wait until`, `ask`) does `yield rt.WAIT`. A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
 never yields compiles to a plain function, which is much cheaper to call. A direct recursive call in a non-warp procedure yields before the call (`if (th.warp === 0) yield;`), as scratch-vm and TurboWarp do, so such a procedure is a generator; a warp one stays plain. Calls to a plain
 function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
@@ -95,10 +95,38 @@ literal stays finite and `i * i` cannot be `Infinity * 0`, which would be NaN.
 
 Comparisons against a
 literal are specialized: a text literal makes it a lowercase string comparison, and a numeric
-literal is passed as a number. The scheduler steps every thread in turn, repeating within a frame
-until most of the frame budget is used; it reads the clock every few hundred microseconds rather
-than after every pass, and within a few passes of a thread starting, since a new thread can make
-passes much heavier.
+literal is passed as a number.
+
+## Scheduler
+
+`Runtime.tick` runs one frame. It steps every thread in turn, repeating within a frame until most
+of the frame budget is used, a redraw is requested outside turbo mode, or every thread is blocked;
+it reads the clock every few hundred microseconds rather than after every pass, and within a few
+passes of a thread starting, since a new thread can make passes much heavier.
+
+**Loop yields.** A loop yield hands control back to the scheduler, which for a thread that is
+alone would step the same thread again straight away. So `rt.spin` counts how many more loop
+iterations the running thread may finish without yielding: the generated check decrements it and
+yields once it is below zero. Before each step `tick` sets `spin` to `spinLimit` when there is
+exactly one thread in `rt.threads` (finished threads still count until they are removed) and to 0
+otherwise, so with two or more threads every iteration yields and they interleave exactly as if
+there were no `spin`. Anything that could need the loop to yield sets `spin = 0`, so the thread
+yields at the end of its current iteration:
+
+- `start` (a new thread runs in the same pass, as in Scratch), `stopAll` and `stopOthers`;
+- `requestRedraw()` outside turbo mode. Every block that changes what is on screen calls it instead
+  of setting `redraw`, so a loop that moves a visible sprite still yields every iteration and
+  draws once per frame. In turbo mode nothing ends a frame early, so it leaves `spin` alone.
+
+`spinLimit` is local to a `tick` and follows the same rule as the clock-read stride: it starts at 1
+each frame, and each time the scheduler reads the clock it doubles, up to 4096, if less than 0.25 ms
+passed since the previous read, and drops back to 1 otherwise. It also drops back to 1 whenever a
+thread starts or finishes, because the cost of the last pass then says little about the next one
+(a cheap loop gives way to a heavy script that would otherwise be spun thousands of times before
+the next clock read). A cheap loop body therefore runs thousands of iterations per step, and a
+heavy one is stepped once per iteration so a frame still ends on time. `packages/runtime/test/scheduler.test.ts` checks this, `examples/interleave`
+the thread order, and `examples/paced_move` (see `turbo off` in
+[pseudocode.md](pseudocode.md#output-and-testing)) the pacing of a loop that draws.
 
 The list helpers in `ops.ts` (`itemOf`, `replaceAt`, `deleteOf`, `insertAt`, `indexOf`) have fast
 paths for the common case of a number index (inlined floor and range check, no `listIndex`), and

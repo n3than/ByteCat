@@ -23,6 +23,8 @@ interface Probe {
   y: number;
   color: string;
   line: number;
+  /** Check right after this frame (1 is the first frame after the green flag); null means after the run. */
+  frame: number | null;
 }
 
 /** Lines of a test data file without blanks and `//` comments, with their 1-based line numbers. */
@@ -47,12 +49,26 @@ function parseInput(path: string): Command[] {
   });
 }
 
-function parsePixels(path: string): Probe[] {
-  return dataLines(path).map(({ text, line }) => {
+/** Probes from a .pixels file, and whether the page runs in turbo mode (the default in test mode). */
+function parsePixels(path: string): { probes: Probe[]; turbo: boolean } {
+  const probes: Probe[] = [];
+  let turbo = true;
+  let frame: number | null = null;
+  for (const { text, line } of dataLines(path)) {
+    if (text === "turbo off") {
+      turbo = false;
+      continue;
+    }
+    const f = /^frame (\d+)$/.exec(text);
+    if (f) {
+      frame = Number(f[1]);
+      continue;
+    }
     const m = /^(-?\d+)\s+(-?\d+)\s+(#[0-9a-fA-F]{6})$/.exec(text);
-    if (!m) throw new Error(`${path}:${line}: bad pixel probe "${text}" (expected X Y #rrggbb)`);
-    return { x: Number(m[1]), y: Number(m[2]), color: m[3]!.toLowerCase(), line };
-  });
+    if (!m) throw new Error(`${path}:${line}: bad pixel probe "${text}" (expected X Y #rrggbb, "turbo off" or "frame N")`);
+    probes.push({ x: Number(m[1]), y: Number(m[2]), color: m[3]!.toLowerCase(), line, frame });
+  }
+  return { probes, turbo };
 }
 
 const hex = (rgba: number[]) => "#" + rgba.slice(0, 3).map((c) => c.toString(16).padStart(2, "0")).join("");
@@ -80,7 +96,7 @@ describe("browser", () => {
 
     it(name, async () => {
       const commands = parseInput(join(dir, `${name}.input`));
-      const probes = parsePixels(join(dir, `${name}.pixels`));
+      const { probes, turbo } = parsePixels(join(dir, `${name}.pixels`));
       const { project } = compile(readFileSync(join(dir, file), "utf8"), file);
       const html = join(tmp, `${name}.html`);
       writeFileSync(html, await bundleHtml(project, compileProject(project.json).code, name));
@@ -89,16 +105,29 @@ describe("browser", () => {
       try {
         const errors: string[] = [];
         page.on("pageerror", (e) => errors.push(e.message));
-        await page.goto(`${pathToFileURL(html).href}?test`);
+        await page.goto(`${pathToFileURL(html).href}?test${turbo ? "" : "&turbo=off"}`);
         await page.waitForFunction(() => document.body.dataset.ready === "true");
 
         const result = await page.evaluate(
           ({ commands, probes, maxFrames }) => {
             const p = (window as unknown as { bytecat: Player }).bytecat;
             let frames = 0;
+            // Pixels of the probes tied to a frame, read right after that frame.
+            const atFrame: ([number, number, number, number] | null)[] = probes.map(() => null);
+            const timed = probes.some((q) => q.frame !== null);
             const step = (n: number) => {
-              p.step(n);
-              frames += n;
+              if (!timed) {
+                p.step(n);
+                frames += n;
+                return;
+              }
+              for (let i = 0; i < n; i++) {
+                p.step(1);
+                frames++;
+                probes.forEach((q, k) => {
+                  if (q.frame === frames) atFrame[k] = p.pixel(q.x, q.y);
+                });
+              }
             };
             p.rt.greenFlag();
             step(1);
@@ -113,7 +142,7 @@ describe("browser", () => {
             return {
               running: p.rt.running,
               log: p.rt.log(),
-              pixels: probes.map((q) => p.pixel(q.x, q.y)),
+              pixels: probes.map((q, k) => (q.frame === null ? p.pixel(q.x, q.y) : atFrame[k] ?? null)),
             };
           },
           { commands, probes, maxFrames: MAX_FRAMES },
@@ -128,11 +157,15 @@ describe("browser", () => {
 
         const failures: string[] = [];
         probes.forEach((q, i) => {
-          const actual = result.pixels[i]!;
+          const actual = result.pixels[i];
+          if (!actual) {
+            failures.push(`${name}.pixels:${q.line}: the run ended before frame ${q.frame}`);
+            return;
+          }
           const want = [1, 3, 5].map((k) => parseInt(q.color.slice(k, k + 2), 16));
           const ok = actual[3] === 255 && want.every((w, k) => Math.abs(w - actual[k]!) <= TOLERANCE);
           if (!ok) {
-            failures.push(`${name}.pixels:${q.line}: (${q.x}, ${q.y}) expected ${q.color}, got ${hex(actual)} alpha ${actual[3]}`);
+            failures.push(`${name}.pixels:${q.line}: (${q.x}, ${q.y})${q.frame === null ? "" : ` at frame ${q.frame}`} expected ${q.color}, got ${hex(actual)} alpha ${actual[3]}`);
           }
         });
         expect(failures, "pixel probes failed").toEqual([]);

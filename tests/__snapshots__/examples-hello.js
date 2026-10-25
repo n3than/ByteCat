@@ -9,7 +9,7 @@ return [
     for (let r0 = Math.round(3); r0 > 0; r0--) {
       S.v["var_0"] = S.v["var_0"] + 1;
       S.l["list_3"].push(("count is " + ("" + S.v["var_0"])));
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     rt.say(t, "say", "done");
 } },

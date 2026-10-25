@@ -19,7 +19,7 @@ return [
 { target: 2, kind: "broadcast", arg: "go", fn: function* (t, th) {
     for (let r0 = Math.round(3); r0 > 0; r0--) {
       S.l["list_h"].push("tick");
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
 } },
 ];
