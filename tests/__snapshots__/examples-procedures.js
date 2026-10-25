@@ -4,7 +4,7 @@ const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, matho
   itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
 const S = rt.stage;
 function* p1_0(t, th, a0) {
-  for (let r2 = Math.round(toNum(a0)); r2 > 0; r2--) {
+  for (let r0 = Math.round(toNum(a0)); r0 > 0; r0--) {
     S.l["list_e"].push("step");
     if (th.warp === 0) yield;
   }
