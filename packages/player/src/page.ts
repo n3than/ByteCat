@@ -24,7 +24,7 @@ function dataUrl(name: string, data: Uint8Array): string {
 }
 
 /** Makes text safe to place inside an inline <script>. */
-function scriptSafe(js: string): string {
+export function scriptSafe(js: string): string {
   return js.replace(/<\/(script)/gi, "<\\/$1").replace(/<!--/g, "<\\!--");
 }
 

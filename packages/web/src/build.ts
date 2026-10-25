@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { scriptSafe } from "@bytecat/player";
 import { playerBundle } from "@bytecat/player/bundle";
 
 export interface Sample {
@@ -28,11 +29,6 @@ export function loadSamples(dirs = DEFAULT_SAMPLE_DIRS): Sample[] {
       .sort()
       .map((f) => ({ name: basename(f, ".sbp"), source: readFileSync(join(dir, f), "utf8") })),
   );
-}
-
-/** Makes text safe to place inside an inline <script>. */
-function scriptSafe(js: string): string {
-  return js.replace(/<\/(script)/gi, "<\\/$1").replace(/<!--/g, "<\\!--");
 }
 
 export async function buildWebApp(options: WebAppOptions = {}): Promise<string> {

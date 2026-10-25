@@ -58,6 +58,8 @@ let compiledSource: string | null = null;
 let loaded: Loaded | null = null;
 let player: Player | null = null;
 let blobUrls: string[] = [];
+/** Bumped by every startPlayer call; a start that finishes after a newer one began is discarded. */
+let generation = 0;
 let errorLine = 0;
 let assetErrors: string[] = [];
 
@@ -203,42 +205,59 @@ function updateStatus(): void {
   );
 }
 
-async function startPlayer(): Promise<Player> {
+/**
+ * Replaces the player with a new one for the loaded project. Returns null if another call started
+ * while this one was loading costumes: that newer call owns the canvas, and this player is dropped.
+ */
+async function startPlayer(): Promise<Player | null> {
+  const gen = ++generation;
   player?.dispose();
   player = null;
   for (const url of blobUrls) URL.revokeObjectURL(url);
   blobUrls = [];
-  assetErrors = [];
-  const project = loaded!.project;
+  const urls: string[] = [];
+  const errors: string[] = [];
+  const { project, code } = loaded!;
   const assets: Record<string, string> = {};
   for (const [name, data] of costumeAssets(project)) {
     const url = URL.createObjectURL(new Blob([data as BlobPart], { type: mimeType(name) }));
-    blobUrls.push(url);
+    urls.push(url);
     assets[name] = url;
   }
   document.querySelectorAll(".bytecat-ask").forEach((el) => el.remove());
-  player = await createPlayer({
+  const created = await createPlayer({
     canvas,
     project: project.json,
-    program: load(loaded!.code),
+    program: load(code),
     assets,
-    onAssetError: (name) => assetErrors.push(name),
+    onAssetError: (name) => errors.push(name),
   });
+  if (gen !== generation) {
+    created.dispose();
+    for (const url of urls) URL.revokeObjectURL(url);
+    return null;
+  }
+  player = created;
+  blobUrls = urls;
+  assetErrors = errors;
   renderPanels();
-  return player;
+  return created;
 }
 
 /** Compiles if needed, (re)creates the player for a new compile, then clicks the green flag. */
 async function run(): Promise<void> {
+  let current = player;
   if (mode === "editor") {
     const before = loaded;
     if (!compileEditor()) return;
-    if (loaded !== before || !player) await startPlayer();
-  } else if (!player) {
+    if (loaded !== before || !current) current = await startPlayer();
+  } else if (!current) {
     if (!loaded) return;
-    await startPlayer();
+    current = await startPlayer();
   }
-  player!.greenFlag();
+  // Null when a newer start replaced this one; that start's own run clicks the flag.
+  if (!current) return;
+  current.greenFlag();
   canvas.focus();
   updateStatus();
 }

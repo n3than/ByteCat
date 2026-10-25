@@ -142,6 +142,40 @@ describe("web app", () => {
     await close();
   }, 60_000);
 
+  it("keeps one live player when Run is clicked twice in quick succession", async () => {
+    // Count the frame-loop intervals the page has running: one per live player.
+    const context = await browser.newContext();
+    await context.addInitScript(() => {
+      const live = new Set<unknown>();
+      const set = window.setInterval.bind(window);
+      const clear = window.clearInterval.bind(window);
+      window.setInterval = ((fn: TimerHandler, ms?: number, ...args: unknown[]) => {
+        const id = set(fn, ms, ...args);
+        if (Math.abs((ms ?? 0) - 1000 / 30) < 1) live.add(id);
+        return id;
+      }) as typeof window.setInterval;
+      window.clearInterval = ((id?: number) => {
+        live.delete(id);
+        clear(id);
+      }) as typeof window.clearInterval;
+      (window as unknown as { frameLoops: () => number }).frameLoops = () => live.size;
+    });
+    page = await context.newPage();
+    errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(url);
+    await page.waitForFunction(() => document.body.dataset.ready === "true");
+    await page.fill("#editor", 'sprite Cat:\n  when flag:\n    forever:\n      move(1)\n');
+    // Both runs start before either has finished loading costumes.
+    await page.evaluate(() => {
+      const app = (window as unknown as { bytecatApp: { run(): Promise<void> } }).bytecatApp;
+      return Promise.all([app.run(), app.run(), app.run()]);
+    });
+    expect(await page.evaluate(() => (window as unknown as { frameLoops: () => number }).frameLoops())).toBe(1);
+    expect(await page.evaluate(() => (window as unknown as AppWindow).bytecatApp.player!.rt.running)).toBe(true);
+    await close();
+  }, 60_000);
+
   it("opens a pseudocode file dropped on the page", async () => {
     await open();
     await page.evaluate(() => {

@@ -165,13 +165,15 @@ function attachInput(player: Player, signal: AbortSignal): void {
 function askPrompt(canvas: HTMLCanvasElement, question: string, signal: AbortSignal): Promise<string> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
-    signal.addEventListener("abort", () => input.remove());
+    const remove = () => input.remove();
+    signal.addEventListener("abort", remove, { once: true });
     input.placeholder = question;
     input.className = "bytecat-ask";
     canvas.after(input);
     input.focus();
     input.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
+      signal.removeEventListener("abort", remove);
       input.remove();
       canvas.focus();
       resolve(input.value);

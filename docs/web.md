@@ -36,7 +36,8 @@ and `@bytecat/sb3` to read the source, `@bytecat/compiler` to compile it, and `@
 play it. Nothing in that path needs Node, which is why `md5` in `@bytecat/sb3` is plain TypeScript.
 
 Each compile gets a fresh player on the same canvas; `Player.dispose()` stops the old frame loop
-and removes its input listeners. Costume images are passed to the player as blob URLs, and only
+and removes its input listeners. A start that is still loading costumes when a newer one begins
+(Run clicked twice, say) disposes its player instead of installing it. Costume images are passed to the player as blob URLs, and only
 the files named by a costume are decoded, so sounds in real projects are ignored.
 
 `window.bytecatApp` exposes the current `player` and compiled project for tests and the console.
@@ -46,6 +47,6 @@ the files named by a costume are decoded, so sounds in real projects are ignored
 `packages/web/test/app.test.ts` builds the page, opens it in Chromium and drives it through its
 UI: running samples and reading the Output panel, pseudocode errors, opening `.sb3` files (the
 `render` example's pixel probes are checked on the app's stage), warnings, drag and drop,
-reruns, the saved draft, and every download (the downloaded standalone page is run too). It runs
+reruns and Run clicked twice at once (only one frame loop may be live), the saved draft, and every download (the downloaded standalone page is run too). It runs
 on the real clock and polls for the expected state, so examples it uses must finish quickly. It
 also checks that every sample compiles with no unsupported blocks.
