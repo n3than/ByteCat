@@ -1,0 +1,81 @@
+# List index handling for item, replace, insert and delete: numbers (fractions, zero, negatives,
+# NaN, infinities, negative zero), numeric strings, "last", "all", and junk text. Upper case
+# "LAST" is left out on purpose: scratch-vm and TurboWarp do not treat it as "last", but Bytecat
+# does (listIndex lowercases), so the unit test in packages/runtime/test/ops.test.ts covers it.
+# Each index is tried on lists of length 0, 1 and 3 holding 10, 20, 30. "random" is only used on
+# lists of length 0 and 1, where its result does not depend on chance (for insert, "random" can
+# pick length + 1, so insert only runs on the empty list).
+var n = 0
+var k = 0
+var m = 0
+var got = ""
+var del = ""
+var ins = ""
+var rep = ""
+list idx
+list work
+
+sprite Main:
+  define reset(size):
+    work.clear()
+    for m = 1 to size:
+      work.add(m * 10)
+
+  define probe(size, withInsert):
+    reset(size)
+    got = work[idx[k]]
+    reset(size)
+    work.delete(idx[k])
+    del = work
+    ins = "-"
+    if withInsert = 1:
+      reset(size)
+      work.insert(idx[k], "X")
+      ins = work
+    reset(size)
+    work[idx[k]] = "R"
+    rep = work
+    log(join("len ", size, " idx ", k, ": item=", got, " delete=[", del, "] insert=[", ins, "] replace=[", rep, "]"))
+
+  when flag:
+    # 1..4: in range and just past the end
+    idx.add(1)
+    idx.add(2)
+    idx.add(3)
+    idx.add(4)
+    # 5..11: out of range or fractional
+    idx.add(0)
+    idx.add(-1)
+    idx.add(0.5)
+    idx.add(1.5)
+    idx.add(3.9999)
+    idx.add(2.5)
+    idx.add(100000)
+    # 12..15: not a number, infinities, negative zero
+    idx.add(0 / 0)
+    idx.add(1 / 0)
+    idx.add(-1 / 0)
+    idx.add(0 * -1)
+    # 16..20: numeric strings
+    idx.add("1")
+    idx.add("1.0")
+    idx.add(" 2 ")
+    idx.add("3")
+    idx.add("4")
+    # 21..25: words
+    idx.add("last")
+    idx.add("all")
+    idx.add("")
+    idx.add("abc")
+    idx.add("0")
+    for n = 0 to 3:
+      if n != 2:
+        for k = 1 to idx.length:
+          probe(n, 1)
+    # "random" and "any" only where the answer is certain
+    idx.clear()
+    idx.add("random")
+    idx.add("any")
+    for n = 0 to 1:
+      for k = 1 to idx.length:
+        probe(n, 1 - n)

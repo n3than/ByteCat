@@ -110,7 +110,11 @@ function tan(x: number): number {
 
 // ---- lists ----
 
-/** Resolves a Scratch list index ("last", "random", 1-based numbers). Returns 0 when out of range. */
+/**
+ * Resolves a Scratch list index ("last", "random", 1-based numbers) against a list of `length`
+ * items. Returns 0 when out of range. This is the general path for any index value; the list
+ * helpers below skip it when the index is already a number.
+ */
 export function listIndex(index: Value, length: number): number {
   if (typeof index === "string") {
     const s = index.toLowerCase();
@@ -121,32 +125,86 @@ export function listIndex(index: Value, length: number): number {
   return i < 1 || i > length ? 0 : i;
 }
 
+// Fast paths. For a number index, `listIndex` reduces to "floor it, then range check, with NaN
+// meaning 0". The helpers below inline that as `i >= 1 && i <= max`, which is false for NaN, so
+// NaN, +-Infinity, -0, 0, negatives and 0.5 are all out of range, exactly as in `listIndex`.
+// Strings and booleans still go through `listIndex`. Tests compare every helper to a copy of the
+// old implementation (packages/runtime/test/ops.test.ts).
+
+/** The item at a 1-based index, or "" when the index is out of range. */
 export function itemOf(list: Value[], index: Value): Value {
+  if (typeof index === "number") {
+    const i = Math.floor(index);
+    return i >= 1 && i <= list.length ? list[i - 1]! : "";
+  }
   const i = listIndex(index, list.length);
   return i === 0 ? "" : list[i - 1]!;
 }
 
+/**
+ * Deletes the item at an index ("all" empties the list). Removing the last item uses `pop()` and
+ * the first uses `shift()`, both much faster than `splice` (the stack-pop and queue idioms).
+ */
 export function deleteOf(list: Value[], index: Value): void {
-  if (typeof index === "string" && index.toLowerCase() === "all") {
-    list.length = 0;
+  const length = list.length;
+  let i: number;
+  if (typeof index === "number") {
+    i = Math.floor(index);
+    if (!(i >= 1 && i <= length)) return;
+  } else {
+    if (typeof index === "string" && index.toLowerCase() === "all") {
+      list.length = 0;
+      return;
+    }
+    i = listIndex(index, length);
+    if (i === 0) return;
+  }
+  if (i === length) list.pop();
+  else if (i === 1) list.shift();
+  else list.splice(i - 1, 1);
+}
+
+/** Inserts before the item at an index; length + 1 (or "last") appends with `push()`. */
+export function insertAt(list: Value[], index: Value, item: Value): void {
+  const length = list.length;
+  let i: number;
+  if (typeof index === "number") {
+    i = Math.floor(index);
+    if (!(i >= 1 && i <= length + 1)) return;
+  } else {
+    i = listIndex(index, length + 1);
+    if (i === 0) return;
+  }
+  if (i > length) list.push(item);
+  else if (i === 1) list.unshift(item);
+  else list.splice(i - 1, 0, item);
+}
+
+/** Replaces the item at an index; does nothing when the index is out of range. */
+export function replaceAt(list: Value[], index: Value, item: Value): void {
+  if (typeof index === "number") {
+    const i = Math.floor(index);
+    if (i >= 1 && i <= list.length) list[i - 1] = item;
     return;
   }
-  const i = listIndex(index, list.length);
-  if (i !== 0) list.splice(i - 1, 1);
-}
-
-export function insertAt(list: Value[], index: Value, item: Value): void {
-  const i = listIndex(index, list.length + 1);
-  if (i !== 0) list.splice(i - 1, 0, item);
-}
-
-export function replaceAt(list: Value[], index: Value, item: Value): void {
   const i = listIndex(index, list.length);
   if (i !== 0) list[i - 1] = item;
 }
 
+/**
+ * The 1-based position of the first item equal to `item` (Scratch `compare`), or 0. When both
+ * sides are non-NaN numbers, `compare` is equal exactly when `===`, so those pairs skip it.
+ */
 export function indexOf(list: Value[], item: Value): number {
-  for (let i = 0; i < list.length; i++) if (eq(list[i]!, item)) return i + 1;
+  const n = list.length;
+  if (typeof item === "number" && item === item) {
+    for (let i = 0; i < n; i++) {
+      const x = list[i]!;
+      if (typeof x === "number" && x === x ? x === item : eq(x, item)) return i + 1;
+    }
+    return 0;
+  }
+  for (let i = 0; i < n; i++) if (eq(list[i]!, item)) return i + 1;
   return 0;
 }
 
