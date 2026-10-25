@@ -1,8 +1,9 @@
 # Bytecat
 
 An ultra-fast, deliberately non-spec-compliant Scratch to JavaScript transpiler.
-The current goal is a proof of concept: a walking skeleton that compiles simple, Turing-complete
-Scratch projects to standalone JavaScript that runs on a browser canvas, and benchmarks them.
+The proof of concept is done: it compiles Scratch projects to standalone JavaScript that runs on a
+browser canvas and beats TurboWarp on every benchmark. The current goal is a production-ready web
+app for professional block-based applications.
 
 See [docs/roadmap.md](docs/roadmap.md) for the plan and [docs/architecture.md](docs/architecture.md)
 for how the pieces fit together.
