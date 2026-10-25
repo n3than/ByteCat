@@ -1,0 +1,13 @@
+# Benchmark: a tight arithmetic loop inside a warp procedure (no yielding).
+var acc = 0
+var i = 0
+
+sprite Main:
+  define warp work(n):
+    acc = 0
+    for i = 1 to n:
+      acc = (acc * 31 + i * 7) % 1000003
+
+  when flag:
+    work(700000)
+    log(acc)

@@ -1,0 +1,26 @@
+# Benchmark: sieve of Eratosthenes on a list, then a pass over the list to count the primes.
+var i = 0
+var j = 0
+var count = 0
+list flags
+
+sprite Main:
+  define warp sieve(n):
+    flags.clear()
+    for i = 1 to n:
+      flags.add(1)
+    flags[1] = 0
+    for i = 2 to n:
+      if flags[i] = 1:
+        j = i * i
+        while j <= n:
+          flags[j] = 0
+          j += i
+    count = 0
+    for i = 1 to n:
+      count += flags[i]
+
+  when flag:
+    sieve(150000)
+    log(count)
+    log(flags.length)

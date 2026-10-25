@@ -1,0 +1,24 @@
+# Benchmark: building a string with join, then scanning it with letter and length.
+var s = ""
+var i = 0
+var vowels = 0
+var c = ""
+
+sprite Main:
+  define warp build(n):
+    s = ""
+    for i = 1 to n:
+      s = join(s, letter(i % 26 + 1, "abcdefghijklmnopqrstuvwxyz"))
+
+  define warp scan():
+    vowels = 0
+    for i = 1 to length(s):
+      c = letter(i, s)
+      if c = "a" or c = "e" or c = "i" or c = "o" or c = "u":
+        vowels += 1
+
+  when flag:
+    build(100000)
+    log(length(s))
+    scan()
+    log(vowels)

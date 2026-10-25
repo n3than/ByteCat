@@ -1,0 +1,12 @@
+# Benchmark: two sprites bouncing broadcast_wait messages back and forth.
+var hits = 0
+
+sprite Ping:
+  when flag:
+    repeat 400000:
+      broadcast_wait("ping")
+    log(hits)
+
+sprite Pong:
+  when receive "ping":
+    hits += 1

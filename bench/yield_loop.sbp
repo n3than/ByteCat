@@ -1,0 +1,9 @@
+# Benchmark: a plain repeat loop that is not in warp mode, so it yields once per iteration.
+# Measures scheduler overhead.
+var count = 0
+
+sprite Main:
+  when flag:
+    repeat 1500000:
+      count += 1
+    log(count)

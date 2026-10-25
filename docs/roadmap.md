@@ -19,8 +19,10 @@ stage exists.
    input in a real browser. The renderer approximates Scratch: no graphic effects (color,
    fisheye, ghost and so on), and `if on edge, bounce` uses the sprite's point position rather than
    its costume bounds.
-4. **Benchmark harness** (`@bytecat/bench`). One command that takes `examples/*.sbp` through sb3 to
-   JS, checks the `log` output against `.expected`, and times it against scratch-vm and TurboWarp.
+4. **Benchmark harness** (done, `@bytecat/bench`). `pnpm bench` runs every `bench/*.sbp` through
+   sb3 to JS, checks the `log` output against `.expected`, and times it against scratch-vm. The
+   TurboWarp comparison is being added separately, as another engine. See
+   [benchmarks.md](benchmarks.md).
 
 Out of scope for the proof of concept: pen, sound, clones, collision (`touching`), extensions,
 cloud variables, and exact Scratch compatibility in edge cases (Bytecat is fast first).

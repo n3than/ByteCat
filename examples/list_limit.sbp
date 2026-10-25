@@ -1,0 +1,14 @@
+# Scratch caps lists at 200000 items: adds and inserts beyond that are ignored.
+var i = 0
+list items
+
+sprite Main:
+  define warp fill():
+    repeat 200005:
+      items.add(1)
+    items.insert(1, 2)
+
+  when flag:
+    fill()
+    log(items.length)
+    log(items[1])

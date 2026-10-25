@@ -53,7 +53,7 @@ export async function runProject(sb3: Uint8Array, options: RunOptions = {}): Pro
         clearInterval(poll);
         resolve(false);
       }
-    }, 5);
+    }, 1);
   });
   const elapsedMs = performance.now() - started;
   vm.stopAll();

@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "n
 import { basename, dirname, extname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { compile as compileToJs, compileProject, toModule } from "@bytecat/compiler";
+import { benchmark, engineNames, formatTable, getEngine, type BenchResult } from "@bytecat/bench";
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
 import { runProject } from "@bytecat/reference";
@@ -23,6 +24,9 @@ Commands:
   run <file.sbp|file.sb3>         Run and print log() output and say bubbles
         [--engine bytecat|reference]  bytecat (default) is the compiled runtime, reference is scratch-vm
         [--timeout ms] [--json] [--answer text]...
+  bench [names...]                Time bench/NAME.sbp (default: every bench/*.sbp) on each engine and check its output
+        [--engines bytecat,scratch-vm] [--runs 5] [--warmup 1]
+        [--json] [-o results.json]    Exits with code 1 if an engine gave a wrong log or did not finish
 `;
 
 const { positionals, values } = parseArgs({
@@ -34,6 +38,9 @@ const { positionals, values } = parseArgs({
     json: { type: "boolean" },
     answer: { type: "string", multiple: true },
     engine: { type: "string", default: "bytecat" },
+    engines: { type: "string" },
+    runs: { type: "string", default: "5" },
+    warmup: { type: "string", default: "1" },
     help: { type: "boolean", short: "h" },
   },
 });
@@ -174,6 +181,64 @@ switch (command) {
       console.error(`unknown engine "${values.engine}" (expected bytecat or reference)`);
       process.exit(2);
     }
+    break;
+  }
+  case "bench": {
+    const dir = "bench";
+    const names = files.length
+      ? files.map((f) => basename(f, ".sbp"))
+      : sbpFiles(dir).map((f) => basename(f, ".sbp"));
+    const engines = (values.engines ?? "bytecat,scratch-vm").split(",").map((n) => {
+      try {
+        return getEngine(n.trim());
+      } catch (e) {
+        console.error(`${(e as Error).message} (engines: ${engineNames().join(", ")})`);
+        process.exit(2);
+      }
+    });
+    const runs = Number(values.runs);
+    const warmup = Number(values.warmup);
+    if (!Number.isInteger(runs) || runs < 1 || !Number.isInteger(warmup) || warmup < 0) {
+      console.error("--runs must be a positive integer and --warmup a non-negative integer");
+      process.exit(2);
+    }
+    const results: BenchResult[] = [];
+    for (const name of names) {
+      const path = join(dir, `${name}.sbp`);
+      const expectedPath = join(dir, `${name}.expected`);
+      let expected: string[];
+      try {
+        expected = readFileSync(expectedPath, "utf8").split("\n").filter((l, i, a) => i < a.length - 1 || l !== "");
+        statSync(path);
+      } catch {
+        console.error(`cannot read ${path} and ${expectedPath}`);
+        process.exit(2);
+      }
+      if (!values.json) console.error(`benchmarking ${name}...`);
+      const timeoutMs = values.timeout ? Number(values.timeout) : undefined;
+      results.push(await benchmark(name, compileFile(path).project, expected, engines, { runs, warmup, ...(timeoutMs ? { timeoutMs } : {}) }));
+    }
+    if (values.out) {
+      mkdirSync(dirname(values.out), { recursive: true });
+      writeFileSync(values.out, JSON.stringify(results, null, 2) + "\n");
+    }
+    if (values.json) {
+      console.log(JSON.stringify(results, null, 2));
+    } else {
+      console.log(formatTable(results));
+      const compiles = results.flatMap((r) => r.engines.filter((e) => e.compileMs !== undefined).map((e) => `${r.name} ${e.compileMs!.toFixed(1)} ms`));
+      if (compiles.length) console.log(`\nCompile time (not included above): ${compiles.join(", ")}`);
+    }
+    let failed = false;
+    for (const r of results) {
+      for (const e of r.engines) {
+        if (e.error) {
+          console.error(`${r.name} on ${e.engine}: ${e.error}`);
+          failed = true;
+        }
+      }
+    }
+    if (failed) process.exitCode = 1;
     break;
   }
   default:
