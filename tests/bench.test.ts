@@ -1,13 +1,14 @@
-// Keeps the benchmark set correct: every bench/NAME.sbp must produce bench/NAME.expected on both engines.
+// Keeps the benchmark set correct: every bench/NAME.sbp must produce bench/NAME.expected on every engine.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { benchmark, getEngine } from "@bytecat/bench";
+import { benchmark, engineNames, getEngine } from "@bytecat/bench";
 import { compile } from "@bytecat/pseudo";
 import { describe, expect, it } from "vitest";
 
 const dir = join(import.meta.dirname, "..", "bench");
 const benches = readdirSync(dir).filter((f) => f.endsWith(".sbp")).sort();
-const engines = ["bytecat", "scratch-vm"].map(getEngine);
+// Every registered engine, so engines added later are checked without editing this file.
+const engines = engineNames().map(getEngine);
 
 describe("bench", () => {
   it("has benchmarks", () => expect(benches.length).toBeGreaterThan(0));

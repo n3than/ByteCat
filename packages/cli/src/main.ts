@@ -198,8 +198,9 @@ switch (command) {
     });
     const runs = Number(values.runs);
     const warmup = Number(values.warmup);
-    if (!Number.isInteger(runs) || runs < 1 || !Number.isInteger(warmup) || warmup < 0) {
-      console.error("--runs must be a positive integer and --warmup a non-negative integer");
+    const timeoutMs = values.timeout === undefined ? 60_000 : Number(values.timeout);
+    if (!Number.isInteger(runs) || runs < 1 || !Number.isInteger(warmup) || warmup < 0 || !(timeoutMs > 0)) {
+      console.error("--runs must be a positive integer, --warmup a non-negative integer and --timeout a positive number");
       process.exit(2);
     }
     const results: BenchResult[] = [];
@@ -215,8 +216,7 @@ switch (command) {
         process.exit(2);
       }
       if (!values.json) console.error(`benchmarking ${name}...`);
-      const timeoutMs = values.timeout ? Number(values.timeout) : undefined;
-      results.push(await benchmark(name, compileFile(path).project, expected, engines, { runs, warmup, ...(timeoutMs ? { timeoutMs } : {}) }));
+      results.push(await benchmark(name, compileFile(path).project, expected, engines, { runs, warmup, timeoutMs }));
     }
     if (values.out) {
       mkdirSync(dirname(values.out), { recursive: true });
