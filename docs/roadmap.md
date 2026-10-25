@@ -10,8 +10,9 @@ stage exists.
    generator function per script, with light static typing to skip needless casts. Loops yield
    once per iteration unless in warp mode, so `forever` does not freeze the page.
    `@bytecat/runtime` is the headless scheduler and block helpers it runs on. Covers events,
-   control, operators, variables, lists, custom blocks, and basic motion and looks. Later
-   speedups: compile yield-free scripts as plain functions, and type variables.
+   control, operators, variables, lists, custom blocks, and basic motion and looks. Custom blocks
+   that never yield already compile to plain functions. Later speedups: type variables (numeric
+   loop counters in particular) so fewer values go through `toNum` and `compare`.
 3. **Canvas renderer** (done, `@bytecat/player`). A 480x360 canvas draws sprites and costumes
    (position, size, direction, rotation style, layering, visibility, backdrops), say and think
    bubbles, and handles keyboard and mouse input. `bytecat bundle` produces one standalone HTML

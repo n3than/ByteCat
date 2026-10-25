@@ -1,0 +1,12 @@
+step
+tick
+step
+tick
+step
+step
+step
+tick
+n 3
+after stop 201
+odd
+count 500

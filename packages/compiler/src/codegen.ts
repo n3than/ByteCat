@@ -14,6 +14,8 @@ interface Proc {
   fn: string;
   params: string[];
   warp: boolean;
+  /** True when the body can never yield, so it compiles to a plain function instead of a generator. */
+  sync: boolean;
 }
 
 export interface CompileResult {
@@ -60,6 +62,12 @@ class TargetCodegen {
   private readonly procs = new Map<string, Proc>();
   private params = new Map<string, string>();
   private tmp = 0;
+  /** Set while compiling the body of a warp procedure, where loops never yield. */
+  private inWarp = false;
+  /** Set when the code compiled since the last reset can yield. */
+  private yields = false;
+  /** Every procedure definition with its compiled body, from analyzeProcedures. */
+  private readonly procDefs: { proc: Proc; body: string[] }[];
 
   constructor(
     private readonly target: Target,
@@ -78,28 +86,76 @@ class TargetCodegen {
         fn: `p${index}_${n++}`,
         params: names,
         warp: block.mutation.warp === "true" || (block.mutation.warp as unknown) === true,
+        sync: true,
       });
     }
+    // Decide which procedures are sync before compiling any call to them (hats() relies on it).
+    this.procDefs = this.analyzeProcedures();
   }
 
   // ---- top level ----
 
   procedures(): string[] {
     const out: string[] = [];
+    for (const { proc, body } of this.procDefs) {
+      const args = proc.params.map((_, j) => `a${j}`);
+      out.push(`function${proc.sync ? "" : "*"} ${proc.fn}(${["t", "th", ...args].join(", ")}) {`);
+      out.push(...indent(body));
+      out.push("}");
+    }
+    return out;
+  }
+
+  /** Compiles every procedure body and settles which procedures are sync. */
+  private analyzeProcedures(): { proc: Proc; body: string[] }[] {
+    const defs: [Proc, Block][] = [];
     for (const block of Object.values(this.blocks)) {
       if (block.opcode !== "procedures_definition") continue;
       const protoId = block.inputs.custom_block?.[1];
       const proto = typeof protoId === "string" ? this.blocks[protoId] : undefined;
       const proc = proto?.mutation?.proccode ? this.procs.get(proto.mutation.proccode) : undefined;
-      if (!proc) continue;
-      this.params = new Map(proc.params.map((name, i) => [name, `a${i}`]));
-      const args = proc.params.map((_, i) => `a${i}`);
-      out.push(`function* ${proc.fn}(${["t", "th", ...args].join(", ")}) {`);
-      out.push(...indent(this.stack(block.next)));
-      out.push("}");
-      this.params = new Map();
+      if (proc) defs.push([proc, block]);
     }
-    return out;
+    // Every procedure starts out sync. Compiling a body that can yield (a wait, a loop outside
+    // warp, or a call to a procedure that can yield) makes it a generator, which can make its
+    // callers generators too, so repeat until nothing changes.
+    let bodies: string[][];
+    for (;;) {
+      let changed = false;
+      bodies = defs.map(([proc, block]) => {
+        const body = this.procBody(proc, block);
+        if (this.yields && proc.sync) {
+          proc.sync = false;
+          changed = true;
+        }
+        return body;
+      });
+      if (!changed) break;
+    }
+    return defs.map(([proc], i) => ({ proc, body: bodies[i]! }));
+  }
+
+  private procBody(proc: Proc, block: Block): string[] {
+    this.params = new Map(proc.params.map((name, i) => [name, `a${i}`]));
+    this.inWarp = proc.warp;
+    this.yields = false;
+    const body = this.stack(block.next);
+    this.params = new Map();
+    this.inWarp = false;
+    return body;
+  }
+
+  /** The yield at the end of a loop iteration, which a warp procedure never needs. */
+  private loopYield(): string[] {
+    if (this.inWarp) return [];
+    this.yields = true;
+    return [`  ${LOOP_YIELD}`];
+  }
+
+  /** Marks the statement being compiled as one that can yield. */
+  private y(line: string): string[] {
+    this.yields = true;
+    return [line];
   }
 
   hats(): string[] {
@@ -167,7 +223,7 @@ class TargetCodegen {
       case "motion_turnright": return [`rt.setDirection(t, t.direction + ${num("DEGREES")});`];
       case "motion_turnleft": return [`rt.setDirection(t, t.direction - ${num("DEGREES")});`];
       case "motion_gotoxy": return [`rt.setXY(t, ${num("X")}, ${num("Y")});`];
-      case "motion_glidesecstoxy": return [`yield* rt.glide(t, ${num("SECS")}, ${num("X")}, ${num("Y")});`];
+      case "motion_glidesecstoxy": return this.y(`yield* rt.glide(t, ${num("SECS")}, ${num("X")}, ${num("Y")});`);
       case "motion_pointindirection": return [`rt.setDirection(t, ${num("DIRECTION")});`];
       case "motion_changexby": return [`rt.setXY(t, t.x + ${num("DX")}, t.y);`];
       case "motion_setx": return [`rt.setXY(t, ${num("X")}, t.y);`];
@@ -179,8 +235,8 @@ class TargetCodegen {
       // looks
       case "looks_say": return [`rt.say(t, "say", ${any("MESSAGE")});`];
       case "looks_think": return [`rt.say(t, "think", ${any("MESSAGE")});`];
-      case "looks_sayforsecs": return [`yield* rt.sayFor(t, "say", ${any("MESSAGE")}, ${num("SECS")});`];
-      case "looks_thinkforsecs": return [`yield* rt.sayFor(t, "think", ${any("MESSAGE")}, ${num("SECS")});`];
+      case "looks_sayforsecs": return this.y(`yield* rt.sayFor(t, "say", ${any("MESSAGE")}, ${num("SECS")});`);
+      case "looks_thinkforsecs": return this.y(`yield* rt.sayFor(t, "think", ${any("MESSAGE")}, ${num("SECS")});`);
       case "looks_switchcostumeto": return [`rt.switchCostume(t, ${any("COSTUME")});`];
       case "looks_nextcostume": return ["rt.nextCostume(t);"];
       case "looks_switchbackdropto": return [`rt.switchCostume(S, ${any("BACKDROP")});`];
@@ -195,21 +251,21 @@ class TargetCodegen {
 
       // events
       case "event_broadcast": return [`rt.broadcast(${any("BROADCAST_INPUT")});`];
-      case "event_broadcastandwait": return [`yield* rt.broadcastAndWait(${any("BROADCAST_INPUT")});`];
+      case "event_broadcastandwait": return this.y(`yield* rt.broadcastAndWait(${any("BROADCAST_INPUT")});`);
 
       // control
-      case "control_wait": return [`yield* rt.wait(${num("DURATION")});`];
-      case "control_wait_until": return [`while (!${bool("CONDITION")}) yield rt.WAIT;`];
+      case "control_wait": return this.y(`yield* rt.wait(${num("DURATION")});`);
+      case "control_wait_until": return this.y(`while (!${bool("CONDITION")}) yield rt.WAIT;`);
       case "control_repeat": {
         const r = `r${this.tmp++}`;
-        return [`for (let ${r} = Math.round(${num("TIMES")}); ${r} > 0; ${r}--) {`, ...this.substack(b, "SUBSTACK"), `  ${LOOP_YIELD}`, "}"];
+        return [`for (let ${r} = Math.round(${num("TIMES")}); ${r} > 0; ${r}--) {`, ...this.substack(b, "SUBSTACK"), ...this.loopYield(), "}"];
       }
       case "control_forever":
-        return ["for (;;) {", ...this.substack(b, "SUBSTACK"), `  ${LOOP_YIELD}`, "}"];
+        return ["for (;;) {", ...this.substack(b, "SUBSTACK"), ...this.loopYield(), "}"];
       case "control_repeat_until":
-        return [`while (!${bool("CONDITION")}) {`, ...this.substack(b, "SUBSTACK"), `  ${LOOP_YIELD}`, "}"];
+        return [`while (!${bool("CONDITION")}) {`, ...this.substack(b, "SUBSTACK"), ...this.loopYield(), "}"];
       case "control_while":
-        return [`while (${bool("CONDITION")}) {`, ...this.substack(b, "SUBSTACK"), `  ${LOOP_YIELD}`, "}"];
+        return [`while (${bool("CONDITION")}) {`, ...this.substack(b, "SUBSTACK"), ...this.loopYield(), "}"];
       case "control_for_each": {
         const r = `r${this.tmp++}`;
         const v = this.variable(b.fields.VARIABLE);
@@ -217,7 +273,7 @@ class TargetCodegen {
           `for (let ${r} = 1, n = ${num("VALUE")}; ${r} <= n; ${r}++) {`,
           `  ${v} = ${r};`,
           ...this.substack(b, "SUBSTACK"),
-          `  ${LOOP_YIELD}`,
+          ...this.loopYield(),
           "}",
         ];
       }
@@ -234,7 +290,7 @@ class TargetCodegen {
       }
 
       // sensing
-      case "sensing_askandwait": return [`yield* rt.ask(t, ${any("QUESTION")});`];
+      case "sensing_askandwait": return this.y(`yield* rt.ask(t, ${any("QUESTION")});`);
       case "sensing_resettimer": return ["rt.resetTimer();"];
 
       // data
@@ -260,9 +316,12 @@ class TargetCodegen {
         if (!proc) return [];
         const ids = JSON.parse(b.mutation?.argumentids ?? "[]") as string[];
         const args = ids.map((id) => this.any(this.input(b, id)));
-        const call = `yield* ${proc.fn}(${["t", "th", ...args].join(", ")});`;
-        if (!proc.warp) return [call];
-        return ["th.warp++;", `try { ${call} } finally { th.warp--; }`];
+        const call = `${proc.fn}(${["t", "th", ...args].join(", ")});`;
+        // A sync procedure never reads th.warp, so it needs no warp bookkeeping.
+        if (proc.sync) return [call];
+        this.yields = true;
+        if (!proc.warp) return [`yield* ${call}`];
+        return ["th.warp++;", `try { yield* ${call} } finally { th.warp--; }`];
       }
     }
     this.warnings.add(b.opcode);
@@ -369,7 +428,16 @@ class TargetCodegen {
     const c = this.input(b, "OPERAND2");
     // Two numbers compare with plain JS operators; anything else needs Scratch's mixed rules.
     if (isNumeric(a) && isNumeric(c)) return { c: `(${this.num(a)} ${jsOp} ${this.num(c)})`, t: "bool" };
-    return { c: `${helper}(${this.any(a)}, ${this.any(c)})`, t: "bool" };
+    // A literal that is not a number makes the comparison case-insensitive text, whatever the
+    // other side holds.
+    if (isTextLiteral(a) || isTextLiteral(c)) {
+      const lower = (e: Ex) => (e.k !== undefined ? JSON.stringify(e.k.toLowerCase()) : `${this.str(e)}.toLowerCase()`);
+      return { c: `(${lower(a)} ${jsOp} ${lower(c)})`, t: "bool" };
+    }
+    // A numeric literal can be passed as a number when it prints back the same, which saves the
+    // helper from parsing it on every call.
+    const arg = (e: Ex) => (e.k !== undefined && String(Number(e.k)) === e.k ? numLiteral(Number(e.k)) : this.any(e));
+    return { c: `${helper}(${arg(a)}, ${arg(c)})`, t: "bool" };
   }
 
   // ---- casts ----
@@ -449,6 +517,11 @@ function numLiteral(n: number): string {
 function isNumeric(e: Ex): boolean {
   if (e.k !== undefined) return e.k.trim() !== "" && !Number.isNaN(Number(e.k));
   return e.t === "num";
+}
+
+/** True for a literal that Scratch compares as text: not a number, or only whitespace. */
+function isTextLiteral(e: Ex): boolean {
+  return e.k !== undefined && (e.k.trim() === "" || Number.isNaN(Number(e.k)));
 }
 
 function indent(lines: string[], levels = 1): string[] {

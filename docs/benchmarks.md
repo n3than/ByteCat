@@ -82,16 +82,17 @@ to the last script stopping, like the built-in `bytecat`, `scratch-vm` and `turb
 
 A sample from one machine (Linux, Node 22), 2026-10-25, `pnpm bench --runs 3`
 (1 warmup run). Speedups are relative to TurboWarp, so below 1.0x means TurboWarp was faster.
-Treat it as an illustration, not a reference: Bytecat's `recursion` time varied between 62 and
-116 ms across runs on the same machine.
+Treat it as an illustration, not a reference: timings on this machine moved by up to 2x between
+runs, most for Bytecat when scratch-vm ran in the same process (`--engines bytecat,turbowarp` is
+steadier).
 
 ```
 | benchmark | bytecat (ms) | scratch-vm (ms) | turbowarp (ms) | bytecat speedup | scratch-vm speedup |
 | --- | --- | --- | --- | --- | --- |
-| arith | 11.2 | 835.6 | 41.4 | 3.7x | 0.050x |
-| pingpong | 215.2 | 993.6 | 1947.2 | 9.0x | 2.0x |
-| recursion | 115.5 | 1197.0 | 40.8 | 0.35x | 0.034x |
-| sieve | 42.3 | 792.0 | 52.3 | 1.2x | 0.066x |
-| strings | 35.4 | 407.7 | 44.1 | 1.2x | 0.11x |
-| yield_loop | 203.9 | 821.7 | 269.6 | 1.3x | 0.33x |
+| arith | 19.1 | 926.0 | 41.4 | 2.2x | 0.045x |
+| pingpong | 118.3 | 1070.7 | 1978.5 | 16.7x | 1.8x |
+| recursion | 35.4 | 1200.6 | 41.0 | 1.2x | 0.034x |
+| sieve | 27.0 | 904.6 | 54.0 | 2.0x | 0.060x |
+| strings | 16.6 | 604.9 | 44.6 | 2.7x | 0.074x |
+| yield_loop | 56.9 | 868.9 | 207.4 | 3.6x | 0.24x |
 ```
