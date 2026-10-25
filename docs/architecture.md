@@ -36,7 +36,10 @@ same as it would from the Scratch editor.
 every iteration unless the script is in warp mode, and any blocked state (`wait`, `wait until`,
 `ask`) does `yield rt.WAIT`. A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
-never yields compiles to a plain function, which is much cheaper to call. Comparisons against a
+never yields compiles to a plain function, which is much cheaper to call. Calls to a plain
+function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
+reads it and a plain function contains none; a new runtime helper that reads `th.warp` would have
+to make its caller a generator. Comparisons against a
 literal are specialized: a text literal makes it a lowercase string comparison, and a numeric
 literal is passed as a number. The scheduler steps every thread in turn, repeating within a frame
 until most of the frame budget is used; it reads the clock every few hundred microseconds rather

@@ -63,8 +63,6 @@ export class Runtime {
   readonly says: SayEvent[] = [];
   /** Set by blocks that change what is on screen; ends the frame early unless in turbo mode. */
   redraw = false;
-  /** Scheduler passes between reads of the clock (see tick). */
-  private clockStride = 1;
   answer = "";
   mouse = { x: 0, y: 0, down: false };
   readonly keys = new Set<string>();
@@ -162,7 +160,9 @@ export class Runtime {
     const budget = (1000 / this.options.fps) * 0.75;
     const frameStart = performance.now();
     let lastCheck = frameStart;
-    let untilCheck = this.clockStride;
+    // Starts at 1 every frame, so a stride learned on cheap passes never carries into heavy ones.
+    let stride = 1;
+    let untilCheck = 1;
     this.redraw = false;
     for (;;) {
       let progressed = false;
@@ -177,12 +177,14 @@ export class Runtime {
       if (!progressed || this.threads.length === 0) break;
       if (this.redraw && !this.options.turbo) break;
       // Reading the clock costs about as much as a pass of one short thread, so read it every
-      // clockStride passes, sized to land about every 0.25 ms. That bounds the frame overrun.
+      // stride passes: doubling (up to 128) while a stride takes under 0.25 ms, halving when it
+      // takes longer, and back to 1 when passes turn heavy.
       if (--untilCheck === 0) {
         const now = performance.now();
         if (now - frameStart >= budget) break;
-        this.clockStride = now - lastCheck < 0.25 ? Math.min(this.clockStride * 2, 1024) : Math.max(this.clockStride >> 1, 1);
-        untilCheck = this.clockStride;
+        const took = now - lastCheck;
+        stride = took < 0.25 ? Math.min(stride * 2, 128) : took < 1 ? Math.max(stride >> 1, 1) : 1;
+        untilCheck = stride;
         lastCheck = now;
       }
     }

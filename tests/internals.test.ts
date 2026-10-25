@@ -40,4 +40,30 @@ describe("scheduler", () => {
     }
     expect(rt.running).toBe(true);
   });
+
+  it("keeps frames near the budget when cheap passes turn heavy", () => {
+    // Thousands of cheap passes, then passes of about a few hundred microseconds each.
+    const source = `var x = 0
+sprite Main:
+  when flag:
+    repeat 3000:
+      x += 1
+    broadcast("heavy")
+sprite Heavy:
+  define warp work():
+    repeat 30000:
+      x = (x * 7 + 3) % 1000
+  when receive "heavy":
+    forever:
+      work()
+`;
+    const json = compilePseudo(source, "heavy.sbp").project.json;
+    const rt = new Runtime(json, compile(json).program, { clock: "virtual", turbo: true, fps: 60 });
+    rt.greenFlag();
+    for (let i = 0; i < 15; i++) {
+      const start = performance.now();
+      rt.tick();
+      expect(performance.now() - start, `tick ${i}`).toBeLessThan(25);
+    }
+  });
 });

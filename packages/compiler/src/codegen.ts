@@ -66,6 +66,8 @@ class TargetCodegen {
   private inWarp = false;
   /** Set when the code compiled since the last reset can yield. */
   private yields = false;
+  /** Every procedure definition with its compiled body, from analyzeProcedures. */
+  private readonly procDefs: { proc: Proc; body: string[] }[];
 
   constructor(
     private readonly target: Target,
@@ -87,11 +89,25 @@ class TargetCodegen {
         sync: true,
       });
     }
+    // Decide which procedures are sync before compiling any call to them (hats() relies on it).
+    this.procDefs = this.analyzeProcedures();
   }
 
   // ---- top level ----
 
   procedures(): string[] {
+    const out: string[] = [];
+    for (const { proc, body } of this.procDefs) {
+      const args = proc.params.map((_, j) => `a${j}`);
+      out.push(`function${proc.sync ? "" : "*"} ${proc.fn}(${["t", "th", ...args].join(", ")}) {`);
+      out.push(...indent(body));
+      out.push("}");
+    }
+    return out;
+  }
+
+  /** Compiles every procedure body and settles which procedures are sync. */
+  private analyzeProcedures(): { proc: Proc; body: string[] }[] {
     const defs: [Proc, Block][] = [];
     for (const block of Object.values(this.blocks)) {
       if (block.opcode !== "procedures_definition") continue;
@@ -116,14 +132,7 @@ class TargetCodegen {
       });
       if (!changed) break;
     }
-    const out: string[] = [];
-    defs.forEach(([proc], i) => {
-      const args = proc.params.map((_, j) => `a${j}`);
-      out.push(`function${proc.sync ? "" : "*"} ${proc.fn}(${["t", "th", ...args].join(", ")}) {`);
-      out.push(...indent(bodies[i]!));
-      out.push("}");
-    });
-    return out;
+    return defs.map(([proc], i) => ({ proc, body: bodies[i]! }));
   }
 
   private procBody(proc: Proc, block: Block): string[] {
