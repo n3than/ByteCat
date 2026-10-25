@@ -8,7 +8,6 @@ import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
 import { runProject } from "@bytecat/reference";
 import { Runtime } from "@bytecat/runtime";
-import { buildWebApp } from "@bytecat/web";
 import { readSb3, writeSb3, type Project, type ProjectJson } from "@bytecat/sb3";
 
 const USAGE = `Usage: bytecat <command> [options]
@@ -22,8 +21,6 @@ Commands:
         [-o out.js]
   bundle <file.sbp|file.sb3|dir>  Write a standalone HTML player (default out/NAME.html; a directory bundles every .sbp)
         [-o out.html|outdir]
-  web [-o out/web/index.html]     Build the web app: one HTML page that opens .sb3 files or pseudocode,
-                                  compiles them in the browser and plays them
   run <file.sbp|file.sb3>         Run and print log() output and say bubbles
         [--engine bytecat|reference|turbowarp]  bytecat (default) is the compiled runtime,
                                   reference is scratch-vm, turbowarp is TurboWarp's VM with its compiler
@@ -153,13 +150,6 @@ switch (command) {
       writeFileSync(out, await bundleHtml(project, code, name));
       console.log(`${file} -> ${out}`);
     }
-    break;
-  }
-  case "web": {
-    const out = values.out ?? join("out", "web", "index.html");
-    mkdirSync(dirname(out), { recursive: true });
-    writeFileSync(out, await buildWebApp());
-    console.log(`web app -> ${out}`);
     break;
   }
   case "run": {

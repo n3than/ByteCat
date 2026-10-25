@@ -25,10 +25,5 @@ stage exists.
    TurboWarp (compiler on) side by side. See
    [benchmarks.md](benchmarks.md).
 
-5. **Web app** (done, `@bytecat/web`). `pnpm web` builds one HTML page that opens `.sb3` files or
-   pseudocode, compiles them in the browser, plays them with warnings and the generated
-   JavaScript alongside, and downloads the standalone player. See [web.md](web.md). It is the
-   seed of the production webapp.
-
 Out of scope for the proof of concept: pen, sound, clones, collision (`touching`), extensions,
 cloud variables, and exact Scratch compatibility in edge cases (Bytecat is fast first).
