@@ -2,10 +2,10 @@ import { createRequire } from "node:module";
 import ScratchVM from "scratch-vm";
 import TurboWarpVM from "turbowarp-vm";
 
-// TurboWarp's logger binds console methods when it loads, so silenced() cannot hide its warnings
-// about missing costume assets. Mute everything but errors on the shared logger instead.
+// TurboWarp's shared logger binds console methods when it loads, so swapping console in silenced()
+// does not reach it; silenced() swaps the logger's methods too.
 const twLog = createRequire(import.meta.url)("turbowarp-vm/src/util/log") as Record<string, unknown>;
-for (const level of ["debug", "log", "info", "warn", "warning"]) twLog[level] = () => {};
+const twLogLevels = ["debug", "log", "info", "warn", "warning"];
 
 /**
  * Which VM runs the project. `scratch` is the official scratch-vm, the ground truth for behaviour.
@@ -42,6 +42,13 @@ export interface RunResult {
    * "Sprite: message". Always empty for scratch-vm.
    */
   compileErrors: string[];
+  /** Threads TurboWarp started as compiled JavaScript. Always 0 for scratch-vm. */
+  compiledThreads: number;
+}
+
+interface TwThread {
+  triedToCompile?: boolean;
+  isCompiled?: boolean;
 }
 
 /**
@@ -52,11 +59,22 @@ export async function runProject(sb3: Uint8Array, options: RunOptions = {}): Pro
   const { timeoutMs = 10_000, answers = [], turbo = true, engine = "scratch" } = options;
   const vm = await silenced(async () => (engine === "turbowarp" ? new TurboWarpVM() : new ScratchVM()));
   const compileErrors: string[] = [];
-  if (engine === "turbowarp") {
+  let compiledThreads = 0;
+  if (vm instanceof TurboWarpVM) {
     vm.setCompilerOptions({ enabled: true, warpTimer: false });
     vm.runtime.on("COMPILE_ERROR", (target: { getName(): string }, error: unknown) => {
       compileErrors.push(`${target.getName()}: ${error instanceof Error ? error.message : String(error)}`);
     });
+    // TurboWarp compiles each thread as the runtime starts it; count the ones that came out compiled.
+    const runtime = vm.runtime as unknown as Record<string, (...args: unknown[]) => TwThread>;
+    for (const method of ["_pushThread", "_restartThread"]) {
+      const original = runtime[method]!.bind(runtime);
+      runtime[method] = (...args) => {
+        const thread = original(...args);
+        if (thread.triedToCompile && thread.isCompiled) compiledThreads++;
+        return thread;
+      };
+    }
   }
   const says: RunResult["says"] = [];
   vm.runtime.on("SAY", (target: { getName(): string }, kind: "say" | "think", text: unknown) => {
@@ -97,16 +115,22 @@ export async function runProject(sb3: Uint8Array, options: RunOptions = {}): Pro
       if (target.isStage && v.type === "list" && v.name === "log") log = (v.value as unknown[]).map(String);
     }
   }
-  return { log, says, variables, finished, elapsedMs, compileErrors };
+  return { log, says, variables, finished, elapsedMs, compileErrors, compiledThreads };
 }
 
-/** scratch-vm logs noisy warnings at startup and about the missing renderer; hide them while it sets up. */
+/**
+ * scratch-vm logs noisy warnings at startup and about the missing renderer; hide them while it sets
+ * up. Errors still print, and TurboWarp's compiler warnings print while the project runs.
+ */
 async function silenced<T>(fn: () => Promise<T>): Promise<T> {
   const { log, warn, info } = console;
+  const tw = Object.fromEntries(twLogLevels.map((level) => [level, twLog[level]]));
   console.log = console.warn = console.info = () => {};
+  for (const level of twLogLevels) twLog[level] = () => {};
   try {
     return await fn();
   } finally {
     Object.assign(console, { log, warn, info });
+    Object.assign(twLog, tw);
   }
 }

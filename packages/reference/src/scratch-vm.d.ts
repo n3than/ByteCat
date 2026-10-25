@@ -22,8 +22,6 @@ declare module "scratch-vm" {
     loadProject(input: ArrayBuffer | Uint8Array | string | object): Promise<void>;
     setTurboMode(on: boolean): void;
     setCompatibilityMode(on: boolean): void;
-    /** TurboWarp only. */
-    setCompilerOptions(options: { enabled?: boolean; warpTimer?: boolean }): void;
     start(): void;
     stopAll(): void;
     quit(): void;
@@ -35,5 +33,7 @@ declare module "scratch-vm" {
 // TurboWarp's fork, installed from GitHub under an alias. Same API, plus the compiler options.
 declare module "turbowarp-vm" {
   import VirtualMachine from "scratch-vm";
-  export default VirtualMachine;
+  export default class TurboWarpVM extends VirtualMachine {
+    setCompilerOptions(options: { enabled?: boolean; warpTimer?: boolean }): void;
+  }
 }

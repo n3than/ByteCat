@@ -34,6 +34,7 @@ describe.each(engines)("examples in %s", (engine) => {
       const result = await runProject(sb3, { timeoutMs: 5000, engine });
       expect(result.finished, "project did not finish within 5 s").toBe(true);
       expect(result.compileErrors, "TurboWarp fell back to its interpreter").toEqual([]);
+      if (engine === "turbowarp") expect(result.compiledThreads, "TurboWarp compiled nothing").toBeGreaterThan(0);
       const expected = readFileSync(expectedPath, "utf8").split("\n").filter((l, i, a) => i < a.length - 1 || l !== "");
       expect(result.log).toEqual(expected);
     });
