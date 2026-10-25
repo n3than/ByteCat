@@ -11,6 +11,9 @@ for how the pieces fit together.
 
 Requires Node 22+ and pnpm 10.
 
+The easiest way in is the web app: run `pnpm web` and open `out/web/index.html`. Drop an `.sb3`
+on it or write pseudocode, press Run, and download a standalone player. See [docs/web.md](docs/web.md).
+
 ```sh
 pnpm install
 pnpm exec playwright install chromium  # once: the browser tests render every example in Chromium
@@ -18,6 +21,7 @@ pnpm verify                            # typecheck, then unit tests + every exam
 pnpm bytecat run examples/primes.sbp   # compile pseudocode and run it on the Bytecat runtime (--engine reference for scratch-vm, turbowarp for TurboWarp)
 pnpm bytecat compile examples/primes.sbp -o out/primes.js  # compile to a JS module
 pnpm bytecat bundle examples/render.sbp  # write out/render.html: a standalone page that plays the project
+pnpm web                               # write out/web/index.html: the web app (open .sb3 or pseudocode, run, download)
 pnpm bench                             # time every bench/*.sbp on Bytecat, scratch-vm and TurboWarp, see docs/benchmarks.md
 pnpm bytecat build examples/primes.sbp # write examples/primes.sb3, open it in TurboWarp or Scratch
 ```
@@ -36,3 +40,4 @@ Test projects are written in Bytecat pseudocode, documented in [docs/pseudocode.
 | Runtime | `@bytecat/runtime` | working (headless) |
 | Canvas renderer, input, standalone HTML | `@bytecat/player` | working |
 | Benchmarks | `@bytecat/bench` | working (Bytecat vs scratch-vm and TurboWarp) |
+| Web app | `@bytecat/web` | working (single page, runs fully in the browser) |

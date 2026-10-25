@@ -155,13 +155,21 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
-/** Decodes costume images (data URLs) and extracts their alpha channels. */
-export async function loadCostumes(assets: Record<string, string>): Promise<Map<string, Costume>> {
+/**
+ * Decodes costume images (data or blob URLs) and extracts their alpha channels. An image the
+ * browser cannot decode is left out and its name passed to `onError`; that costume draws nothing.
+ */
+export async function loadCostumes(assets: Record<string, string>, onError?: (name: string) => void): Promise<Map<string, Costume>> {
   const entries = await Promise.all(
     Object.entries(assets).map(async ([name, url]) => {
       const img = new Image();
       img.src = url;
-      await img.decode();
+      try {
+        await img.decode();
+      } catch {
+        onError?.(name);
+        return null;
+      }
       const w = Math.max(1, img.naturalWidth);
       const h = Math.max(1, img.naturalHeight);
       const canvas = document.createElement("canvas");
@@ -175,5 +183,5 @@ export async function loadCostumes(assets: Record<string, string>): Promise<Map<
       return [name, { image: canvas, alpha }] as const;
     }),
   );
-  return new Map(entries);
+  return new Map(entries.filter((e) => e !== null));
 }

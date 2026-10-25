@@ -14,6 +14,8 @@ export interface PlayerOptions {
    */
   test?: boolean;
   answers?: string[];
+  /** Called with the name of each costume image the browser cannot decode (it is skipped). */
+  onAssetError?: (name: string) => void;
 }
 
 export interface Player {
@@ -32,6 +34,8 @@ export interface Player {
   release(key: string): void;
   /** Simulates a click at Scratch stage coordinates. */
   click(x: number, y: number): void;
+  /** Stops the frame loop and removes the input listeners, so the canvas can host another player. */
+  dispose(): void;
 }
 
 const KEY_NAMES: Record<string, string> = {
@@ -56,9 +60,10 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
     turbo: test,
     ...(options.answers ? { answers: options.answers } : {}),
   });
-  const costumes = await loadCostumes(options.assets);
+  const costumes = await loadCostumes(options.assets, options.onAssetError);
   const renderer = new Renderer(canvas, rt, costumes, test ? 1 : Math.min(2, window.devicePixelRatio || 1));
   let timer: ReturnType<typeof setInterval> | null = null;
+  const listeners = new AbortController();
 
   const toCanvas = (x: number, y: number) => ({ x: STAGE_WIDTH / 2 + x, y: STAGE_HEIGHT / 2 - y });
   const click = (x: number, y: number) => {
@@ -107,14 +112,21 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
     press: (key) => rt.keyDown(key),
     release: (key) => rt.keyUp(key),
     click,
+    dispose() {
+      if (timer) clearInterval(timer);
+      timer = null;
+      rt.stopAll();
+      rt.onAsk = null;
+      listeners.abort();
+    },
   };
 
-  if (!test) attachInput(player);
+  if (!test) attachInput(player, listeners.signal);
   renderer.draw();
   return player;
 }
 
-function attachInput(player: Player): void {
+function attachInput(player: Player, signal: AbortSignal): void {
   const { rt, renderer } = player;
   const canvas = renderer.canvas;
   const stagePoint = (e: MouseEvent) => {
@@ -128,31 +140,32 @@ function attachInput(player: Player): void {
     const p = stagePoint(e);
     rt.mouse.x = Math.round(p.x);
     rt.mouse.y = Math.round(p.y);
-  });
+  }, { signal });
   canvas.addEventListener("mousedown", (e) => {
     rt.mouse.down = true;
     const p = stagePoint(e);
     player.click(Math.round(p.x), Math.round(p.y));
     canvas.focus();
-  });
-  window.addEventListener("mouseup", () => (rt.mouse.down = false));
+  }, { signal });
+  window.addEventListener("mouseup", () => (rt.mouse.down = false), { signal });
   canvas.addEventListener("keydown", (e) => {
     const key = scratchKey(e);
     if (!key) return;
     e.preventDefault();
     if (!e.repeat) rt.keyDown(key);
-  });
+  }, { signal });
   canvas.addEventListener("keyup", (e) => {
     const key = scratchKey(e);
     if (key) rt.keyUp(key);
-  });
-  rt.onAsk = (question) => askPrompt(canvas, question);
+  }, { signal });
+  rt.onAsk = (question) => askPrompt(canvas, question, signal);
 }
 
 /** A minimal text box under the stage for `ask and wait`. */
-function askPrompt(canvas: HTMLCanvasElement, question: string): Promise<string> {
+function askPrompt(canvas: HTMLCanvasElement, question: string, signal: AbortSignal): Promise<string> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
+    signal.addEventListener("abort", () => input.remove());
     input.placeholder = question;
     input.className = "bytecat-ask";
     canvas.after(input);

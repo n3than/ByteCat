@@ -1,0 +1,15 @@
+{
+  "name": "@bytecat/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Bytecat web app: open an .sb3 or write pseudocode, compile it in the browser and play it.",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@bytecat/compiler": "workspace:*",
+    "@bytecat/player": "workspace:*",
+    "@bytecat/pseudo": "workspace:*",
+    "@bytecat/sb3": "workspace:*",
+    "esbuild": "^0.28.2"
+  }
+}

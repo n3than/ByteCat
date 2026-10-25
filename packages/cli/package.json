@@ -12,6 +12,7 @@
     "@bytecat/pseudo": "workspace:*",
     "@bytecat/reference": "workspace:*",
     "@bytecat/runtime": "workspace:*",
-    "@bytecat/sb3": "workspace:*"
+    "@bytecat/sb3": "workspace:*",
+    "@bytecat/web": "workspace:*"
   }
 }

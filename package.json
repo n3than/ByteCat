@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "examples": "tsx packages/cli/src/main.ts build examples -o out/examples",
     "examples:html": "tsx packages/cli/src/main.ts bundle examples -o out/examples",
+    "web": "tsx packages/cli/src/main.ts web",
     "bench": "tsx packages/cli/src/main.ts bench",
     "docs": "tsx scripts/gen-docs.ts"
   },
@@ -26,6 +27,7 @@
     "@bytecat/reference": "workspace:*",
     "@bytecat/runtime": "workspace:*",
     "@bytecat/sb3": "workspace:*",
+    "@bytecat/web": "workspace:*",
     "@types/node": "^22.10.0",
     "playwright": "1.63.0",
     "scratch-parser": "^6.0.1",
