@@ -45,7 +45,8 @@ to make its caller a generator. Comparisons against a
 literal are specialized: a text literal makes it a lowercase string comparison, and a numeric
 literal is passed as a number. The scheduler steps every thread in turn, repeating within a frame
 until most of the frame budget is used; it reads the clock every few hundred microseconds rather
-than after every pass.
+than after every pass, and within a few passes of a thread starting, since a new thread can make
+passes much heavier.
 
 ## Design rules
 

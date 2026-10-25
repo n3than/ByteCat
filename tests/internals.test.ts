@@ -42,7 +42,8 @@ describe("scheduler", () => {
   });
 
   it("keeps frames near the budget when cheap passes turn heavy", () => {
-    // Thousands of cheap passes, then passes of about a few hundred microseconds each.
+    // Thousands of cheap passes, then passes of most of a millisecond each. The heavy thread starts
+    // mid-frame, while the clock stride is at its cap, so that frame must notice it straight away.
     const source = `var x = 0
 sprite Main:
   when flag:
@@ -51,7 +52,7 @@ sprite Main:
     broadcast("heavy")
 sprite Heavy:
   define warp work():
-    repeat 30000:
+    repeat 100000:
       x = (x * 7 + 3) % 1000
   when receive "heavy":
     forever:
