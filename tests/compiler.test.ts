@@ -1,5 +1,6 @@
 // Every example through the Bytecat pipeline (pseudocode -> project.json -> JS -> runtime),
-// checked against examples/<name>.expected and against scratch-vm and TurboWarp.
+// checked against examples/<name>.expected and against TurboWarp, and against scratch-vm unless
+// the example has an examples/<name>.scratch.expected (a known deviation, docs/deviations.md).
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { compile } from "@bytecat/compiler";
@@ -33,7 +34,8 @@ describe("compiler and runtime", () => {
       expect(rt.log()).toEqual(expected);
 
       const sb3 = compileToSb3(source, file);
-      for (const engine of engines) {
+      const scratchDiffers = existsSync(join(dir, `${name}.scratch.expected`));
+      for (const engine of engines.filter((e) => !(e === "scratch" && scratchDiffers))) {
         const reference = await runProject(sb3, { timeoutMs: 5000, engine });
         expect(rt.log(), `differs from ${engine}`).toEqual(reference.log);
       }

@@ -1,0 +1,14 @@
+# Lists have no length limit, as in TurboWarp. scratch-vm caps them at 200000 items and ignores
+# adds beyond that (see docs/deviations.md).
+list items
+
+sprite Main:
+  define warp fill():
+    repeat 200005:
+      items.add(1)
+    items.insert(1, 2)
+
+  when flag:
+    fill()
+    log(items.length)
+    log(items[1])

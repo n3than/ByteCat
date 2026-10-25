@@ -13,7 +13,7 @@ difference keeps scratch-vm's output in `examples/NAME.scratch.expected` next to
 
 | Difference | Reason | Pinned by |
 | --- | --- | --- |
-| scratch-vm caps a list at 200000 items; TurboWarp and Bytecat have no limit. | Follows TurboWarp. | Benchmarks keep lists under the cap (see [benchmarks.md](benchmarks.md)). |
+| scratch-vm caps a list at 200000 items and ignores adds beyond that; TurboWarp and Bytecat have no limit. | Follows TurboWarp. | `examples/list_limit.scratch.expected`. Benchmarks keep lists under the cap so every engine can run them (see [benchmarks.md](benchmarks.md)). |
 
 ## From TurboWarp
 
