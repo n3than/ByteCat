@@ -16,7 +16,7 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 | `packages/sb3` | Types for `project.json`, deterministic ids, generated SVG assets, `.sb3` zip read/write, and a plain TypeScript `md5` so it runs in the browser. No Scratch semantics. | fflate |
 | `packages/pseudo` | Pseudocode compiler: `lexer.ts` (tokens with INDENT/DEDENT) → `parser.ts` (AST in `ast.ts`) → `lower.ts` (Scratch blocks). The builtin block table is `builtins.ts`. | sb3 |
 | `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
-| `packages/compiler` | `project.json` → one JavaScript program (`compile`, `toModule`, `load`). Reports unsupported opcodes as warnings. | runtime (types), sb3 |
+| `packages/compiler` | `project.json` → one JavaScript program (`compile`, `toModule`, `load`). Reports unsupported opcodes as warnings. Split into small modules, see [Compiler modules](#compiler-modules). | runtime (types), sb3 |
 | `packages/runtime` | Headless scheduler (virtual or real clock), targets, say bubbles and the Scratch value helpers in `ops.ts` that generated code calls. | sb3 |
 | `packages/player` | Browser player: canvas renderer (`renderer.ts`), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild |
 | `packages/bench` | Benchmark harness: `Engine` implementations (Bytecat, scratch-vm, more via `registerEngine`), `benchmark` (warmup, timed runs, output check) and `formatTable`. See [benchmarks.md](benchmarks.md). | compiler, runtime, reference, sb3 |
@@ -30,6 +30,25 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 Neither the
 compiler nor the runtime depends on `pseudo`, so the compiler only ever sees real `.sb3` files, the
 same as it would from the Scratch editor.
+
+## Compiler modules
+
+`packages/compiler/src` is split so each piece can be tested alone and an optimization touches
+one stage:
+
+| File | Role |
+| --- | --- |
+| `types.ts` | `Ex` (generated expression plus its static type), `Proc`, `CompileResult`, and `Gen`, the interface block handlers use to reach the compiler. |
+| `cast.ts` | Pure helpers: literals, `asNum`/`asStr`/`asBool`/`asAny` casts that skip casts that cannot change the value, `indent`. |
+| `scope.ts` | `Scope`: variable and list fields → `t.v[id]` / `S.v[id]`, with the stale-id fallback and the startup prelude for unknown ones. |
+| `blocks/*.ts` | One file per Scratch category (`motion`, `looks`, `events`, `control`, `sensing`, `data`, `operators`, `procedures`), each exporting handler tables keyed by opcode. A handler is a pure function of a block and a `Gen`; returning `undefined` makes the block unsupported. `blocks/index.ts` merges the tables. |
+| `target.ts` | `TargetCodegen`: implements `Gen` for one target, dispatches blocks to handlers, compiles procedures (including the sync/yield fixpoint) and hat scripts. |
+| `emit.ts` | `emitProgram`: assembles the final `function (rt)` text. |
+| `codegen.ts` | `compileProject`: the driver over all targets. |
+
+To support a new block, add a handler to the right `blocks/` file and a test in
+`packages/compiler/test/blocks.test.ts`. Handlers are tested against a stub `Gen`
+(`test/helpers.ts`), so they need no project.
 
 ## Generated code
 
