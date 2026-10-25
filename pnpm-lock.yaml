@@ -8,15 +8,30 @@ importers:
 
   .:
     devDependencies:
+      '@bytecat/compiler':
+        specifier: workspace:*
+        version: link:packages/compiler
+      '@bytecat/player':
+        specifier: workspace:*
+        version: link:packages/player
       '@bytecat/pseudo':
         specifier: workspace:*
         version: link:packages/pseudo
       '@bytecat/reference':
         specifier: workspace:*
         version: link:packages/reference
+      '@bytecat/runtime':
+        specifier: workspace:*
+        version: link:packages/runtime
+      '@bytecat/sb3':
+        specifier: workspace:*
+        version: link:packages/sb3
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.5
+      playwright:
+        specifier: 1.63.0
+        version: 1.63.0
       scratch-parser:
         specifier: ^6.0.1
         version: 6.0.1
@@ -32,15 +47,45 @@ importers:
 
   packages/cli:
     dependencies:
+      '@bytecat/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@bytecat/player':
+        specifier: workspace:*
+        version: link:../player
       '@bytecat/pseudo':
         specifier: workspace:*
         version: link:../pseudo
       '@bytecat/reference':
         specifier: workspace:*
         version: link:../reference
+      '@bytecat/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       '@bytecat/sb3':
         specifier: workspace:*
         version: link:../sb3
+
+  packages/compiler:
+    dependencies:
+      '@bytecat/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@bytecat/sb3':
+        specifier: workspace:*
+        version: link:../sb3
+
+  packages/player:
+    dependencies:
+      '@bytecat/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@bytecat/sb3':
+        specifier: workspace:*
+        version: link:../sb3
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
 
   packages/pseudo:
     dependencies:
@@ -53,6 +98,12 @@ importers:
       scratch-vm:
         specifier: ^5.0.300
         version: 5.0.300(scratch-render-fonts@1.0.252)
+
+  packages/runtime:
+    dependencies:
+      '@bytecat/sb3':
+        specifier: workspace:*
+        version: link:../sb3
 
   packages/sb3:
     dependencies:
@@ -998,6 +1049,16 @@ packages:
   pify@4.0.1:
     resolution: {integrity: sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==}
     engines: {node: '>=6'}
+
+  playwright-core@1.63.0:
+    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.63.0:
+    resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   postcss@8.5.31:
     resolution: {integrity: sha512-YUbWYCgErwnMAVkjUnYa+KlMBzGpHwiIt/DE7f0G33AuX2LH9UcTk6KgWxd3zRU+pN3u/C+Xl3EnMLM4Hea7Sg==}
@@ -2211,6 +2272,12 @@ snapshots:
   picomatch@4.0.7: {}
 
   pify@4.0.1: {}
+
+  playwright-core@1.63.0: {}
+
+  playwright@1.63.0:
+    dependencies:
+      playwright-core: 1.63.0
 
   postcss@8.5.31:
     dependencies:

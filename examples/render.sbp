@@ -1,0 +1,58 @@
+# Rendering: backdrop, positions, size, hidden sprites, layering, costumes and rotation.
+# The pixel probes in render.pixels check what ends up on the canvas.
+stage:
+  backdrop night "#224488"
+
+# Plain sprite at a known position.
+sprite Small:
+  costume box = square "#ff0000"
+  position -150, 100
+
+# Scaled to 200%: covers 96x96 pixels instead of 48x48.
+sprite Big:
+  costume box = square "#00cc00"
+  position 100, 100
+  size 200
+
+# Hidden sprites are not drawn.
+sprite Ghost:
+  costume dot = circle "#ffff00"
+  hidden
+
+# Later sprites are drawn on top: High covers Low where they overlap.
+sprite Low:
+  costume box = square "#ff8800"
+  position -150, -60
+
+sprite High:
+  costume box = square "#8800ff"
+  position -130, -60
+
+# Same overlap, but the lower sprite goes to the front layer.
+sprite LowFront:
+  costume box = square "#00ffff"
+  position 50, -60
+
+  when flag:
+    go_to_front()
+
+sprite HighBack:
+  costume box = square "#ff00ff"
+  position 70, -60
+
+sprite Changer:
+  costume first = square "#ff0000"
+  costume second = square "#0000ff"
+  position -50, 100
+
+  when flag:
+    switch_costume("second")
+
+# The triangle points up; turning right by 90 points it right.
+sprite Pointer:
+  costume tri = triangle "#ffaa00"
+  position 150, -120
+
+  when flag:
+    turn_right(90)
+    log("rendered")

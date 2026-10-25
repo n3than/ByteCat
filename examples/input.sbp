@@ -1,0 +1,33 @@
+# Scripted input: key hats, sprite and stage clicks, and wait_until on a held key.
+# Needs input.input to run, so the node-only test suites skip it.
+var received = 0
+
+stage:
+  backdrop sky "#88ccff"
+
+  when clicked:
+    received += 1
+    log("stage clicked")
+
+sprite Cat:
+  costume cat = circle "#ffab19"
+  position 0, 0
+
+  when clicked:
+    received += 1
+    log("cat clicked")
+
+  when key "space":
+    received += 1
+    log("space")
+
+  when key "a":
+    received += 1
+    log("a")
+
+  when flag:
+    wait_until(key_pressed("left arrow"))
+    log("left arrow held")
+    wait_until(received = 4)
+    log("all inputs received")
+    stop("all")

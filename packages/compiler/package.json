@@ -1,0 +1,12 @@
+{
+  "name": "@bytecat/compiler",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compiles Scratch 3 projects (project.json) into JavaScript for @bytecat/runtime.",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@bytecat/runtime": "workspace:*",
+    "@bytecat/sb3": "workspace:*"
+  }
+}

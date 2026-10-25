@@ -1,0 +1,23 @@
+// X Y #rrggbb, in Scratch stage coordinates
+// backdrop and hidden sprite
+-200 150 #224488
+0 0 #224488
+// sprite at its position
+-150 100 #ff0000
+// size 200: inside the enlarged square, outside the original 48x48 one
+100 100 #00cc00
+135 100 #00cc00
+100 155 #224488
+// layering: later sprite on top
+-165 -60 #ff8800
+-140 -60 #8800ff
+-115 -60 #8800ff
+// go_to_front on the lower sprite
+40 -60 #00ffff
+60 -60 #00ffff
+80 -60 #ff00ff
+// costume switch
+-50 100 #0000ff
+// rotation: the apex now points right, the old base side is empty
+150 -136 #224488
+162 -120 #ffaa00

@@ -6,13 +6,19 @@ stage exists.
 
 1. **Pseudocode to sb3** (done). A text format agents can write test projects in, compiled to
    valid `.sb3`, plus a headless scratch-vm runner as the source of truth for behaviour.
-2. **sb3 to JavaScript** (`@bytecat/compiler`). Parse `project.json` into an IR and generate one JS
-   function per script. Loops yield once per frame (unless in warp mode) so `forever` does not
-   freeze the page. Target block set: events (green flag, broadcasts, keys, clicks), control
-   (`repeat`, `repeat until`, `forever`, `if`/`else`, `wait`, `wait until`, `stop`), all operators,
-   variables, lists, custom blocks, and basic motion and looks.
-3. **Minimal runtime** (`@bytecat/runtime`). A 30 fps scheduler, a 480x360 canvas that draws
-   sprites and costumes, mouse and keyboard input, say bubbles.
+2. **sb3 to JavaScript** (done). `@bytecat/compiler` walks the block graph and generates one
+   generator function per script, with light static typing to skip needless casts. Loops yield
+   once per iteration unless in warp mode, so `forever` does not freeze the page.
+   `@bytecat/runtime` is the headless scheduler and block helpers it runs on. Covers events,
+   control, operators, variables, lists, custom blocks, and basic motion and looks. Later
+   speedups: compile yield-free scripts as plain functions, and type variables.
+3. **Canvas renderer** (done, `@bytecat/player`). A 480x360 canvas draws sprites and costumes
+   (position, size, direction, rotation style, layering, visibility, backdrops), say and think
+   bubbles, and handles keyboard and mouse input. `bytecat bundle` produces one standalone HTML
+   file. Test mode (`?test`) makes it deterministic, so examples can check pixels and scripted
+   input in a real browser. The renderer approximates Scratch: no graphic effects (color,
+   fisheye, ghost and so on), and `if on edge, bounce` uses the sprite's point position rather than
+   its costume bounds.
 4. **Benchmark harness** (`@bytecat/bench`). One command that takes `examples/*.sbp` through sb3 to
    JS, checks the `log` output against `.expected`, and times it against scratch-vm and TurboWarp.
 

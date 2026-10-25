@@ -23,7 +23,10 @@ describe("examples", () => {
     const name = file.replace(/\.sbp$/, "");
     const expectedPath = join(dir, `${name}.expected`);
 
-    it(name, async () => {
+    // Examples with scripted input would wait forever here; tests/browser.test.ts drives them.
+    const test = existsSync(join(dir, `${name}.input`)) ? it.skip : it;
+
+    test(name, async () => {
       expect(existsSync(expectedPath), `missing examples/${name}.expected`).toBe(true);
       const sb3 = compileToSb3(readFileSync(join(dir, file), "utf8"), file);
       await validate(sb3);

@@ -4,6 +4,9 @@
     { "path": "packages/sb3" },
     { "path": "packages/pseudo" },
     { "path": "packages/reference" },
+    { "path": "packages/runtime" },
+    { "path": "packages/compiler" },
+    { "path": "packages/player" },
     { "path": "packages/cli" }
   ]
 }

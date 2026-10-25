@@ -6,8 +6,11 @@
   "description": "The bytecat command line: build, inspect and run projects.",
   "bin": { "bytecat": "./src/main.ts" },
   "dependencies": {
+    "@bytecat/compiler": "workspace:*",
+    "@bytecat/player": "workspace:*",
     "@bytecat/pseudo": "workspace:*",
     "@bytecat/reference": "workspace:*",
+    "@bytecat/runtime": "workspace:*",
     "@bytecat/sb3": "workspace:*"
   }
 }

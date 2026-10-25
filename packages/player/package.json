@@ -1,0 +1,16 @@
+{
+  "name": "@bytecat/player",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser player: canvas renderer, input, frame loop, and the standalone HTML bundler.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./bundle": "./src/bundle.ts"
+  },
+  "dependencies": {
+    "@bytecat/runtime": "workspace:*",
+    "@bytecat/sb3": "workspace:*",
+    "esbuild": "^0.28.2"
+  }
+}

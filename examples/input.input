@@ -1,0 +1,11 @@
+// Keys, then a click on empty stage and a click on the sprite, then hold left arrow.
+press space
+release space
+press a
+release a
+click 180 120
+click 0 0
+step 3
+press left arrow
+step 2
+release left arrow

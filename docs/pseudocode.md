@@ -23,9 +23,10 @@ sprite Cat:
 ```
 
 ```sh
-pnpm bytecat run examples/hello.sbp          # run in the reference Scratch VM, print log() output
+pnpm bytecat run examples/hello.sbp          # run on the Bytecat runtime (--engine reference: scratch-vm), print log() output
 pnpm bytecat build examples/hello.sbp        # write examples/hello.sb3
 pnpm bytecat build examples -o out/examples  # build every .sbp in a folder
+pnpm bytecat bundle examples/hello.sbp       # write out/hello.html, a standalone page that plays the project
 pnpm bytecat check my.sbp                    # compile only, report errors
 pnpm bytecat dump my.sbp                     # print the generated project.json
 ```
@@ -272,6 +273,37 @@ Say and think bubbles are printed to stderr. A project that never stops (for exa
 Examples live in `examples/NAME.sbp` with the expected `log` output in `examples/NAME.expected`.
 `pnpm test` builds each example, validates it against the official sb3 schema, runs it in
 scratch-vm, and compares the output. To add a test project, add both files.
+
+Two more optional files test what the canvas shows and how a project reacts to input. They run in
+a real browser (`tests/browser.test.ts`: the standalone HTML from `bytecat bundle`, opened with
+`?test`, so the clock is virtual and frames advance only when the test steps them).
+
+`examples/NAME.pixels` lists pixel probes checked after the run. One probe per line, `X Y #rrggbb`,
+in Scratch stage coordinates (origin at the center, y up). Blank lines and lines starting with `//`
+are ignored. A probe passes when each RGB channel is within 8 of the expected value and the pixel
+is fully opaque. Pick points well inside shapes, away from the 2px dark outline of built-in shapes.
+
+```
+// X Y color
+-200 150 #224488
+100 100 #00cc00
+```
+
+`examples/NAME.input` is scripted input, one command per line, applied in order. Blank lines and
+`//` lines are ignored.
+
+| Command | Effect |
+| --- | --- |
+| `press KEY` | Key goes down. `KEY` is a Scratch key name and may contain spaces: `space`, `a`, `left arrow`. |
+| `release KEY` | Key goes up. |
+| `click X Y` | Mouse click at stage coordinates: hits the topmost sprite with an opaque pixel there, otherwise the stage. |
+| `step N` | Advance `N` frames. |
+
+The test clicks the green flag, steps one frame, applies each command followed by one frame (`step N`
+runs `N` frames instead), then keeps stepping until every script stops or 10000 frames have passed.
+After that it compares the `log` with `NAME.expected` and checks every probe. A project with an
+`.input` file must end itself (for example with `stop("all")`) once it has received the input; the
+node-only test suites skip these examples because they would wait for input forever.
 
 The headless reference VM has no renderer, so anything that needs one (size limits, touching,
 pen, costume bounds) does not behave like the real editor there. Keep those out of `.expected`

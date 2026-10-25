@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "composite": false, "declaration": false, "allowImportingTsExtensions": true },
+  "compilerOptions": { "noEmit": true, "composite": false, "declaration": false, "allowImportingTsExtensions": true, "lib": ["ES2022", "DOM"] },
   "include": [".", "../scripts"],
-  "references": [{ "path": "../packages/pseudo" }, { "path": "../packages/reference" }]
+  "references": [{ "path": "../packages/pseudo" }, { "path": "../packages/reference" }, { "path": "../packages/compiler" }, { "path": "../packages/runtime" }, { "path": "../packages/player" }, { "path": "../packages/sb3" }]
 }
