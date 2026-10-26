@@ -212,8 +212,12 @@ export function listContains(list: Value[], item: Value): boolean {
   return indexOf(list, item) !== 0;
 }
 
-/** The "contents of list" reporter: joined with spaces unless every item is a single character. */
+/**
+ * The "contents of list" reporter: joined with spaces unless every item is a single character.
+ * Like TurboWarp, an item counts by its text, so the numbers 5 and 6 print as "56". scratch-vm
+ * only counts text, which makes a one-digit number computed at run time print as "3 4" there.
+ */
 export function listContents(list: Value[]): string {
-  const single = list.every((x) => typeof x === "string" && x.length === 1);
+  const single = list.every((x) => (typeof x === "string" ? x : String(x)).length === 1);
   return list.join(single ? "" : " ");
 }

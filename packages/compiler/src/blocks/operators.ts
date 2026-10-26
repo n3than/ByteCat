@@ -1,6 +1,6 @@
 import type { Block } from "@bytecat/sb3";
 import type { Ex, Gen, ReporterHandler } from "../types.js";
-import { asAny, asNum, asStr, boolEx, isNumeric, isTextLiteral, numEx, numLiteral, strEx } from "../cast.js";
+import { asAny, asNum, asStr, boolEx, isNumeric, isTextLiteral, numEx, strEx } from "../cast.js";
 
 /** Comparison of two inputs, using the cheapest form that keeps Scratch's mixed-type rules. */
 export function comparison(b: Block, g: Gen, jsOp: string, helper: string): Ex {
@@ -14,10 +14,8 @@ export function comparison(b: Block, g: Gen, jsOp: string, helper: string): Ex {
     const lower = (e: Ex) => (e.k !== undefined ? JSON.stringify(e.k.toLowerCase()) : `${asStr(e)}.toLowerCase()`);
     return boolEx(`(${lower(a)} ${jsOp} ${lower(c)})`);
   }
-  // A numeric literal can be passed as a number when it prints back the same, which saves the
-  // helper from parsing it on every call.
-  const arg = (e: Ex) => (e.k !== undefined && String(Number(e.k)) === e.k ? numLiteral(Number(e.k)) : asAny(e));
-  return boolEx(`${helper}(${arg(a)}, ${arg(c)})`);
+  // asAny passes a numeric literal as a number, which saves the helper from parsing it.
+  return boolEx(`${helper}(${asAny(a)}, ${asAny(c)})`);
 }
 
 export const operatorReporters: Record<string, ReporterHandler> = {

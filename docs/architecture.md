@@ -62,7 +62,22 @@ or a call to another custom block that can yield) is a generator called with `yi
 never yields compiles to a plain function, which is much cheaper to call. A direct recursive call in a non-warp procedure yields before the call (`if (th.warp === 0) yield;`), as scratch-vm and TurboWarp do, so such a procedure is a generator; a warp one stays plain. Calls to a plain
 function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
 reads it and a plain function contains none; a new runtime helper that reads `th.warp` would have
-to make its caller a generator. Comparisons against a
+to make its caller a generator.
+
+A literal input that is passed on without a cast (`set`, list items and indexes, procedure
+arguments, and so on) is emitted as a JavaScript number when that is invisible, the rule of
+TurboWarp's `createConstantInput`: with `n = +s`, the literal `s` becomes the number `n` if `n` is
+not NaN, `s` is not blank and `n.toString() === s`. So `1`, `0.5`, `-3`, `1e+21` and `Infinity`
+are numbers, and `1.0`, ` 1`, `-0`, `0x10`, `1e3`, the empty string and `abc` stay strings
+(`numericConstant` in `cast.ts`). Later reads then skip `toNum`, and `compare` takes its number
+path. A literal equal to the name of any costume, backdrop or sound in the project also stays a
+string, because the value may reach `switch costume to`, where the text `"2"` picks the costume
+named "2" but the number 2 picks costume number 2 (`TargetCodegen.any`; inputs that name a costume
+always keep the string). Numbers and strings only show up differently in `switch costume to` and in
+"contents of list", which counts a number by its text like TurboWarp (see
+[deviations.md](deviations.md)).
+
+Comparisons against a
 literal are specialized: a text literal makes it a lowercase string comparison, and a numeric
 literal is passed as a number. The scheduler steps every thread in turn, repeating within a frame
 until most of the frame budget is used; it reads the clock every few hundred microseconds rather

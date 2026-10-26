@@ -58,7 +58,11 @@ describe("lists", () => {
   });
   it("joins contents", () => {
     expect(ops.listContents(["a", "b"])).toBe("ab");
-    expect(ops.listContents([1, 2])).toBe("1 2");
+    // Numbers count by their text, like TurboWarp: one digit is one character.
+    expect(ops.listContents([1, 2])).toBe("12");
+    expect(ops.listContents([1, "b"])).toBe("1b");
+    expect(ops.listContents([1, 10])).toBe("1 10");
+    expect(ops.listContents([-1, 2])).toBe("-1 2");
     expect(ops.listContents(["ab", "c"])).toBe("ab c");
   });
 });
