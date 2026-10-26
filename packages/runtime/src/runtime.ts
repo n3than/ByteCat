@@ -28,8 +28,12 @@ const STOP_ALL = Symbol("stop all");
 /** At most this many passes run after a thread starts before the scheduler reads the clock. */
 const START_CHECK = 4;
 
-/** The most loop iterations a thread running alone can complete in one step without yielding. */
-const MAX_SPIN = 4096;
+/**
+ * The most work between two reads of the clock: passes over the threads, or loop iterations of a
+ * thread running alone (`spinLimit`), whichever the scheduler is counting. A light interval can
+ * turn heavy without warning, so this bounds how far a frame can overrun its budget.
+ */
+const MAX_WORK = 128;
 
 export class Thread {
   done = false;
@@ -50,6 +54,8 @@ export interface RuntimeOptions {
   clock?: "real" | "virtual";
   /** Answers for `ask` blocks when no UI is attached. */
   answers?: string[];
+  /** The clock the scheduler reads, in milliseconds, to end frames on time. Tests inject one. */
+  schedulerClock?: () => number;
 }
 
 export interface SayEvent {
@@ -81,8 +87,9 @@ export class Runtime {
   readonly keys = new Set<string>();
   onAsk: ((question: string) => Promise<string>) | null = null;
 
-  private readonly options: Required<Omit<RuntimeOptions, "answers">>;
+  private readonly options: Required<Omit<RuntimeOptions, "answers" | "schedulerClock">>;
   private readonly answers: string[];
+  private readonly schedulerClock: () => number;
   private frame = 0;
   private readonly startTime = performance.now();
   private timerStart = 0;
@@ -90,6 +97,7 @@ export class Runtime {
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
     this.options = { turbo: false, fps: 30, clock: "real", ...options };
     this.answers = [...(options.answers ?? [])];
+    this.schedulerClock = options.schedulerClock ?? (() => performance.now());
     this.targets = Target.all(project);
     this.stage = this.targets[0]!;
     this.hats = program(this);
@@ -192,16 +200,17 @@ export class Runtime {
    */
   tick(): void {
     const budget = (1000 / this.options.fps) * 0.75;
-    const frameStart = performance.now();
+    const clock = this.schedulerClock;
+    const frameStart = clock();
     let lastCheck = frameStart;
     // Reading the clock costs about as much as a pass of one short thread, so it is read every
-    // `stride` passes: doubling (up to 128) while a stride takes under 0.25 ms, and back to 1 as
-    // soon as one takes longer. The clock's resolution is too coarse to size it from one pass.
+    // `stride` passes: doubling (up to MAX_WORK) while a stride takes under 0.25 ms, and back to 1
+    // as soon as one takes longer. The clock's resolution is too coarse to size it from one pass.
     // `spinLimit`, how many loop iterations a thread running alone may skip yielding for per step,
-    // follows the same rule (doubling up to MAX_SPIN), so the work between two clock reads stays
-    // near 0.25 ms even when one loop iteration is heavy. Like `stride` it starts at 1 each frame
-    // and drops back to 1 when the set of threads changes, since the cost of a pass no longer
-    // says what the next one costs.
+    // grows the same way while that thread runs alone, and then the clock is read after every
+    // pass (stride 1), so at most MAX_WORK iterations run between two reads either way. Like
+    // `stride` it starts at 1 each frame and drops back to 1 when the set of threads changes,
+    // since the cost of a pass no longer says what the next one costs.
     let spinLimit = 1;
     let stride = 1;
     let untilCheck = 1;
@@ -230,11 +239,17 @@ export class Runtime {
       if (!progressed || this.threads.length === 0) break;
       if (this.redraw && !this.options.turbo) break;
       if (--untilCheck === 0) {
-        const now = performance.now();
+        const now = clock();
         if (now - frameStart >= budget) break;
-        const light = now - lastCheck < 0.25;
-        stride = light ? Math.min(stride * 2, 128) : 1;
-        spinLimit = light ? Math.min(spinLimit * 2, MAX_SPIN) : 1;
+        if (now - lastCheck >= 0.25) {
+          stride = 1;
+          spinLimit = 1;
+        } else if (this.threads.length === 1) {
+          stride = 1;
+          spinLimit = Math.min(spinLimit * 2, MAX_WORK);
+        } else {
+          stride = Math.min(stride * 2, MAX_WORK);
+        }
         untilCheck = stride;
         lastCheck = now;
       }

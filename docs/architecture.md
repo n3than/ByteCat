@@ -118,12 +118,13 @@ yields at the end of its current iteration:
   of setting `redraw`, so a loop that moves a visible sprite still yields every iteration and
   draws once per frame. In turbo mode nothing ends a frame early, so it leaves `spin` alone.
 
-`spinLimit` is local to a `tick` and follows the same rule as the clock-read stride: it starts at 1
-each frame, and each time the scheduler reads the clock it doubles, up to 4096, if less than 0.25 ms
-passed since the previous read, and drops back to 1 otherwise. It also drops back to 1 whenever a
-thread starts or finishes, because the cost of the last pass then says little about the next one
-(a cheap loop gives way to a heavy script that would otherwise be spun thousands of times before
-the next clock read). A cheap loop body therefore runs thousands of iterations per step, and a
+`spinLimit` is local to a `tick`. It starts at 1 each frame, and each time the scheduler reads the
+clock while one thread runs alone it doubles, up to 128, if less than 0.25 ms passed since the
+previous read, and drops back to 1 otherwise. While a thread spins the clock is read after every
+pass, so at most 128 loop iterations run between two reads, the same bound as the clock-read
+stride over passes; a loop whose iterations turn heavy is noticed within 128 of them. It also
+drops back to 1 whenever a thread starts or finishes, because the cost of the last pass then says
+little about the next one. A cheap loop body therefore runs up to 128 iterations per step, and a
 heavy one is stepped once per iteration so a frame still ends on time. `packages/runtime/test/scheduler.test.ts` checks this, `examples/interleave`
 the thread order, and `examples/paced_move` (see `turbo off` in
 [pseudocode.md](pseudocode.md#output-and-testing)) the pacing of a loop that draws.

@@ -38,6 +38,15 @@ function counted(counter: Counter, name: string, fn: ScriptFn): ScriptFn {
   };
 }
 
+/**
+ * A fake scheduler clock: scripts advance it by the time their work would take, so frame timing is
+ * deterministic and independent of the machine.
+ */
+function fakeClock() {
+  const clock = { now: 0, read: () => clock.now };
+  return clock;
+}
+
 function setup(
   options: RuntimeOptions,
   scripts: (rt: Runtime, c: Counter) => { name: string; kind?: Hat["kind"]; arg?: string; fn: ScriptFn }[],
@@ -46,7 +55,8 @@ function setup(
   const rt = new Runtime(
     project,
     (rt) => scripts(rt, c).map(({ name, kind, arg, fn }) => ({ target: 0, kind: kind ?? "flag", ...(arg ? { arg } : {}), fn: counted(c, name, fn) })),
-    { clock: "virtual", ...options },
+    // Work costs no time unless a test says otherwise, so every interval counts as light.
+    { clock: "virtual", schedulerClock: () => 0, ...options },
   );
   return { rt, c };
 }
@@ -80,6 +90,26 @@ describe("loop yields", () => {
     expect(count).toBe(200_000);
     // Without the skip the scheduler would resume the thread once per iteration.
     expect(c.steps.a).toBeLessThan(2_000);
+  });
+
+  it("stay bounded when a lone loop turns heavy, so a frame ends near its budget", () => {
+    // 290000 iterations of 0.1 µs each, then 10000 of 1 ms each. With a limit that grew while
+    // the loop was cheap, one step would run thousands of heavy iterations before the clock is
+    // read again.
+    const clock = fakeClock();
+    const { rt } = setup({ turbo: true, schedulerClock: clock.read }, (rt) => [
+      { name: "a", fn: loop(rt, 300_000, (i) => (clock.now += i < 290_000 ? 0.0001 : 1)) },
+    ]);
+    rt.greenFlag();
+    const budget = (1000 / 30) * 0.75;
+    let longest = 0;
+    while (rt.running) {
+      const start = clock.now;
+      rt.tick();
+      longest = Math.max(longest, clock.now - start);
+    }
+    // At most 128 iterations (128 ms here) run between two clock reads.
+    expect(longest).toBeLessThanOrEqual(budget + 128);
   });
 
   it("never happen in warp mode", () => {
