@@ -84,6 +84,8 @@ interface Proc {
   params: Param[];
   warp: boolean;
   recursive: boolean;
+  /** For a guarded procedure: the variable it assigns on some paths. */
+  sets?: string;
   /** Parameter names of a recursive procedure: the depth counter is the last one. */
 }
 
@@ -484,6 +486,7 @@ class Generator {
       [depth < 2 && sc.loopDepth < 2 ? 11 : 0, "loop"],
       [callable.length && sc.loopDepth <= 1 ? 9 : 0, "call"],
       [sc.allowBroadcast && sc.loopDepth <= 1 ? 3 : 0, "broadcast"],
+      [depth < 2 && sc.loopDepth === 0 && callable.some((p) => p.sets) ? 6 : 0, "guardcall"],
       [3, "setinf"],
     ]);
     switch (k) {
@@ -521,6 +524,12 @@ class Generator {
         return this.loop(sc, depth);
       case "call":
         return [this.call(sc, this.r.pick(callable))];
+      case "guardcall": {
+        // Changes a guarded procedure's variable in a loop right before calling it.
+        const proc = this.r.pick(callable.filter((p) => p.sets));
+        const body = [`${proc.sets} ${this.r.pick(CHANGE_OPS)} ${this.litEx().s}`, this.call(sc, proc)];
+        return [`repeat ${this.r.between(1, 3)}:`, ...indent(body), `log(${proc.sets})`];
+      }
       case "broadcast": {
         this.broadcasts++;
         return [this.r.chance(0.7) ? 'broadcast("go")' : 'broadcast_wait("go")'];
@@ -621,8 +630,12 @@ class Generator {
     const params: Param[] = [];
     for (let i = 0; i < nParams; i++) params.push({ name: `${recursive ? "r" : "x"}${i}`, bool: this.r.chance(0.2) });
     if (recursive) params.push({ name: "depth", bool: false });
-    const warp = this.r.chance(0.5);
-    const proc: Proc = { name, params, warp, recursive };
+    // A guarded procedure assigns a variable inside a loop only when its first argument matches,
+    // and never reads it. A compiler that keeps the variable in a local loads it on entry and
+    // stores it back on exit, so the caller must store its own latest value before the call.
+    const guarded = !recursive && params.length > 0 && !params[0]!.bool && this.r.chance(0.3);
+    const warp = guarded || this.r.chance(0.5);
+    const proc: Proc = { name, params, warp, recursive, sets: guarded ? this.r.pick([...this.globalVars, ...owner.vars]) : undefined };
     const visible = recursive ? [] : [...owner.procs];
     const sc: Scope = {
       owner, params, procs: visible, loopDepth: 0, noCounters: recursive, allowBroadcast: false,
@@ -642,6 +655,13 @@ class Generator {
         ...indent([`${name}(${callArgs.join(", ")})`]),
         ...this.block(sc, 1, this.r.between(0, 2)),
         `log(depth)`,
+      ];
+    } else if (proc.sets) {
+      const v = proc.sets;
+      const when = this.r.pick(["0", "1", '"a"']);
+      lines = [
+        `repeat ${this.r.between(1, 2)}:`,
+        ...indent([`if ${params[0]!.name} = ${when}:`, ...indent([`${v} = ${this.litEx().s}`])]),
       ];
     } else {
       lines = this.block(sc, 0, this.r.between(2, 5));

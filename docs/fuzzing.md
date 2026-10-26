@@ -101,5 +101,9 @@ programs well behaved:
 - **Stored joins stay short.** A `join` whose result is stored (assigned, added to a list,
   passed as an argument) has at most one operand that can hold a long string. Otherwise
   `x = join(x, y)` followed by `y = join(x, x)` doubles the string on every step.
+- **Some procedures are guarded.** A guarded warp procedure assigns one variable inside a loop,
+  only when its first argument matches, and never reads it; a `guardcall` statement changes that
+  variable in a loop just before calling it. This checks that a compiler which keeps variables in
+  locals stores the caller's value before a call that may store a stale one back.
 - **NaN is only used where nothing converts it.** `Ex.nan` tracks whether an arithmetic
   subexpression can be NaN. See the first row of the table in deviations.md.
