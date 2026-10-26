@@ -105,5 +105,3 @@ programs well behaved:
   only when its first argument matches, and never reads it; a `guardcall` statement changes that
   variable in a loop just before calling it. This checks that a compiler which keeps variables in
   locals stores the caller's value before a call that may store a stale one back.
-- **NaN is only used where nothing converts it.** `Ex.nan` tracks whether an arithmetic
-  subexpression can be NaN. See the first row of the table in deviations.md.
