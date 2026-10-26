@@ -9,7 +9,7 @@ function* p1_0(t, th, a0) {
   while (!(S.v["var_2"] > a0)) {
     S.l["list_8"].push((S.v["var_2"] * 10));
     S.v["var_2"] = S.v["var_2"] + 1;
-    if (th.warp === 0) yield;
+    if (th.warp === 0 && --rt.spin < 0) yield;
   }
 }
 function* p1_1(t, th, a0, a1) {
@@ -67,11 +67,11 @@ return [
         while (!(S.v["var_1"] > S.l["list_7"].length)) {
           yield* p1_1(t, th, S.v["var_0"], 1);
           S.v["var_1"] = S.v["var_1"] + 1;
-          if (th.warp === 0) yield;
+          if (th.warp === 0 && --rt.spin < 0) yield;
         }
       }
       S.v["var_0"] = S.v["var_0"] + 1;
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     S.l["list_7"].length = 0;
     S.l["list_7"].push("random");
@@ -82,10 +82,10 @@ return [
       while (!(S.v["var_1"] > S.l["list_7"].length)) {
         yield* p1_1(t, th, S.v["var_0"], (1 - S.v["var_0"]));
         S.v["var_1"] = S.v["var_1"] + 1;
-        if (th.warp === 0) yield;
+        if (th.warp === 0 && --rt.spin < 0) yield;
       }
       S.v["var_0"] = S.v["var_0"] + 1;
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
 } },
 ];

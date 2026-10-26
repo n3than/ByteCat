@@ -27,7 +27,7 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
 | `recursion` | Naive recursive Fibonacci inside a warp procedure, with a list as the call stack. Procedure calls and list push/pop. |
 | `sieve` | Sieve of Eratosthenes over a 150000 item list (kept under scratch-vm's 200000 item list cap). List reads and writes in nested loops. |
 | `strings` | Building a 100000 character string with `join` and `letter`, then scanning it. String concatenation and indexing. |
-| `yield_loop` | A plain `repeat` in a `when flag` script, not in warp mode, so it yields every iteration. Scheduler overhead. |
+| `yield_loop` | A plain `repeat` in a `when flag` script, not in warp mode, so every iteration ends in a loop yield. TurboWarp and scratch-vm go through their scheduler each time; Bytecat skips the yield while a thread runs alone (`rt.spin`, see [architecture.md](architecture.md#scheduler)). Scheduler overhead. |
 | `pingpong` | Two sprites exchanging `broadcast_wait` messages 400000 times. Event dispatch and thread start/wait. |
 
 ## How timing works
@@ -45,7 +45,7 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
 
 - The Bytecat headless runtime runs frames back to back on a virtual clock. scratch-vm runs its
   loop on its own 60 Hz interval. Benchmarks that yield on every iteration (`yield_loop`, and
-  `pingpong` to a degree) therefore partly measure that pacing difference, not only block speed.
+  `pingpong` to a degree; Bytecat skips the yield of a lone thread, so `yield_loop` hardly measures its scheduler) therefore partly measure that pacing difference, not only block speed.
   The warp benchmarks are the cleanest comparison.
 - TurboWarp runs with its compiler on and no warp timer. A script it cannot compile marks the
   result `FAIL`, so its timings always measure compiled code. Blocks that TurboWarp runs through

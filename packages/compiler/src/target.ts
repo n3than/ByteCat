@@ -131,10 +131,15 @@ export class TargetCodegen implements Gen {
     return `r${this.counter++}`;
   }
 
+  /**
+   * The end of every loop iteration outside warp mode. A thread yields to the scheduler unless it
+   * is inside a warp procedure or `rt.spin` says it may keep going: the runtime sets `spin` above
+   * zero only for a thread running alone with nothing to redraw (see `Runtime.tick`).
+   */
   loopYield(): string[] {
     if (this.inWarp) return [];
     this.yields = true;
-    return ["  if (th.warp === 0) yield;"];
+    return ["  if (th.warp === 0 && --rt.spin < 0) yield;"];
   }
 
   y(line: string): string[] {

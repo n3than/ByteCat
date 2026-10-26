@@ -1,0 +1,28 @@
+// The loop moves the sprite 20 steps per iteration and must draw every iteration in its own
+// frame, so after frame N the 44 px wide square is centered at x = -200 + 20 N. The red and
+// backdrop probes sit within 10 px of the square's edges: one frame more or fewer flips one.
+// Turbo off, so a redraw ends the frame like in the live player (test mode is turbo by default).
+turbo off
+
+// after the run: the sprite stopped at x = 200
+200 0 #ff0000
+170 0 #224488
+
+// frame 1: centered at -180
+frame 1
+-190 0 #ff0000
+-150 0 #224488
+
+// frame 5: centered at -100
+frame 5
+-110 0 #ff0000
+-90 0 #ff0000
+-130 0 #224488
+-70 0 #224488
+
+// frame 10: centered at 0
+frame 10
+-15 0 #ff0000
+15 0 #ff0000
+-30 0 #224488
+30 0 #224488

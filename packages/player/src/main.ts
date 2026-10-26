@@ -20,11 +20,14 @@ declare global {
 
 const params = new URLSearchParams(location.search);
 const test = params.has("test");
+// Test mode runs in turbo by default; `?test&turbo=off` makes a redraw end the frame, like the
+// live player, so a test can check what is on the canvas after a given number of frames.
+const turbo = test && params.get("turbo") !== "off";
 const answers = params.getAll("answer");
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const data = window.BYTECAT;
 
-createPlayer({ canvas, project: data.project, program: data.program, assets: data.assets, test, answers }).then((player) => {
+createPlayer({ canvas, project: data.project, program: data.program, assets: data.assets, test, turbo, answers }).then((player) => {
   window.bytecat = player;
   document.getElementById("flag")?.addEventListener("click", () => player.greenFlag());
   document.getElementById("stop")?.addEventListener("click", () => player.stop());

@@ -16,15 +16,15 @@ return [
           S.v["var_3"] = 1;
         }
         S.v["var_1"] = S.v["var_1"] + 1;
-        if (th.warp === 0) yield;
+        if (th.warp === 0 && --rt.spin < 0) yield;
       }
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     S.v["var_0"] = 1;
     while (!(S.v["var_0"] > S.l["list_4"].length)) {
       S.l["list_y"].push(itemOf(S.l["list_4"], S.v["var_0"]));
       S.v["var_0"] = S.v["var_0"] + 1;
-      if (th.warp === 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
 } },
 ];
