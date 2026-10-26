@@ -1,0 +1,72 @@
+# Arithmetic results that are NaN, infinite or -0, read back through variables and procedure
+# arguments. The compiler drops number casts only where its types prove them useless, so each
+# of these must still behave like Scratch: NaN reads as 0 in arithmetic but as "NaN" in text and
+# comparisons, and two NaNs are equal.
+var nan = 0
+var inf = 0
+var negz = 0
+var i = 0
+var s = ""
+var big = 0
+
+sprite Main:
+  define warp probe(v):
+    log(v)
+    log(v + 1)
+    log(v = 0)
+    log(v > 5)
+    log(v < 5)
+    log(join(v, ""))
+
+  when flag:
+    nan = 0 / 0
+    inf = 1 / 0
+    negz = 0 * -1
+    log(nan)
+    log(nan + 1)
+    log(nan * 2)
+    log(nan = 0)
+    log(nan = nan)
+    log(nan > 5)
+    log(nan < 5)
+    log(nan > "M")
+    log(inf - inf)
+    log(inf - inf + 1)
+    log((inf - inf) > 1)
+    log(inf * 0)
+    log(round(inf - inf))
+    log(1 / negz)
+    log(negz)
+    log(join(negz, "!"))
+    log((0 / 0) % 5)
+    log(5 % 0)
+    log(-7 % 3)
+    log(7 % -3)
+    probe(0 / 0)
+    probe(1 / 0)
+    probe(negz)
+    probe("abc")
+    # A counter that only ever adds numbers stays a number; one that is joined becomes text.
+    i = 1
+    repeat 3:
+      i += i
+    log(i)
+    s = 1
+    repeat 3:
+      s = join(s, 0)
+    log(s + 1)
+    log(s > 999)
+    # Adding a huge number can overflow to Infinity, and Infinity times 0 is NaN.
+    big = 1e308
+    big += 1e308
+    log(big)
+    log(big * 0)
+    big = 0 - 1e308
+    big -= 1e308
+    log(big * 0 + 1)
+    # Infinity prints as "Infinity", which equals the text "infinity" ignoring case.
+    inf = 1 / 0
+    s = "infinity"
+    log(inf = s)
+    s = "-INFINITY"
+    log(0 - inf = s)

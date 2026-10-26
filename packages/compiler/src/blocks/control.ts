@@ -1,3 +1,4 @@
+import { POS_INT } from "../analysis/typeset.js";
 import type { StatementHandler } from "../types.js";
 
 export const controlStatements: Record<string, StatementHandler> = {
@@ -13,6 +14,7 @@ export const controlStatements: Record<string, StatementHandler> = {
   control_for_each: (b, g) => {
     const r = g.tmp();
     const v = g.variable(b.fields.VARIABLE);
+    g.noteWrite(b.fields.VARIABLE, POS_INT);
     return [
       `for (let ${r} = 1, n = ${g.num(b, "VALUE")}; ${r} <= n; ${r}++) {`,
       `  ${v} = ${r};`,

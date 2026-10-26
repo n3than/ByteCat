@@ -6,27 +6,27 @@ const S = rt.stage;
 function p1_0(t, th, a0) {
   S.l["list_3"].length = 0;
   S.v["var_0"] = 1;
-  while (!gt(S.v["var_0"], a0)) {
+  while (!(S.v["var_0"] > a0)) {
     S.l["list_3"].push(1);
-    S.v["var_0"] = toNum(S.v["var_0"]) + 1;
+    S.v["var_0"] = S.v["var_0"] + 1;
   }
   replaceAt(S.l["list_3"], 1, 0);
   S.v["var_0"] = 2;
-  while (!gt(S.v["var_0"], a0)) {
-    if (eq(itemOf(S.l["list_3"], S.v["var_0"]), 1)) {
-      S.v["var_1"] = (toNum(S.v["var_0"]) * toNum(S.v["var_0"]));
-      while (!!!gt(S.v["var_1"], a0)) {
+  while (!(S.v["var_0"] > a0)) {
+    if ((itemOf(S.l["list_3"], S.v["var_0"]) === 1)) {
+      S.v["var_1"] = (S.v["var_0"] * S.v["var_0"]);
+      while (!!!(S.v["var_1"] > a0)) {
         replaceAt(S.l["list_3"], S.v["var_1"], 0);
-        S.v["var_1"] = toNum(S.v["var_1"]) + toNum(S.v["var_0"]);
+        S.v["var_1"] = S.v["var_1"] + S.v["var_0"];
       }
     }
-    S.v["var_0"] = toNum(S.v["var_0"]) + 1;
+    S.v["var_0"] = S.v["var_0"] + 1;
   }
   S.v["var_2"] = 0;
   S.v["var_0"] = 1;
-  while (!gt(S.v["var_0"], a0)) {
-    S.v["var_2"] = toNum(S.v["var_2"]) + toNum(itemOf(S.l["list_3"], S.v["var_0"]));
-    S.v["var_0"] = toNum(S.v["var_0"]) + 1;
+  while (!(S.v["var_0"] > a0)) {
+    S.v["var_2"] = S.v["var_2"] + toNum(itemOf(S.l["list_3"], S.v["var_0"]));
+    S.v["var_0"] = S.v["var_0"] + 1;
   }
 }
 return [

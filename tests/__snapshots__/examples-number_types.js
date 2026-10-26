@@ -1,0 +1,70 @@
+(function (rt) {
+"use strict";
+const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, mathop,
+  itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
+const S = rt.stage;
+function p1_0(t, th, a0) {
+  S.l["list_b"].push(a0);
+  S.l["list_b"].push((toNum(a0) + 1));
+  S.l["list_b"].push((a0 === 0));
+  S.l["list_b"].push(gt(a0, 5));
+  S.l["list_b"].push(lt(a0, 5));
+  S.l["list_b"].push((toStr(a0) + ""));
+}
+return [
+{ target: 1, kind: "flag", fn: function* (t, th) {
+    S.v["var_0"] = (0 / 0);
+    S.v["var_1"] = (1 / 0);
+    S.v["var_2"] = (0 * (-1));
+    S.l["list_b"].push(S.v["var_0"]);
+    S.l["list_b"].push((toNum(S.v["var_0"]) + 1));
+    S.l["list_b"].push((toNum(S.v["var_0"]) * 2));
+    S.l["list_b"].push((S.v["var_0"] === 0));
+    S.l["list_b"].push(eq(S.v["var_0"], S.v["var_0"]));
+    S.l["list_b"].push(gt(S.v["var_0"], 5));
+    S.l["list_b"].push(lt(S.v["var_0"], 5));
+    S.l["list_b"].push((("" + S.v["var_0"]).toLowerCase() > "m"));
+    S.l["list_b"].push((S.v["var_1"] - S.v["var_1"]));
+    S.l["list_b"].push((toNum((S.v["var_1"] - S.v["var_1"])) + 1));
+    S.l["list_b"].push(gt((S.v["var_1"] - S.v["var_1"]), 1));
+    S.l["list_b"].push((S.v["var_1"] * 0));
+    S.l["list_b"].push(Math.round(toNum((S.v["var_1"] - S.v["var_1"]))));
+    S.l["list_b"].push((1 / S.v["var_2"]));
+    S.l["list_b"].push(S.v["var_2"]);
+    S.l["list_b"].push((("" + S.v["var_2"]) + "!"));
+    S.l["list_b"].push(mod(toNum((0 / 0)), 5));
+    S.l["list_b"].push(mod(5, 0));
+    S.l["list_b"].push(mod((-7), 3));
+    S.l["list_b"].push(mod(7, (-3)));
+    p1_0(t, th, (0 / 0));
+    p1_0(t, th, (1 / 0));
+    p1_0(t, th, S.v["var_2"]);
+    p1_0(t, th, "abc");
+    S.v["var_3"] = 1;
+    for (let r0 = Math.round(3); r0 > 0; r0--) {
+      S.v["var_3"] = S.v["var_3"] + S.v["var_3"];
+      if (th.warp === 0) yield;
+    }
+    S.l["list_b"].push(S.v["var_3"]);
+    S.v["var_4"] = 1;
+    for (let r1 = Math.round(3); r1 > 0; r1--) {
+      S.v["var_4"] = (toStr(S.v["var_4"]) + "0");
+      if (th.warp === 0) yield;
+    }
+    S.l["list_b"].push((toNum(S.v["var_4"]) + 1));
+    S.l["list_b"].push(gt(S.v["var_4"], 999));
+    S.v["var_5"] = "1e308";
+    S.v["var_5"] = toNum(S.v["var_5"]) + 1e+308;
+    S.l["list_b"].push(S.v["var_5"]);
+    S.l["list_b"].push((toNum(S.v["var_5"]) * 0));
+    S.v["var_5"] = (0 - 1e+308);
+    S.v["var_5"] = toNum(S.v["var_5"]) + (-1e+308);
+    S.l["list_b"].push((toNum((toNum(S.v["var_5"]) * 0)) + 1));
+    S.v["var_1"] = (1 / 0);
+    S.v["var_4"] = "infinity";
+    S.l["list_b"].push(eq(S.v["var_1"], S.v["var_4"]));
+    S.v["var_4"] = "-INFINITY";
+    S.l["list_b"].push(eq((0 - S.v["var_1"]), S.v["var_4"]));
+} },
+];
+})

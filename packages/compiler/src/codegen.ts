@@ -1,4 +1,5 @@
 import type { ProjectJson } from "@bytecat/sb3";
+import { TypeEnv } from "./analysis/env.js";
 import { emitProgram } from "./emit.js";
 import { TargetCodegen } from "./target.js";
 import type { CompileResult } from "./types.js";
@@ -7,6 +8,16 @@ export type { CompileResult } from "./types.js";
 
 /** Compiles every script in a project into one JavaScript factory function. */
 export function compileProject(project: ProjectJson): CompileResult {
+  const env = new TypeEnv(project);
+  // Each pass compiles with the types the previous one found, until the types stop growing; the
+  // last pass's code relies only on types that every assignment in it respects.
+  for (;;) {
+    const result = compilePass(project, env);
+    if (!env.settle()) return result;
+  }
+}
+
+function compilePass(project: ProjectJson, env: TypeEnv): CompileResult {
   const procedures: string[] = [];
   const hats: string[] = [];
   const warnings = new Set<string>();
@@ -19,7 +30,7 @@ export function compileProject(project: ProjectJson): CompileResult {
   }
 
   project.targets.forEach((target, index) => {
-    const gen = new TargetCodegen(target, index, stage, warnings, prelude, assetNames);
+    const gen = new TargetCodegen(target, index, stage, warnings, prelude, env, assetNames);
     procedures.push(...gen.procedures());
     hats.push(...gen.hats());
   });
