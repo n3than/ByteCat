@@ -28,15 +28,20 @@ describe("custom blocks", () => {
 
 describe("scheduler", () => {
   it("ends a frame near its budget while a script yields on every iteration", () => {
-    const source = "sprite Main:\n  when flag:\n    forever:\n      x = 1\n";
+    const source = "sprite Main:\n  when flag:\n    forever:\n      x += 1\n";
     const json = compilePseudo(`var x = 0\n${source}`, "forever.sbp").project.json;
-    const rt = new Runtime(json, compile(json).program, { clock: "virtual", turbo: true, fps: 60 });
+    // The scheduler's clock counts iterations, 10 µs each, so the test does not depend on how
+    // fast the machine is. It reads x, which the script stores before every yield.
+    let rt: Runtime | undefined = undefined;
+    const now = () => Number(Object.values(rt!.stage.v)[0]) * 0.01;
+    rt = new Runtime(json, compile(json).program, { clock: "virtual", turbo: true, fps: 60, schedulerClock: now });
     rt.greenFlag();
     for (let i = 0; i < 20; i++) {
-      const start = performance.now();
+      const start = now();
       rt.tick();
       // The budget is 12.5 ms at 60 fps; the clock is read often enough to stop close to it.
-      expect(performance.now() - start).toBeLessThan(18);
+      expect(now() - start).toBeGreaterThan(12.5);
+      expect(now() - start).toBeLessThan(18);
     }
     expect(rt.running).toBe(true);
   });
