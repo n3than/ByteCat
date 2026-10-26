@@ -1,0 +1,26 @@
+# A hat that restarts a running script keeps that script's place in the thread list, as in
+# TurboWarp: the new run waits for the next pass, ahead of scripts started after it.
+sprite Main:
+  when flag:
+    broadcast("work")
+    broadcast("watch")
+    broadcast("restart")
+
+  when receive "work":
+    log("work start")
+    repeat 2:
+      log("work tick")
+
+  when receive "watch":
+    repeat 3:
+      log("watch")
+
+  when receive "restart":
+    repeat 1:
+      log("restart wait")
+    broadcast("work")
+    broadcast("late")
+
+  when receive "late":
+    repeat 2:
+      log("late")

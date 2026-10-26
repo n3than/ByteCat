@@ -1,0 +1,38 @@
+# Hat scripts start in TurboWarp's order: the top-layer sprite first, the stage last, and a
+# target's scripts in the order they appear. Going to the front changes the order at once.
+stage:
+  when flag:
+    log("stage flag")
+    broadcast_wait("go")
+    broadcast_wait("front")
+    broadcast_wait("go")
+
+  when receive "go":
+    log("stage go")
+
+sprite Back:
+  when flag:
+    log("Back flag 1")
+
+  when receive "go":
+    log("Back go")
+
+  when flag:
+    log("Back flag 2")
+
+  when receive "front":
+    go_to_front()
+
+sprite Middle:
+  when flag:
+    log("Middle flag")
+
+  when receive "go":
+    log("Middle go")
+
+sprite Front:
+  when receive "go":
+    log("Front go")
+
+  when flag:
+    log("Front flag")

@@ -99,6 +99,10 @@ export class Runtime {
   private frame = 0;
   private readonly startTime = performance.now();
   private timerStart = 0;
+  /** Each target's hats, in the order its scripts appear. */
+  private readonly hatsByTarget: Hat[][];
+  /** Every hat in start order (see `startHats`), or null after a layer change. */
+  private ordered: Hat[] | null = null;
 
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
     this.options = { turbo: false, fps: 30, clock: "real", ...options };
@@ -107,6 +111,8 @@ export class Runtime {
     this.targets = Target.all(project);
     this.stage = this.targets[0]!;
     this.hats = program(this);
+    this.hatsByTarget = this.targets.map(() => []);
+    for (const hat of this.hats) this.hatsByTarget[hat.target]!.push(hat);
   }
 
   /** Milliseconds since the project started, on the configured clock. */
@@ -119,26 +125,43 @@ export class Runtime {
 
   private start(hat: Hat): Thread {
     const target = this.targets[hat.target]!;
-    // Re-triggering a hat whose script is still running restarts it, like Scratch.
-    const existing = this.threads.find((th) => th.hat === hat && !th.done);
-    if (existing) existing.done = true;
     const th = new Thread(hat, target);
-    this.threads.push(th);
+    // Re-triggering a hat whose script is still running restarts it in the same place in the
+    // thread list, like TurboWarp, so the new run waits for the next pass if that place is behind.
+    const i = this.threads.findIndex((old) => old.hat === hat && !old.done);
+    if (i >= 0) {
+      this.threads[i]!.done = true;
+      this.threads[i] = th;
+    } else {
+      this.threads.push(th);
+    }
     // A loop that is spinning must yield at the end of its iteration so the new thread runs in
     // the same pass, as in Scratch.
     this.spin = 0;
     return th;
   }
 
-  private startHats(kind: HatKind, arg?: string, target?: Target): Thread[] {
+  /**
+   * Starts the hats for `kind` and `arg` in TurboWarp's order: targets from the top layer down
+   * with the stage last, and within a target in the order its scripts appear.
+   */
+  private startHats(kind: HatKind, arg?: string): Thread[] {
     const started: Thread[] = [];
-    for (const hat of this.hats) {
-      if (target && this.targets[hat.target] !== target) continue;
+    for (const hat of this.ordered ?? this.orderHats()) {
       if (hat.kind === kind && (arg === undefined || hat.arg === arg || (kind === "key" && hat.arg === "any"))) {
         started.push(this.start(hat));
       }
     }
     return started;
+  }
+
+  /** Sorts every hat into start order; done again after a layer change. */
+  private orderHats(): Hat[] {
+    const order = this.targets.map((_, i) => i);
+    // Ties keep TurboWarp's order too: the later target in project.json runs first.
+    order.sort((a, b) => this.targets[b]!.layer - this.targets[a]!.layer || b - a);
+    this.ordered = order.flatMap((i) => this.hatsByTarget[i]!);
+    return this.ordered;
   }
 
   greenFlag(): void {
@@ -167,7 +190,9 @@ export class Runtime {
   }
 
   click(target: Target): void {
-    this.startHats("click", undefined, target);
+    for (const hat of this.hatsByTarget[this.targets.indexOf(target)] ?? []) {
+      if (hat.kind === "click") this.start(hat);
+    }
   }
 
   stopAll(): void {
@@ -416,7 +441,10 @@ export class Runtime {
 
   goToFront(t: Target): void {
     const top = Math.max(...this.targets.map((x) => x.layer));
-    if (t.layer !== top) t.layer = top + 1;
+    if (t.layer !== top) {
+      t.layer = top + 1;
+      this.ordered = null;
+    }
     this.requestRedraw();
   }
 
