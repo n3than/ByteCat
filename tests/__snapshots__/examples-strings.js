@@ -10,7 +10,7 @@ return [
     S.l["list_5"].push(contains(S.v["var_0"], "cat"));
     S.v["var_2"] = 1;
     while (!(S.v["var_2"] > S.v["var_0"].length)) {
-      S.v["var_1"] = (letterOf(S.v["var_2"], S.v["var_0"]) + S.v["var_1"]);
+      S.v["var_1"] = (S.v["var_0"].charAt((S.v["var_2"] | 0) - 1) + S.v["var_1"]);
       S.v["var_2"] = S.v["var_2"] + 1;
       if (th.warp === 0 && --rt.spin < 0) yield;
     }

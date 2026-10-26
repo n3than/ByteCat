@@ -14,18 +14,18 @@ function* p1_0(t, th, a0) {
 }
 function* p1_1(t, th, a0, a1) {
   yield* p1_0(t, th, a0);
-  S.v["var_3"] = itemOf(S.l["list_8"], itemOf(S.l["list_7"], S.v["var_1"]));
+  S.v["var_3"] = itemOf(S.l["list_8"], (S.l["list_7"][S.v["var_1"] - 1] ?? ""));
   yield* p1_0(t, th, a0);
-  deleteOf(S.l["list_8"], itemOf(S.l["list_7"], S.v["var_1"]));
+  deleteOf(S.l["list_8"], (S.l["list_7"][S.v["var_1"] - 1] ?? ""));
   S.v["var_4"] = listContents(S.l["list_8"]);
   S.v["var_5"] = "-";
   if ((a1 === 1)) {
     yield* p1_0(t, th, a0);
-    insertAt(S.l["list_8"], itemOf(S.l["list_7"], S.v["var_1"]), "X");
+    insertAt(S.l["list_8"], (S.l["list_7"][S.v["var_1"] - 1] ?? ""), "X");
     S.v["var_5"] = listContents(S.l["list_8"]);
   }
   yield* p1_0(t, th, a0);
-  replaceAt(S.l["list_8"], itemOf(S.l["list_7"], S.v["var_1"]), "R");
+  replaceAt(S.l["list_8"], (S.l["list_7"][S.v["var_1"] - 1] ?? ""), "R");
   S.v["var_6"] = listContents(S.l["list_8"]);
   S.l["list_1g"].push(("len " + (("" + a0) + (" idx " + (("" + S.v["var_1"]) + (": item=" + (toStr(S.v["var_3"]) + (" delete=[" + (S.v["var_4"] + ("] insert=[" + (S.v["var_5"] + ("] replace=[" + (S.v["var_6"] + "]")))))))))))));
 }

@@ -29,7 +29,8 @@ describe("type inference in the benchmarks", () => {
   it("leaves no number cast on a variable in sieve", () => {
     const code = procedures("sieve");
     // The only cast left reads a list item, whose type is not known.
-    expect(code.match(/toNum\([^)]*\)/g)).toEqual(['toNum(itemOf(S.l["list_3"], S.v["var_0"])']);
+    expect(calls(code, "toNum")).toBe(1);
+    expect(code).toMatch(/toNum\(\(S\.l\["list_3"\]\[/);
   });
 
   it("knows the string accumulator in strings is text", () => {

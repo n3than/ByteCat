@@ -186,10 +186,9 @@ describe("typed operator fast paths", () => {
       expect(letter(numEx("i", POS_INT), numEx("n", POS_INT))).toBe('("" + n).charAt((i | 0) - 1)');
     });
     it("keeps the helper when the index may be below 1 or not an integer", () => {
-      for (const t of [POS_INT | ZERO, POS_INT | POS_FRACT, NUM, NUM_OR_NAN, STR_NUM, ANY]) {
+      for (const t of [POS_INT | NEG_ZERO, POS_INT | POS_FRACT, NUM, NUM_OR_NAN, STR_NUM, ANY]) {
         expect(letter(numEx("i", t), strEx("s")), String(t)).toMatch(/^letterOf\(/);
       }
-      expect(letter(lit("0"), strEx("s"))).toBe("letterOf(0, s)");
       expect(letter(lit("1.0"), strEx("s"))).toBe('letterOf("1.0", s)');
       expect(letter(lit("1", true), strEx("s"))).toBe('letterOf("1", s)');
       expect(letter(lit("-1"), strEx("s"))).toBe("letterOf((-1), s)");
@@ -213,10 +212,9 @@ describe("typed operator fast paths", () => {
       expect(item(numEx("i", POS_INT)).t).toBe(ANY | STR_TEXT);
     });
     it("keeps the helper for index 0, negatives, fractions, text and unknowns", () => {
-      for (const t of [ZERO, POS_INT | ZERO, NEG_INT, POS_FRACT, POS_INT | POS_FRACT, STR_NUM, STR_TEXT, ANY]) {
+      for (const t of [NEG_ZERO, POS_INT | NEG_ZERO, NEG_INT, POS_FRACT, POS_INT | POS_FRACT, STR_NUM, STR_TEXT, ANY]) {
         expect(item(numEx("i", t)).c, String(t)).toBe('itemOf(t.l["l1"], i)');
       }
-      expect(item(lit("0")).c).toBe('itemOf(t.l["l1"], 0)');
       expect(item(lit("last")).c).toBe('itemOf(t.l["l1"], "last")');
       expect(item(lit("1.0")).c).toBe('itemOf(t.l["l1"], "1.0")');
       expect(item(lit("1", true)).c).toBe('itemOf(t.l["l1"], "1")');
@@ -236,10 +234,43 @@ describe("typed operator fast paths", () => {
       ]);
     });
     it("keeps the helper for other indexes, and when the item draws a random number", () => {
-      expect(replace(numEx("i", POS_INT | ZERO), lit("x"))).toEqual(['replaceAt(t.l["l1"], i, "x");']);
+      expect(replace(numEx("i", POS_INT | NEG_ZERO), lit("x"))).toEqual(['replaceAt(t.l["l1"], i, "x");']);
+      expect(replace(numEx("i", POS_INT | ZERO), lit("x"))).toEqual(['if (i > 0 && i <= t.l["l1"].length) t.l["l1"][i - 1] = "x";']);
       expect(replace(lit("last"), lit("x"))).toEqual(['replaceAt(t.l["l1"], "last", "x");']);
       expect(replace(numEx("i", POS_INT), numEx("random(1, 6)", POS_INT))).toEqual(['replaceAt(t.l["l1"], i, random(1, 6));']);
     });
+  });
+
+  // Every fast path against its runtime helper, for each index value whose kind it accepts.
+  describe("index fast paths match the helpers", () => {
+    const indexes: Value[] = [0, 1, 2, 3, 4, 7, 2 ** 31, 2 ** 32 + 2, Number.MAX_VALUE, Infinity];
+    const lists: Value[][] = [[], ["a"], ["a", "b", "c"], [10, true, 3.5]];
+    const strs = ["", "a", "abc", "0.5"];
+    const run = (code: string, scope: Record<string, unknown>) =>
+      new Function(...Object.keys(scope), `"use strict"; ${code}`)(...Object.values(scope)) as unknown;
+    const fields = { LIST: ["L", "l1"] as [string, string] };
+    for (const v of indexes) {
+      it(`index ${v}`, () => {
+        const i = anyEx("i", typeOfValue(v));
+        for (const list of lists) {
+          const get = reporters.data_itemoflist!(block("data_itemoflist", { fields: fields as never }), stubGen({ INDEX: i }))!.c;
+          expect(get).not.toMatch(/itemOf/);
+          const t = { l: { l1: [...list] } };
+          expect(run(`return ${get};`, { t, i: v })).toStrictEqual(ops.itemOf([...list], v));
+          const set = statements.data_replaceitemoflist!(block("data_replaceitemoflist", { fields: fields as never }), stubGen({ INDEX: i, ITEM: lit("N") }))!;
+          expect(set.join("\n")).not.toMatch(/replaceAt/);
+          run(set.join("\n"), { t, i: v });
+          const want = [...list];
+          ops.replaceAt(want, v, "N");
+          expect(t.l.l1).toStrictEqual(want);
+        }
+        for (const str of strs) {
+          const code = r("operator_letter_of", { LETTER: i, STRING: strEx("s") }).c;
+          expect(code).not.toMatch(/letterOf/);
+          expect(run(`return ${code};`, { s: str, i: v })).toBe(ops.letterOf(v, str));
+        }
+      });
+    }
   });
 
   describe("negation", () => {

@@ -97,10 +97,12 @@ Some operators also have a plain JavaScript form that is used only where the typ
 the helper's result for every value of those types (`blocks/operators.ts`, `blocks/data.ts`):
 `mod` is `n % m` when the dividend is `+0` or positive (after the number cast, so NaN counts as 0)
 and the divisor is positive and finite, so the sign correction never fires; `letter of` is
-`s.charAt(i - 1)` and `item of` is `(list[i - 1] ?? "")` when the index is a positive integer
-(`charAt` and a missing item give `""` out of range, and a list never holds `undefined`); `replace
-item` is `if (i <= list.length) list[i - 1] = v;` for the same index, with a computed index put in
-a `const` so it is evaluated once and before the item. `letter of` swaps the evaluation order of
+`s.charAt((i | 0) - 1)` and `item of` is `(list[i - 1] ?? "")` when the index is a whole number
+from 0 up or Infinity (`WHOLE_INDEX`: `charAt` and a missing item give `""` out of range, including
+`list[-1]` for 0, and a list never holds `undefined`; `| 0` is the helper's 32-bit cut); `replace
+item` is `if (i <= list.length) list[i - 1] = v;` for the same index, plus `i > 0 &&` when it may be
+0, with a computed index put in a `const` so it is evaluated once and before the item. A test in
+`blocks.test.ts` runs each of these forms against its helper for sampled indexes and lists. `letter of` swaps the evaluation order of
 index and string, and `replace item` skips the item when the index is out of range, so both keep
 the helper when an operand draws a random number or reads a clock (`effectful` in `cast.ts`). An
 `until` loop or `not` over another `not` reuses the inner code (`Ex.neg`) instead of stacking `!`.

@@ -1,7 +1,7 @@
 import type { Block } from "@bytecat/sb3";
 import type { Ex, Gen, ReporterHandler } from "../types.js";
 import {
-  ANY_ZERO, BOOL, FRACT, INF, NEG_INT, NUM_OR_NAN, POS_FRACT, POS_INF, POS_INT, POS_REAL, STR_TEXT, ZERO,
+  ANY_ZERO, BOOL, FRACT, WHOLE_INDEX, INF, NEG_INT, NUM_OR_NAN, POS_FRACT, POS_INF, POS_INT, POS_REAL, STR_TEXT, ZERO,
   divide, mod, multiply, round, within, type TypeSet,
 } from "../analysis/typeset.js";
 import {
@@ -104,7 +104,8 @@ export const operatorReporters: Record<string, ReporterHandler> = {
     // and `charAt` gives "" past the end like the helper. A text literal index never gets here:
     // its type is not POS_INT.
     // The helper cuts the index to 32 bits like TurboWarp, so a huge index needs the same `| 0`.
-    if (within(i.t, POS_INT) && !(effectful(i) && effectful(s))) {
+    // An index of 0 or Infinity gives charAt(-1), which is "" like the helper.
+    if (within(i.t, WHOLE_INDEX) && !(effectful(i) && effectful(s))) {
       return strEx(`${asStr(s)}.charAt(${i.k !== undefined ? (toNumber(i.k) | 0) - 1 : `(${i.c} | 0) - 1`})`);
     }
     return strEx(`letterOf(${asAny(i)}, ${asAny(s)})`);

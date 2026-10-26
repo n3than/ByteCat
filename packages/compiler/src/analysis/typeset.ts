@@ -32,6 +32,9 @@ export const NUM_OR_NAN = NUM | NAN;
 export const STR = STR_NUM | STR_TEXT;
 export const ANY = NUM_OR_NAN | STR | BOOL;
 
+/** A list or letter index the fast paths handle: a whole number from 0 up, or Infinity. */
+export const WHOLE_INDEX = POS_INT | ZERO | POS_INF;
+
 export type TypeSet = number;
 
 /** True when every value of type `t` is also of type `of`. The empty type is a subset of all. */
