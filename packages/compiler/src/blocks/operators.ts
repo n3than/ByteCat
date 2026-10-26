@@ -40,8 +40,11 @@ export function comparison(b: Block, g: Gen, jsOp: string, helper: string): Ex {
   // compares as the text "NaN", which equals no number) or a string that is not numeric (it
   // compares as text, and no number prints as such a string). A boolean or a numeric string
   // would need converting first. Two NaNs are equal in Scratch, so one side must not be NaN.
+  // Infinity is the exception among numbers: it prints as "Infinity", which equals the text
+  // "infinity" ignoring case, so against a possible string the number must be finite.
   const maybeNaN = (e: Ex) => e.k === undefined && within(e.t, NUM_OR_NAN | STR_TEXT);
-  if (jsOp === "===" && ((isNumeric(a) && maybeNaN(c)) || (maybeNaN(a) && isNumeric(c)))) {
+  const plain = (n: Ex, other: Ex) => isNumeric(n) && maybeNaN(other) && !(other.t & STR_TEXT && numType(n) & INF);
+  if (jsOp === "===" && (plain(a, c) || plain(c, a))) {
     // The raw value, not asNum: the cast would turn NaN and text into 0.
     const side = (e: Ex) => (maybeNaN(e) ? e.c : asNum(e));
     return boolEx(`(${side(a)} === ${side(c)})`);
