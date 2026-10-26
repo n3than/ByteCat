@@ -8,7 +8,7 @@ function p1_0(t, th) {
   S.v["var_3"] = S.v["var_3"] + S.v["var_0"];
 }
 function p1_1(t, th) {
-  S.l["list_e"].push(("peek " + ("" + S.v["var_0"])));
+  S.l["list_f"].push(("peek " + ("" + S.v["var_0"])));
 }
 function* p1_2(t, th) {
   yield* rt.wait(0);
@@ -25,78 +25,97 @@ function p1_3(t, th, a0) {
   }
   S.v["var_0"] = v0;
 }
+function p1_4(t, th, a0) {
+  let v0 = S.v["var_3"];
+  for (let r0 = Math.round(1); r0 > 0; r0--) {
+    if ((a0 === 1)) {
+      v0 = 5;
+    }
+  }
+  S.v["var_3"] = v0;
+}
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
-    let v0 = S.v["var_0"], v1 = t.v["var_4"], v2 = S.v["var_2"];
-    for (let r0 = Math.round(4); r0 > 0; r0--) {
+    let v0 = S.v["var_0"], v1 = t.v["var_4"], v2 = S.v["var_3"], v3 = S.v["var_2"];
+    for (let r1 = Math.round(4); r1 > 0; r1--) {
       v0 = v0 + 1;
       v1 = v1 + 1;
       if (th.warp === 0 && --rt.spin < 0) {
-        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
         yield;
-        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_2"];
+        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
       }
     }
-    S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+    S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
     while (!(S.v["var_1"] === 1)) {
       yield rt.WAIT;
-      v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_2"];
+      v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
     }
-    S.l["list_e"].push(("A sees " + ("" + v0)));
+    S.l["list_f"].push(("A sees " + ("" + v0)));
     v0 = 1;
-    for (let r1 = Math.round(3); r1 > 0; r1--) {
+    for (let r2 = Math.round(3); r2 > 0; r2--) {
       v0 = v0 + 1;
-      S.v["var_0"] = v0;
+      S.v["var_0"] = v0; S.v["var_3"] = v2;
       p1_0(t, th);
-      v0 = S.v["var_0"];
+      v0 = S.v["var_0"]; v2 = S.v["var_3"];
       S.v["var_0"] = v0;
       p1_1(t, th);
       if (th.warp === 0 && --rt.spin < 0) {
-        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
         yield;
-        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_2"];
+        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
       }
     }
-    S.l["list_e"].push(("total " + ("" + S.v["var_3"])));
+    S.l["list_f"].push(("total " + ("" + v2)));
     v0 = 0;
-    for (let r2 = Math.round(2); r2 > 0; r2--) {
+    for (let r3 = Math.round(2); r3 > 0; r3--) {
       v0 = v0 + 1;
-      S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+      S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
       yield* p1_2(t, th);
-      v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_2"];
-      S.l["list_e"].push(("after pause " + ("" + v0)));
+      v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
+      S.l["list_f"].push(("after pause " + ("" + v0)));
       if (th.warp === 0 && --rt.spin < 0) {
-        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
         yield;
-        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_2"];
+        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
       }
     }
     S.v["var_0"] = v0;
     p1_3(t, th, 7);
     v0 = S.v["var_0"];
-    S.l["list_e"].push(("counted " + ("" + v0)));
-    S.l["list_e"].push(("mine " + ("" + v1)));
-    for (let r3 = Math.round(2); r3 > 0; r3--) {
-      v2 = v2 + 1;
+    S.l["list_f"].push(("counted " + ("" + v0)));
+    S.l["list_f"].push(("mine " + ("" + v1)));
+    for (let r4 = Math.round(2); r4 > 0; r4--) {
+      v3 = v3 + 1;
       rt.broadcast("look");
-      S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+      S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
       yield* rt.wait(0);
-      v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_2"];
-      v2 = v2 + 10;
+      v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
+      v3 = v3 + 10;
       rt.broadcast("look");
       if (th.warp === 0 && --rt.spin < 0) {
-        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
         yield;
-        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_2"];
+        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
       }
     }
-    S.l["list_e"].push(("done " + ("" + v2)));
-    S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
+    S.l["list_f"].push(("done " + ("" + v3)));
+    v2 = 0;
+    for (let r5 = Math.round(3); r5 > 0; r5--) {
+      v2 = v2 + 1;
+      S.v["var_3"] = v2;
+      p1_4(t, th, 0);
+      v2 = S.v["var_3"];
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
+        yield;
+        v0 = S.v["var_0"]; v1 = t.v["var_4"]; v2 = S.v["var_3"]; v3 = S.v["var_2"];
+      }
+    }
+    S.l["list_f"].push(("kept " + ("" + v2)));
+    S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
     throw rt.STOP_ALL;
-    S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v2;
-} },
-{ target: 2, kind: "broadcast", arg: "look", fn: function* (t, th) {
-    S.l["list_e"].push(("look " + ("" + S.v["var_2"])));
+    S.v["var_0"] = v0; t.v["var_4"] = v1; S.v["var_2"] = v3; S.v["var_3"] = v2;
 } },
 { target: 2, kind: "flag", fn: function* (t, th) {
     let v0 = S.v["var_0"], v1 = t.v["var_5"];
@@ -116,8 +135,11 @@ return [
       v0 = S.v["var_0"]; v1 = t.v["var_5"];
     }
     v0 = v0 + 1000;
-    S.l["list_e"].push(("B mine " + ("" + v1)));
+    S.l["list_f"].push(("B mine " + ("" + v1)));
     S.v["var_0"] = v0; t.v["var_5"] = v1;
+} },
+{ target: 2, kind: "broadcast", arg: "look", fn: function* (t, th) {
+    S.l["list_f"].push(("look " + ("" + S.v["var_2"])));
 } },
 ];
 })

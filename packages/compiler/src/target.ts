@@ -170,8 +170,12 @@ export class TargetCodegen implements Gen {
       const callee = fn ? this.effects.get(fn) : undefined;
       const code =
         kind === "store"
-          ? // A sync callee only needs the variables it reads, unless it can stop everything.
-            stored.filter((ref) => !callee || callee.stops || callee.reads.has(ref)).map((ref) => `${ref} = ${locals.get(ref)};`)
+          ? // A sync callee only needs the variables it reads or writes (it may load a variable into
+            // a local and store it back unchanged on a path that skips the assignment), unless it can
+            // stop everything.
+            stored
+              .filter((ref) => !callee || callee.stops || callee.reads.has(ref) || callee.writes.has(ref))
+              .map((ref) => `${ref} = ${locals.get(ref)};`)
           : [...locals].filter(([ref]) => !callee || callee.writes.has(ref)).map(([ref, local]) => `${local} = ${ref};`);
       if (code.length > 0) out.push(line.slice(0, at) + code.join(" "));
     }

@@ -30,6 +30,12 @@ sprite A:
       if shared = n:
         stop("this script")
 
+  # Assigns total only when c is 1, but keeps it in a local and stores it back either way.
+  define warp maybe_set(c):
+    repeat 1:
+      if c = 1:
+        total = 5
+
   when flag:
     # Two scripts take turns adding to the same variable; every loop iteration yields.
     repeat 4:
@@ -61,6 +67,12 @@ sprite A:
       seen += 10
       broadcast("look")
     log(join("done ", seen))
+    # A call that may write total but doesn't must see the caller's latest value.
+    total = 0
+    repeat 3:
+      total += 1
+      maybe_set(0)
+    log(join("kept ", total))
     stop("all")
 
 sprite B:
