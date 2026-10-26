@@ -25,6 +25,8 @@ export interface RunOptions {
   turbo?: boolean;
   /** The VM to run in. Default `scratch`. */
   engine?: Engine;
+  /** Hide the VM's warnings while the project runs too (the fuzzer uses it). Default false. */
+  quiet?: boolean;
 }
 
 export interface RunResult {
@@ -56,6 +58,10 @@ interface TwThread {
  * stop. This is the reference behaviour that Bytecat's compiled output is compared against.
  */
 export async function runProject(sb3: Uint8Array, options: RunOptions = {}): Promise<RunResult> {
+  return options.quiet ? silenced(() => runLoaded(sb3, options)) : runLoaded(sb3, options);
+}
+
+async function runLoaded(sb3: Uint8Array, options: RunOptions): Promise<RunResult> {
   const { timeoutMs = 10_000, answers = [], turbo = true, engine = "scratch" } = options;
   const vm = await silenced(async () => (engine === "turbowarp" ? new TurboWarpVM() : new ScratchVM()));
   const compileErrors: string[] = [];

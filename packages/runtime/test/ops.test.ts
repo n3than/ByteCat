@@ -31,6 +31,13 @@ describe("compare", () => {
   });
   it("does not treat whitespace as zero", () => {
     expect(ops.eq(" ", 0)).toBe(false);
+    expect(ops.eq("", 0)).toBe(false);
+    expect(ops.eq("\n", 0)).toBe(false);
+  });
+  it("treats a tab as zero, like TurboWarp", () => {
+    expect(ops.eq("\t", 0)).toBe(true);
+    expect(ops.eq(" \t ", "0")).toBe(true);
+    expect(ops.gt("0", "\t")).toBe(false);
   });
 });
 
@@ -58,8 +65,23 @@ describe("lists", () => {
   });
   it("joins contents", () => {
     expect(ops.listContents(["a", "b"])).toBe("ab");
-    expect(ops.listContents([1, 2])).toBe("1 2");
+    // Numbers count by their text, like TurboWarp: one digit is one character.
+    expect(ops.listContents([1, 2])).toBe("12");
+    expect(ops.listContents([1, "b"])).toBe("1b");
+    expect(ops.listContents([1, 10])).toBe("1 10");
+    expect(ops.listContents([-1, 2])).toBe("-1 2");
     expect(ops.listContents(["ab", "c"])).toBe("ab c");
+  });
+  it("matches the words last and all exactly", () => {
+    expect(ops.listIndex("LAST", 3)).toBe(0);
+    expect(ops.listIndex("1.5", 3)).toBe(1);
+    expect(ops.listIndex(-0.5, 3)).toBe(0);
+    expect(ops.listIndex(Infinity, 3)).toBe(0);
+    const list: Value[] = ["a", "b"];
+    ops.deleteOf(list, "ALL");
+    expect(list).toEqual(["a", "b"]);
+    ops.deleteOf(list, "all");
+    expect(list).toEqual([]);
   });
 });
 
@@ -69,9 +91,27 @@ describe("strings and math", () => {
     expect(ops.letterOf(4, "abc")).toBe("");
     expect(ops.letterOf(2, "abc")).toBe("b");
   });
+  it("cuts the letter index to a 32-bit integer, like TurboWarp", () => {
+    expect(ops.letterOf(1.9, "abc")).toBe("a");
+    expect(ops.letterOf(-0.5, "abc")).toBe("");
+    expect(ops.letterOf(4294967299, "0.5")).toBe("5");
+    expect(ops.letterOf(Infinity, "abc")).toBe("");
+  });
   it("handles trig edge cases", () => {
     expect(ops.mathop("sin", 90)).toBe(1);
     expect(ops.mathop("tan", 90)).toBe(Infinity);
+    expect(ops.mathop("tan", -270)).toBe(Infinity);
+    expect(ops.mathop("tan", -90)).toBe(-Infinity);
+    expect(ops.mathop("tan", 450)).toBe(Infinity);
+  });
+  it("rounds degree conversions the way TurboWarp does", () => {
+    // Dividing by a precomputed Math.PI / 180 gave 63.434948822922; TurboWarp gives 63.43494882292201.
+    expect(ops.mathop("atan", 2)).toBe((Math.atan(2) * 180) / Math.PI);
+    expect(ops.mathop("atan", 2)).toBe(63.43494882292201);
+    expect(ops.mathop("asin", 0.3)).toBe((Math.asin(0.3) * 180) / Math.PI);
+    expect(ops.mathop("acos", 0.3)).toBe((Math.acos(0.3) * 180) / Math.PI);
+    expect(ops.mathop("sin", 30)).toBe(Math.round(Math.sin((Math.PI * 30) / 180) * 1e10) / 1e10);
+    expect(ops.mathop("tan", 400)).toBe(Math.round(Math.tan((Math.PI * 40) / 180) * 1e10) / 1e10);
   });
 });
 
