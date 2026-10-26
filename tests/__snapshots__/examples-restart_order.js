@@ -4,37 +4,79 @@ const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, matho
   itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
 const S = rt.stage;
 return [
+{ target: 0, kind: "broadcast", arg: "self", fn: function* (t, th) {
+    t.v["var_2"] = t.v["var_2"] + 1;
+    t.l["list_7"].push(("stage self " + ("" + t.v["var_2"])));
+} },
 { target: 1, kind: "flag", fn: function* (t, th) {
     rt.broadcast("work");
     rt.broadcast("watch");
     rt.broadcast("restart");
 } },
 { target: 1, kind: "broadcast", arg: "work", fn: function* (t, th) {
-    S.l["list_9"].push("work start");
+    S.l["list_7"].push("work start");
     for (let r0 = Math.round(2); r0 > 0; r0--) {
-      S.l["list_9"].push("work tick");
-      if (th.warp === 0) yield;
+      S.l["list_7"].push("work tick");
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
 } },
 { target: 1, kind: "broadcast", arg: "watch", fn: function* (t, th) {
     for (let r1 = Math.round(3); r1 > 0; r1--) {
-      S.l["list_9"].push("watch");
-      if (th.warp === 0) yield;
+      S.l["list_7"].push("watch");
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
 } },
 { target: 1, kind: "broadcast", arg: "restart", fn: function* (t, th) {
     for (let r2 = Math.round(1); r2 > 0; r2--) {
-      S.l["list_9"].push("restart wait");
-      if (th.warp === 0) yield;
+      S.l["list_7"].push("restart wait");
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
     rt.broadcast("work");
     rt.broadcast("late");
 } },
 { target: 1, kind: "broadcast", arg: "late", fn: function* (t, th) {
     for (let r3 = Math.round(2); r3 > 0; r3--) {
-      S.l["list_9"].push("late");
-      if (th.warp === 0) yield;
+      S.l["list_7"].push("late");
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
+    S.v["var_0"] = 2;
+} },
+{ target: 2, kind: "broadcast", arg: "self", fn: function* (t, th) {
+    let v0 = S.v["var_1"];
+    v0 = v0 + 1;
+    S.l["list_7"].push(("A self start " + ("" + v0)));
+    if ((v0 < 3)) {
+      rt.broadcast("self");
+      S.l["list_7"].push(("A self after " + ("" + v0)));
+    }
+    for (let r0 = Math.round(1); r0 > 0; r0--) {
+      S.l["list_7"].push(("A self end " + ("" + v0)));
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_1"] = v0;
+        yield;
+        v0 = S.v["var_1"];
+      }
+    }
+    S.v["var_1"] = v0;
+} },
+{ target: 2, kind: "flag", fn: function* (t, th) {
+    while (!(S.v["var_0"] === 2)) yield rt.WAIT;
+    rt.broadcast("self");
+    rt.broadcast("bw");
+    for (let r1 = Math.round(3); r1 > 0; r1--) {
+      S.l["list_7"].push("A loop");
+      if (th.warp === 0 && --rt.spin < 0) yield;
+    }
+    rt.broadcast("self");
+    S.l["list_7"].push("A done");
+} },
+{ target: 3, kind: "broadcast", arg: "bw", fn: function* (t, th) {
+    S.l["list_7"].push("B bw start");
+    yield* rt.broadcastAndWait("self");
+    S.l["list_7"].push("B bw done");
+} },
+{ target: 3, kind: "broadcast", arg: "self", fn: function* (t, th) {
+    S.l["list_7"].push("B self");
 } },
 ];
 })

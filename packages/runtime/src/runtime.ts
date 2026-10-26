@@ -126,9 +126,11 @@ export class Runtime {
   private start(hat: Hat): Thread {
     const target = this.targets[hat.target]!;
     const th = new Thread(hat, target);
-    // Re-triggering a hat whose script is still running restarts it in the same place in the
-    // thread list, like TurboWarp, so the new run waits for the next pass if that place is behind.
-    const i = this.threads.findIndex((old) => old.hat === hat && !old.done);
+    // Re-triggering a hat restarts its script in the same place in the thread list, like
+    // TurboWarp, so the new run waits for the next pass if that place is behind. That includes a
+    // run that finished earlier in this pass: TurboWarp only forgets a thread when the pass ends,
+    // and so does `tick`. There is at most one thread per hat in the list.
+    const i = this.threads.findIndex((old) => old.hat === hat);
     if (i >= 0) {
       this.threads[i]!.done = true;
       this.threads[i] = th;

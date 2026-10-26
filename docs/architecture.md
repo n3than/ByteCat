@@ -159,8 +159,9 @@ the thread order, and `examples/paced_move` (see `turbo off` in
 An event starts its hats in TurboWarp's order: targets from the top layer down, the stage last,
 and within a target in the order its scripts appear in `project.json` (`examples/script_order`).
 The runtime caches that list per event and clears the cache when a sprite changes layer. A hat
-that restarts a running script puts the new thread in the old one's place in the thread list, so
-it runs on the next pass if that place is already behind (`examples/restart_order`).
+that restarts a script puts the new thread in the old one's place in the thread list, so it runs
+on the next pass if that place is already behind. That includes a thread that finished earlier in
+the same pass, which stays listed until the pass ends, as in TurboWarp (`examples/restart_order`).
 
 The list helpers in `ops.ts` (`itemOf`, `replaceAt`, `deleteOf`, `insertAt`, `indexOf`) have fast
 paths for the common case of a number index (inlined floor and range check, no `listIndex`), and

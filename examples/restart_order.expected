@@ -10,3 +10,26 @@ work tick
 watch
 late
 work tick
+A loop
+B self
+A self start 1
+A self after 1
+A self end 1
+stage self 1
+B bw start
+A loop
+B self
+A self start 2
+A self after 2
+A self end 2
+stage self 2
+B bw done
+A loop
+B self
+A self start 3
+A self end 3
+A done
+A self start 4
+A self end 4
+B self
+stage self 3

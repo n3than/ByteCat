@@ -1,5 +1,15 @@
-# A hat that restarts a running script keeps that script's place in the thread list, as in
-# TurboWarp: the new run waits for the next pass, ahead of scripts started after it.
+# A hat that restarts a script reuses that script's place in the thread list, as in TurboWarp:
+# the new run waits for the next pass, ahead of scripts started after it. Part 2: the same holds
+# when the old run already finished earlier in this pass, since it stays listed until the pass ends.
+var part = 1
+var n = 0
+var m = 0
+
+stage:
+  when receive "self":
+    m += 1
+    log(join("stage self ", m))
+
 sprite Main:
   when flag:
     broadcast("work")
@@ -24,3 +34,32 @@ sprite Main:
   when receive "late":
     repeat 2:
       log("late")
+    part = 2
+
+sprite A:
+  when flag:
+    wait_until(part = 2)
+    broadcast("self")
+    broadcast("bw")
+    repeat 3:
+      log("A loop")
+    broadcast("self")
+    log("A done")
+
+  when receive "self":
+    n += 1
+    log(join("A self start ", n))
+    if n < 3:
+      broadcast("self")
+      log(join("A self after ", n))
+    repeat 1:
+      log(join("A self end ", n))
+
+sprite B:
+  when receive "bw":
+    log("B bw start")
+    broadcast_wait("self")
+    log("B bw done")
+
+  when receive "self":
+    log("B self")
