@@ -103,10 +103,11 @@ export const operatorReporters: Record<string, ReporterHandler> = {
     // only matters when both draw random numbers or read a clock. For an index >= 1, `i - 1 >= 0`,
     // and `charAt` gives "" past the end like the helper. A text literal index never gets here:
     // its type is not POS_INT.
-    // The helper cuts the index to 32 bits like TurboWarp, so a huge index needs the same `| 0`.
-    // An index of 0 or Infinity gives charAt(-1), which is "" like the helper.
+    // An index of 0 gives charAt(-1) and Infinity charAt(Infinity), both "" like the helper. The
+    // helper cuts an index of 2^31 or more to 32 bits, as TurboWarp does when it cannot prove the
+    // type; for a proven whole number TurboWarp skips the cut, and so does this (deviations.md).
     if (within(i.t, WHOLE_INDEX) && !(effectful(i) && effectful(s))) {
-      return strEx(`${asStr(s)}.charAt(${i.k !== undefined ? (toNumber(i.k) | 0) - 1 : `(${i.c} | 0) - 1`})`);
+      return strEx(`${asStr(s)}.charAt(${i.k !== undefined ? toNumber(i.k) - 1 : `${i.c} - 1`})`);
     }
     return strEx(`letterOf(${asAny(i)}, ${asAny(s)})`);
   },

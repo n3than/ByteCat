@@ -4,7 +4,7 @@ const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, matho
   itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
 const S = rt.stage;
 function p1_0(t, th, a0, a1) {
-  S.l["list_p"].push(("[" + (toStr(a1).charAt((a0 | 0) - 1) + "]")));
+  S.l["list_p"].push(("[" + (toStr(a1).charAt(a0 - 1) + "]")));
 }
 function p1_1(t, th, a0, a1) {
   if (a0 <= S.l["list_5"].length) S.l["list_5"][a0 - 1] = a1;

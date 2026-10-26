@@ -178,12 +178,12 @@ describe("typed operator fast paths", () => {
 
   describe("letter of", () => {
     const letter = (i: Ex, s: Ex) => r("operator_letter_of", { LETTER: i, STRING: s }).c;
-    it("is charAt for an index of at least 1, cut to 32 bits like the helper", () => {
-      expect(letter(lit("4294967299"), lit("0.5"))).toBe('"0.5".charAt(2)');
-      expect(letter(numEx("i", POS_INT), strEx("s"))).toBe("s.charAt((i | 0) - 1)");
+    it("is charAt for an index of at least 1, not cut to 32 bits", () => {
+      expect(letter(lit("4294967299"), lit("0.5"))).toBe('"0.5".charAt(4294967298)');
+      expect(letter(numEx("i", POS_INT), strEx("s"))).toBe("s.charAt(i - 1)");
       expect(letter(lit("1"), lit("abc"))).toBe('"abc".charAt(0)');
       expect(letter(lit("3"), anyEx("v"))).toBe("toStr(v).charAt(2)");
-      expect(letter(numEx("i", POS_INT), numEx("n", POS_INT))).toBe('("" + n).charAt((i | 0) - 1)');
+      expect(letter(numEx("i", POS_INT), numEx("n", POS_INT))).toBe('("" + n).charAt(i - 1)');
     });
     it("keeps the helper when the index may be below 1 or not an integer", () => {
       for (const t of [POS_INT | NEG_ZERO, POS_INT | POS_FRACT, NUM, NUM_OR_NAN, STR_NUM, ANY]) {
@@ -196,8 +196,8 @@ describe("typed operator fast paths", () => {
     it("keeps the order of two random draws", () => {
       const rnd = numEx("random(1, 3)", POS_INT);
       expect(letter(rnd, strEx("(a + toStr(random(1, 9)))"))).toBe("letterOf(random(1, 3), (a + toStr(random(1, 9))))");
-      expect(letter(rnd, strEx("s"))).toBe("s.charAt((random(1, 3) | 0) - 1)");
-      expect(letter(numEx("i", POS_INT), strEx("toStr(random(1, 9))"))).toBe("toStr(random(1, 9)).charAt((i | 0) - 1)");
+      expect(letter(rnd, strEx("s"))).toBe("s.charAt(random(1, 3) - 1)");
+      expect(letter(numEx("i", POS_INT), strEx("toStr(random(1, 9))"))).toBe("toStr(random(1, 9)).charAt(i - 1)");
     });
   });
 
@@ -267,7 +267,9 @@ describe("typed operator fast paths", () => {
         for (const str of strs) {
           const code = r("operator_letter_of", { LETTER: i, STRING: strEx("s") }).c;
           expect(code).not.toMatch(/letterOf/);
-          expect(run(`return ${code};`, { s: str, i: v })).toBe(ops.letterOf(v, str));
+          // The helper cuts an index of 2^31 or more to 32 bits; a proven whole number is not cut,
+          // like TurboWarp's typed path, so it is past the end of every string (deviations.md).
+          expect(run(`return ${code};`, { s: str, i: v })).toBe(v < 2 ** 31 ? ops.letterOf(v, str) : "");
         }
       });
     }
