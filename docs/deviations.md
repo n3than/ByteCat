@@ -28,14 +28,13 @@ or test that pins Bytecat's behaviour.
 ## Found by the fuzzer
 
 Places where Bytecat and TurboWarp still disagree, found by [the differential fuzzer](fuzzing.md).
-Unlike the tables above these are not decisions: the first four are Bytecat bugs and the last two
+Unlike the tables above these are not decisions: the first three are Bytecat bugs and the last two
 are TurboWarp quirks Bytecat does not copy yet. `tests/fuzz/generate.ts` avoids each of them (the
 `KNOWN:` comments) so the fuzzer can keep looking for other differences. When one is fixed, remove
 the avoidance. Logs below are Bytecat, then TurboWarp.
 
 | Difference | Smallest program | Bytecat / TurboWarp | Avoided by the generator |
 | --- | --- | --- | --- |
-| A numeric result that is NaN is not turned into 0 when it feeds another numeric block (the compiler gives it the type "number" and skips the cast). Applies to `+ - * / %`, the math functions, `round`, negation, comparisons, list and letter indexes, `change by`. | `log((0 / 0) + 1)` and `log((0 / 0) > -1)` | `NaN`, `false` / `1`, `true` | A subexpression that can be NaN is wrapped as `join("", e)` wherever a number is wanted. |
 | A boolean parameter that receives an empty boolean slot (a literal `false` argument) reads as `""`. | `define p(b: bool): log(b)` then `p(false)` | `` (empty) / `false` | A bare `false` is never passed as an argument. |
 | `when flag` scripts in different targets start in declaration order (stage first). TurboWarp and scratch-vm start the topmost sprite first and the stage last. | `stage: when flag: log("stage")` and `sprite A: when flag: log("A")` | `stage`, `A` / `A`, `stage` | All flag scripts of a program live in one target. |
 | A blank literal containing a tab (`"\t"`) is compared as text by the compiler, using `trim()`. TurboWarp counts a tab as zero. (The runtime helpers in `ops.ts` already match TurboWarp, so only literals are affected.) | `var s = "0"` then `log(s = "\t")` | `false` / `true` | The tab string is not used as a literal in expressions. |
@@ -48,3 +47,5 @@ The fuzzer also found and fixed these in `packages/runtime/src/ops.ts` (covered 
 text of a list treated a one-digit number as more than one character; list indexes `"LAST"` and
 `"ALL"` were matched ignoring case; comparing a tab with 0
 did not treat the tab as zero; `letter` of a large or fractional index was not cut to 32 bits.
+It also found that a NaN result was not turned into 0 when it fed another numeric block, such as
+`(0 / 0) + 1`; the compiler's type inference now keeps the cast wherever a value may be NaN.
