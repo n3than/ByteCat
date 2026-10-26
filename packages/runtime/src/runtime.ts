@@ -29,11 +29,17 @@ const STOP_ALL = Symbol("stop all");
 const START_CHECK = 4;
 
 /**
- * The most work between two reads of the clock: passes over the threads, or loop iterations of a
- * thread running alone (`spinLimit`), whichever the scheduler is counting. A light interval can
- * turn heavy without warning, so this bounds how far a frame can overrun its budget.
+ * The most passes over the threads between two reads of the clock. A light interval can turn
+ * heavy without warning, so this bounds how far a frame can overrun its budget.
  */
-const MAX_WORK = 128;
+const MAX_STRIDE = 128;
+
+/**
+ * The most loop iterations a thread running alone completes between two reads of the clock
+ * (`spinLimit`). Smaller than MAX_STRIDE: a lone loop reaches its limit far more often than the
+ * stride reaches its own, and 32 already makes the scheduler's share of a cheap loop small.
+ */
+const MAX_SPIN = 32;
 
 export class Thread {
   done = false;
@@ -204,11 +210,11 @@ export class Runtime {
     const frameStart = clock();
     let lastCheck = frameStart;
     // Reading the clock costs about as much as a pass of one short thread, so it is read every
-    // `stride` passes: doubling (up to MAX_WORK) while a stride takes under 0.25 ms, and back to 1
+    // `stride` passes: doubling (up to MAX_STRIDE) while a stride takes under 0.25 ms, and back to 1
     // as soon as one takes longer. The clock's resolution is too coarse to size it from one pass.
     // `spinLimit`, how many loop iterations a thread running alone may skip yielding for per step,
     // grows the same way while that thread runs alone, and then the clock is read after every
-    // pass (stride 1), so at most MAX_WORK iterations run between two reads either way. Like
+    // pass (stride 1), so at most MAX_SPIN iterations run between two reads. Like
     // `stride` it starts at 1 each frame and drops back to 1 when the set of threads changes,
     // since the cost of a pass no longer says what the next one costs.
     let spinLimit = 1;
@@ -246,9 +252,9 @@ export class Runtime {
           spinLimit = 1;
         } else if (this.threads.length === 1) {
           stride = 1;
-          spinLimit = Math.min(spinLimit * 2, MAX_WORK);
+          spinLimit = Math.min(spinLimit * 2, MAX_SPIN);
         } else {
-          stride = Math.min(stride * 2, MAX_WORK);
+          stride = Math.min(stride * 2, MAX_STRIDE);
         }
         untilCheck = stride;
         lastCheck = now;

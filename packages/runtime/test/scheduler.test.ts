@@ -88,8 +88,9 @@ describe("loop yields", () => {
     const { rt, c } = setup({ turbo: true }, (rt) => [{ name: "a", fn: loop(rt, 200_000, () => count++) }]);
     runToEnd(rt);
     expect(count).toBe(200_000);
-    // Without the skip the scheduler would resume the thread once per iteration.
-    expect(c.steps.a).toBeLessThan(2_000);
+    // Without the skip the scheduler would resume the thread once per iteration; with it, once
+    // per 32 (the spin limit) after a short ramp.
+    expect(c.steps.a).toBeLessThan(200_000 / 32 + 50);
   });
 
   it("stay bounded when a lone loop turns heavy, so a frame ends near its budget", () => {
@@ -108,8 +109,8 @@ describe("loop yields", () => {
       rt.tick();
       longest = Math.max(longest, clock.now - start);
     }
-    // At most 128 iterations (128 ms here) run between two clock reads.
-    expect(longest).toBeLessThanOrEqual(budget + 128);
+    // At most 32 iterations (32 ms here) run between two clock reads.
+    expect(longest).toBeLessThanOrEqual(budget + 32);
   });
 
   it("never happen in warp mode", () => {
@@ -146,7 +147,7 @@ describe("loop yields", () => {
     ]);
     runToEnd(rt);
     expect(c.events.slice(0, 7)).toEqual(["long0", "short0", "long1", "short1", "long2", "short2", "long3"]);
-    expect(c.steps.long).toBeLessThan(2_000);
+    expect(c.steps.long).toBeLessThan(100_000 / 32 + 50);
   });
 
   it("let a thread started from inside a spinning loop run in the same pass", () => {
