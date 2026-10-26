@@ -1,10 +1,12 @@
 import type { Block } from "@bytecat/sb3";
 import type { Ex, Gen, ReporterHandler } from "../types.js";
 import {
-  ANY_ZERO, FRACT, INF, NEG_INT, NUM_OR_NAN, POS_FRACT, POS_INF, POS_INT, STR_TEXT, ZERO,
+  ANY_ZERO, BOOL, FRACT, INF, NEG_INT, NUM_OR_NAN, POS_FRACT, POS_INF, POS_INT, POS_REAL, STR_TEXT, ZERO,
   divide, mod, multiply, round, within, type TypeSet,
 } from "../analysis/typeset.js";
-import { asAny, asNum, asStr, boolEx, isNumeric, isTextLiteral, numEx, numType, strEx, sumType } from "../cast.js";
+import {
+  asAny, asBool, asNum, asStr, boolEx, effectful, isNumeric, isTextLiteral, negation, numEx, numType, strEx, sumType, toNumber,
+} from "../cast.js";
 
 /** An arithmetic operator: the JavaScript for `NUM1 op NUM2` and its type from the operand types. */
 function arith(b: Block, g: Gen, js: (x: string, y: string) => string, type: (x: TypeSet, y: TypeSet) => TypeSet): Ex {
@@ -72,16 +74,41 @@ export const operatorReporters: Record<string, ReporterHandler> = {
   },
   operator_multiply: (b, g) => arith(b, g, (x, y) => `(${x} * ${y})`, multiply),
   operator_divide: (b, g) => arith(b, g, (x, y) => `(${x} / ${y})`, divide),
-  operator_mod: (b, g) => arith(b, g, (x, y) => `mod(${x}, ${y})`, mod),
+  operator_mod: (b, g) => {
+    const x = g.input(b, "NUM1");
+    const y = g.input(b, "NUM2");
+    const tx = numType(x);
+    const ty = numType(y);
+    // A dividend that is +0 or positive (not -0, NaN or infinite) and a positive finite divisor
+    // give `n % m >= +0`, so `mod`'s sign correction (`r / m < 0`) never fires.
+    const plain = within(tx, POS_REAL | ZERO) && within(ty, POS_REAL);
+    return numEx(plain ? `(${asNum(x)} % ${asNum(y)})` : `mod(${asNum(x)}, ${asNum(y)})`, mod(tx, ty));
+  },
   operator_random: (b, g) => numEx(`random(${g.any(b, "FROM")}, ${g.any(b, "TO")})`),
   operator_lt: (b, g) => comparison(b, g, "<", "lt"),
   operator_gt: (b, g) => comparison(b, g, ">", "gt"),
   operator_equals: (b, g) => comparison(b, g, "===", "eq"),
   operator_and: (b, g) => boolEx(`(${g.bool(b, "OPERAND1")} && ${g.bool(b, "OPERAND2")})`),
   operator_or: (b, g) => boolEx(`(${g.bool(b, "OPERAND1")} || ${g.bool(b, "OPERAND2")})`),
-  operator_not: (b, g) => boolEx(`!${g.bool(b, "OPERAND")}`),
+  operator_not: (b, g) => {
+    const x = g.input(b, "OPERAND");
+    // not (not y) is y as a boolean; the negation of that is the `!y` already written.
+    return x.neg !== undefined ? { c: x.neg, t: BOOL, neg: `!${x.neg}` } : negation(asBool(x));
+  },
   operator_join: (b, g) => strEx(`(${g.str(b, "STRING1")} + ${g.str(b, "STRING2")})`),
-  operator_letter_of: (b, g) => strEx(`letterOf(${g.any(b, "LETTER")}, ${g.any(b, "STRING")})`),
+  operator_letter_of: (b, g) => {
+    const i = g.input(b, "LETTER");
+    const s = g.input(b, "STRING");
+    // The helper evaluates the index first; `s.charAt(i - 1)` evaluates the string first, which
+    // only matters when both draw random numbers or read a clock. For an index >= 1, `i - 1 >= 0`,
+    // and `charAt` gives "" past the end like the helper. A text literal index never gets here:
+    // its type is not POS_INT.
+    // The helper cuts the index to 32 bits like TurboWarp, so a huge index needs the same `| 0`.
+    if (within(i.t, POS_INT) && !(effectful(i) && effectful(s))) {
+      return strEx(`${asStr(s)}.charAt(${i.k !== undefined ? (toNumber(i.k) | 0) - 1 : `(${i.c} | 0) - 1`})`);
+    }
+    return strEx(`letterOf(${asAny(i)}, ${asAny(s)})`);
+  },
   operator_length: (b, g) => numEx(`${g.str(b, "STRING")}.length`, POS_INT | ZERO),
   operator_contains: (b, g) => boolEx(`contains(${g.any(b, "STRING1")}, ${g.any(b, "STRING2")})`),
   operator_round: (b, g) => {

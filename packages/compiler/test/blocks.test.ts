@@ -11,8 +11,11 @@ import * as procedures from "../src/blocks/procedures.js";
 import * as sensing from "../src/blocks/sensing.js";
 import { comparison } from "../src/blocks/operators.js";
 import type { Ex } from "../src/types.js";
-import { NUM, POS_INT, STR, typeOfValue } from "../src/analysis/typeset.js";
-import { anyEx, lit, numEx, strEx } from "../src/cast.js";
+import {
+  ANY, NAN, NEG_FRACT, NEG_INT, NEG_ZERO, NUM, NUM_OR_NAN, POS_FRACT, POS_INF, POS_INT, STR, STR_NUM, STR_TEXT, ZERO, mod as modType,
+  typeOfValue,
+} from "../src/analysis/typeset.js";
+import { anyEx, boolEx, lit, numEx, strEx } from "../src/cast.js";
 import { block, stubGen } from "./helpers.js";
 
 describe("block handler tables", () => {
@@ -134,6 +137,131 @@ describe("comparison matches the runtime helpers", () => {
     });
   }
   const b = () => block("operator_equals");
+});
+
+describe("typed operator fast paths", () => {
+  const POS = POS_INT | POS_FRACT;
+  const r = (op: string, inputs: Record<string, Ex>, fields: Record<string, [string, string]> = {}) =>
+    reporters[op]!(block(op, { fields: fields as never }), stubGen(inputs))!;
+  const list = { LIST: ["L", "l1"] as [string, string] };
+
+  describe("mod", () => {
+    const mod = (a: Ex, m: Ex) => r("operator_mod", { NUM1: a, NUM2: m }).c;
+    it("is a plain % for a non-negative dividend and a positive divisor", () => {
+      expect(mod(numEx("n", POS_INT | ZERO), lit("3"))).toBe("(n % 3)");
+      expect(mod(numEx("n", POS), numEx("m", POS))).toBe("(n % m)");
+      expect(mod(lit("0"), lit("0.5"))).toBe("(0 % 0.5)");
+      expect(mod(lit("7.5"), lit("2"))).toBe("(7.5 % 2)");
+    });
+    it("keeps the helper for -0, negative, NaN or infinite dividends", () => {
+      for (const t of [NEG_ZERO, NEG_INT, NEG_FRACT, POS_INF, NUM, POS_INT | NEG_INT]) {
+        expect(mod(numEx("n", t), lit("3")), String(t)).toMatch(/^mod\(/);
+      }
+      // NaN is cast to 0 first, and 0 % 3 needs no correction.
+      expect(mod(numEx("n", NAN), lit("3"))).toBe("(toNum(n) % 3)");
+      expect(mod(lit("-1"), lit("3"))).toBe("mod((-1), 3)");
+      expect(mod(lit("-0"), lit("3"))).toBe("mod(-0, 3)");
+      expect(mod(anyEx("v"), lit("3"))).toBe("mod(toNum(v), 3)");
+    });
+    it("keeps the helper for a zero, negative, infinite or unknown divisor", () => {
+      for (const lt of ["0", "-3", "Infinity", "-0", "abc", ""]) {
+        expect(mod(numEx("n", POS_INT), lit(lt)), lt).toMatch(/^mod\(/);
+      }
+      for (const t of [POS_INT | ZERO, POS_INT | POS_INF, POS_INT | NEG_INT, NUM_OR_NAN]) {
+        expect(mod(numEx("n", POS_INT), numEx("m", t)), String(t)).toMatch(/^mod\(/);
+      }
+    });
+    it("keeps the result type", () => {
+      expect(r("operator_mod", { NUM1: numEx("n", POS_INT), NUM2: lit("3") }).t).toBe(modType(POS_INT, POS_INT));
+    });
+  });
+
+  describe("letter of", () => {
+    const letter = (i: Ex, s: Ex) => r("operator_letter_of", { LETTER: i, STRING: s }).c;
+    it("is charAt for an index of at least 1, cut to 32 bits like the helper", () => {
+      expect(letter(lit("4294967299"), lit("0.5"))).toBe('"0.5".charAt(2)');
+      expect(letter(numEx("i", POS_INT), strEx("s"))).toBe("s.charAt((i | 0) - 1)");
+      expect(letter(lit("1"), lit("abc"))).toBe('"abc".charAt(0)');
+      expect(letter(lit("3"), anyEx("v"))).toBe("toStr(v).charAt(2)");
+      expect(letter(numEx("i", POS_INT), numEx("n", POS_INT))).toBe('("" + n).charAt((i | 0) - 1)');
+    });
+    it("keeps the helper when the index may be below 1 or not an integer", () => {
+      for (const t of [POS_INT | ZERO, POS_INT | POS_FRACT, NUM, NUM_OR_NAN, STR_NUM, ANY]) {
+        expect(letter(numEx("i", t), strEx("s")), String(t)).toMatch(/^letterOf\(/);
+      }
+      expect(letter(lit("0"), strEx("s"))).toBe("letterOf(0, s)");
+      expect(letter(lit("1.0"), strEx("s"))).toBe('letterOf("1.0", s)');
+      expect(letter(lit("1", true), strEx("s"))).toBe('letterOf("1", s)');
+      expect(letter(lit("-1"), strEx("s"))).toBe("letterOf((-1), s)");
+    });
+    it("keeps the order of two random draws", () => {
+      const rnd = numEx("random(1, 3)", POS_INT);
+      expect(letter(rnd, strEx("(a + toStr(random(1, 9)))"))).toBe("letterOf(random(1, 3), (a + toStr(random(1, 9))))");
+      expect(letter(rnd, strEx("s"))).toBe("s.charAt((random(1, 3) | 0) - 1)");
+      expect(letter(numEx("i", POS_INT), strEx("toStr(random(1, 9))"))).toBe("toStr(random(1, 9)).charAt((i | 0) - 1)");
+    });
+  });
+
+  describe("item of", () => {
+    const item = (i: Ex) => r("data_itemoflist", { INDEX: i }, list);
+    it("indexes the array directly for an index of at least 1", () => {
+      expect(item(numEx("i", POS_INT)).c).toBe('(t.l["l1"][i - 1] ?? "")');
+      expect(item(lit("1")).c).toBe('(t.l["l1"][0] ?? "")');
+      expect(item(lit("5")).c).toBe('(t.l["l1"][4] ?? "")');
+    });
+    it("keeps the type", () => {
+      expect(item(numEx("i", POS_INT)).t).toBe(ANY | STR_TEXT);
+    });
+    it("keeps the helper for index 0, negatives, fractions, text and unknowns", () => {
+      for (const t of [ZERO, POS_INT | ZERO, NEG_INT, POS_FRACT, POS_INT | POS_FRACT, STR_NUM, STR_TEXT, ANY]) {
+        expect(item(numEx("i", t)).c, String(t)).toBe('itemOf(t.l["l1"], i)');
+      }
+      expect(item(lit("0")).c).toBe('itemOf(t.l["l1"], 0)');
+      expect(item(lit("last")).c).toBe('itemOf(t.l["l1"], "last")');
+      expect(item(lit("1.0")).c).toBe('itemOf(t.l["l1"], "1.0")');
+      expect(item(lit("1", true)).c).toBe('itemOf(t.l["l1"], "1")');
+    });
+  });
+
+  describe("replace item", () => {
+    const replace = (i: Ex, v: Ex) =>
+      statements.data_replaceitemoflist!(block("data_replaceitemoflist", { fields: list as never }), stubGen({ INDEX: i, ITEM: v }));
+    it("guards a direct store with the length for a simple index", () => {
+      expect(replace(numEx("i", POS_INT), lit("x"))).toEqual(['if (i <= t.l["l1"].length) t.l["l1"][i - 1] = "x";']);
+      expect(replace(lit("2"), numEx("v", NUM))).toEqual(['if (2 <= t.l["l1"].length) t.l["l1"][1] = v;']);
+    });
+    it("evaluates a computed index once, before the item", () => {
+      expect(replace(numEx("(a + 1)", POS_INT), numEx("(b * 2)", NUM))).toEqual([
+        '{ const r0 = (a + 1); if (r0 <= t.l["l1"].length) t.l["l1"][r0 - 1] = (b * 2); }',
+      ]);
+    });
+    it("keeps the helper for other indexes, and when the item draws a random number", () => {
+      expect(replace(numEx("i", POS_INT | ZERO), lit("x"))).toEqual(['replaceAt(t.l["l1"], i, "x");']);
+      expect(replace(lit("last"), lit("x"))).toEqual(['replaceAt(t.l["l1"], "last", "x");']);
+      expect(replace(numEx("i", POS_INT), numEx("random(1, 6)", POS_INT))).toEqual(['replaceAt(t.l["l1"], i, random(1, 6));']);
+    });
+  });
+
+  describe("negation", () => {
+    const not = (e: Ex) => r("operator_not", { OPERAND: e });
+    const until = (e: Ex) => statements.control_repeat_until!(block("control_repeat_until"), stubGen({ CONDITION: e }))![0];
+    it("does not stack a negation on a negation", () => {
+      const x = boolEx("(a > b)");
+      const n1 = not(x);
+      expect(n1.c).toBe("!(a > b)");
+      const n2 = not(n1);
+      expect(n2.c).toBe("(a > b)");
+      expect(not(n2).c).toBe("!(a > b)");
+      expect(until(n2)).toBe("while (!(a > b)) {");
+      expect(until(n1)).toBe("while ((a > b)) {");
+      expect(until(x)).toBe("while (!(a > b)) {");
+      expect(until(anyEx("v"))).toBe("while (!toBool(v)) {");
+    });
+    it("casts a non-boolean before negating", () => {
+      expect(not(anyEx("v")).c).toBe("!toBool(v)");
+      expect(not(not(anyEx("v"))).c).toBe("toBool(v)");
+    });
+  });
 });
 
 describe("category files", () => {

@@ -1,15 +1,16 @@
 import { POS_INT } from "../analysis/typeset.js";
+import { notCode } from "../cast.js";
 import type { StatementHandler } from "../types.js";
 
 export const controlStatements: Record<string, StatementHandler> = {
   control_wait: (b, g) => g.y(`yield* rt.wait(${g.num(b, "DURATION")});`),
-  control_wait_until: (b, g) => g.y(`while (!${g.bool(b, "CONDITION")}) yield rt.WAIT;`),
+  control_wait_until: (b, g) => g.y(`while (${notCode(g.input(b, "CONDITION"))}) yield rt.WAIT;`),
   control_repeat: (b, g) => {
     const r = g.tmp();
     return [`for (let ${r} = Math.round(${g.num(b, "TIMES")}); ${r} > 0; ${r}--) {`, ...g.substack(b, "SUBSTACK"), ...g.loopYield(), "}"];
   },
   control_forever: (b, g) => ["for (;;) {", ...g.substack(b, "SUBSTACK"), ...g.loopYield(), "}"],
-  control_repeat_until: (b, g) => [`while (!${g.bool(b, "CONDITION")}) {`, ...g.substack(b, "SUBSTACK"), ...g.loopYield(), "}"],
+  control_repeat_until: (b, g) => [`while (${notCode(g.input(b, "CONDITION"))}) {`, ...g.substack(b, "SUBSTACK"), ...g.loopYield(), "}"],
   control_while: (b, g) => [`while (${g.bool(b, "CONDITION")}) {`, ...g.substack(b, "SUBSTACK"), ...g.loopYield(), "}"],
   control_for_each: (b, g) => {
     const r = g.tmp();

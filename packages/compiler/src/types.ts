@@ -8,6 +8,8 @@ export interface Ex {
   t: TypeSet;
   /** Set when the value is a literal known at compile time. */
   k?: string;
+  /** For a boolean expression written as `!x`: the code of `x`, which is its negation (see `notCode`). */
+  neg?: string;
   /** Set on a literal that must be passed on as text even when it looks like a number (asset names). */
   text?: boolean;
 }

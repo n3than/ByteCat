@@ -13,7 +13,7 @@ return [
 { target: 1, kind: "flag", fn: function* (t, th) {
     p1_0(t, th);
     S.l["list_9"].push(S.l["list_0"].length);
-    S.l["list_9"].push(itemOf(S.l["list_0"], 1));
+    S.l["list_9"].push((S.l["list_0"][0] ?? ""));
 } },
 ];
 })

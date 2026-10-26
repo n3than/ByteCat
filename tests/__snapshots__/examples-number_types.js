@@ -32,7 +32,7 @@ return [
     S.l["list_b"].push((1 / S.v["var_2"]));
     S.l["list_b"].push(S.v["var_2"]);
     S.l["list_b"].push((("" + S.v["var_2"]) + "!"));
-    S.l["list_b"].push(mod(toNum((0 / 0)), 5));
+    S.l["list_b"].push((toNum((0 / 0)) % 5));
     S.l["list_b"].push(mod(5, 0));
     S.l["list_b"].push(mod((-7), 3));
     S.l["list_b"].push(mod(7, (-3)));

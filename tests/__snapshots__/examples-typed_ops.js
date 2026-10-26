@@ -1,0 +1,103 @@
+(function (rt) {
+"use strict";
+const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, mathop,
+  itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
+const S = rt.stage;
+function p1_0(t, th, a0, a1) {
+  S.l["list_p"].push(("[" + (toStr(a1).charAt((a0 | 0) - 1) + "]")));
+}
+function p1_1(t, th, a0, a1) {
+  if (a0 <= S.l["list_5"].length) S.l["list_5"][a0 - 1] = a1;
+}
+function p1_2(t, th, a0, a1) {
+  S.l["list_p"].push((a0 % a1));
+}
+function p1_3(t, th, a0, a1) {
+  S.l["list_p"].push(mod(toNum(a0), a1));
+  S.l["list_p"].push((1 / toNum(mod(toNum(a0), a1))));
+}
+function p1_4(t, th, a0, a1) {
+  S.l["list_p"].push(("[" + (letterOf(a0, a1) + "]")));
+}
+function p1_5(t, th, a0) {
+  S.l["list_p"].push(("<" + (toStr((S.l["list_4"][a0 - 1] ?? "")) + ">")));
+}
+function p1_6(t, th, a0) {
+  S.l["list_p"].push(("<" + (toStr(itemOf(S.l["list_4"], a0)) + ">")));
+}
+function p1_7(t, th, a0, a1) {
+  replaceAt(S.l["list_5"], a0, a1);
+}
+return [
+{ target: 1, kind: "flag", fn: function* (t, th) {
+    S.v["var_1"] = (0 * (-1));
+    S.v["var_2"] = (0 / 0);
+    S.v["var_3"] = (1 / 0);
+    p1_2(t, th, 0, 3);
+    p1_2(t, th, 7, 3);
+    p1_2(t, th, 6, 3);
+    p1_2(t, th, 7.5, 2);
+    p1_2(t, th, 0.75, 0.5);
+    p1_2(t, th, 5.5, 0.5);
+    p1_2(t, th, 0, 0.25);
+    p1_2(t, th, 123456789012, 7);
+    p1_3(t, th, (-7), 3);
+    p1_3(t, th, 7, (-3));
+    p1_3(t, th, (-6), 3);
+    p1_3(t, th, S.v["var_1"], 3);
+    p1_3(t, th, 0, S.v["var_1"]);
+    p1_3(t, th, 5, 0);
+    p1_3(t, th, S.v["var_2"], 3);
+    p1_3(t, th, S.v["var_3"], 3);
+    p1_3(t, th, 5, S.v["var_3"]);
+    p1_3(t, th, (-5), S.v["var_3"]);
+    p1_3(t, th, (-0.5), 2);
+    p1_0(t, th, 1, "abc");
+    p1_0(t, th, 3, "abc");
+    p1_0(t, th, 4, "abc");
+    p1_0(t, th, 1000000, "abc");
+    p1_0(t, th, 2, "");
+    p1_0(t, th, 2, (("" + S.v["var_0"]) + "xyz"));
+    p1_0(t, th, 1, S.v["var_0"]);
+    p1_0(t, th, 5, S.v["var_0"]);
+    p1_0(t, th, 1, 3.5);
+    p1_4(t, th, 0, "abc");
+    p1_4(t, th, (-1), "abc");
+    p1_4(t, th, 1.5, "abc");
+    p1_4(t, th, 2.9, "abc");
+    p1_4(t, th, 2, "abc");
+    p1_4(t, th, " 2", "abc");
+    p1_4(t, th, "x", "abc");
+    p1_4(t, th, S.v["var_2"], "abc");
+    p1_4(t, th, "true", "abc");
+    p1_5(t, th, 1);
+    p1_5(t, th, 2);
+    p1_5(t, th, 3);
+    p1_5(t, th, 4);
+    p1_5(t, th, 1000000);
+    p1_6(t, th, 0);
+    p1_6(t, th, (-1));
+    p1_6(t, th, 1.5);
+    p1_6(t, th, 3.9);
+    p1_6(t, th, "last");
+    p1_6(t, th, 2);
+    p1_6(t, th, "x");
+    p1_6(t, th, S.v["var_2"]);
+    p1_1(t, th, 2, "B");
+    p1_1(t, th, 3, 0.5);
+    p1_1(t, th, 4, "no");
+    p1_1(t, th, 1000000, "no");
+    S.l["list_p"].push(S.l["list_5"].length);
+    S.l["list_p"].push((S.l["list_5"][0] ?? ""));
+    S.l["list_p"].push((S.l["list_5"][1] ?? ""));
+    S.l["list_p"].push((S.l["list_5"][2] ?? ""));
+    S.l["list_p"].push((S.l["list_5"][3] ?? ""));
+    p1_7(t, th, 0, "zero");
+    p1_7(t, th, "last", "L");
+    p1_7(t, th, 1.5, "F");
+    S.l["list_p"].push((S.l["list_5"][0] ?? ""));
+    S.l["list_p"].push((S.l["list_5"][2] ?? ""));
+    S.l["list_p"].push(S.l["list_5"].length);
+} },
+];
+})

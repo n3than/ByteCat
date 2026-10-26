@@ -6,7 +6,7 @@ const S = rt.stage;
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
     S.l["list_5"].push(S.v["var_0"].length);
-    S.l["list_5"].push(letterOf(1, S.v["var_0"]));
+    S.l["list_5"].push(S.v["var_0"].charAt(0));
     S.l["list_5"].push(contains(S.v["var_0"], "cat"));
     S.v["var_2"] = 1;
     while (!(S.v["var_2"] > S.v["var_0"].length)) {

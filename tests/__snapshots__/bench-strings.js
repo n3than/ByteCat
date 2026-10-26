@@ -7,7 +7,7 @@ function p1_0(t, th, a0) {
   S.v["var_0"] = "";
   S.v["var_1"] = 1;
   while (!(S.v["var_1"] > a0)) {
-    S.v["var_0"] = (S.v["var_0"] + letterOf((mod(S.v["var_1"], 26) + 1), "abcdefghijklmnopqrstuvwxyz"));
+    S.v["var_0"] = (S.v["var_0"] + "abcdefghijklmnopqrstuvwxyz".charAt((((S.v["var_1"] % 26) + 1) | 0) - 1));
     S.v["var_1"] = S.v["var_1"] + 1;
   }
 }
