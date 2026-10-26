@@ -87,6 +87,39 @@ export function asBool(e: Ex): string {
 }
 
 /**
+ * JavaScript for the negation of a condition (`until` loops, `not`). Negating a `not` returns the
+ * code it wrapped instead of stacking another `!`, so `until not (not x)` is `while (!x)`.
+ */
+export function notCode(e: Ex): string {
+  return e.neg ?? `!${asBool(e)}`;
+}
+
+/** A boolean expression that is the negation of `inner`, which must already be boolean JavaScript. */
+export function negation(inner: string): Ex {
+  return { c: `!${inner}`, t: BOOL, neg: inner };
+}
+
+/**
+ * True when evaluating the expression changes something another expression can see: it draws a
+ * random number (moving the generator on) or reads a clock. Every other generated expression is a
+ * pure read, so it can be evaluated in any order, any number of times, or not at all. Two
+ * expressions may swap places unless both are effectful.
+ */
+export function effectful(e: Ex): boolean {
+  return e.k === undefined && /\b(random|timer|daysSince2000)\(/.test(e.c);
+}
+
+/** True for an expression that is one pure read (a literal, variable or property), cheap to repeat. */
+export function simple(e: Ex): boolean {
+  return e.k !== undefined || !e.c.includes("(");
+}
+
+/** JavaScript for `index - 1` of an index whose type is POS_INT, folded for a literal. */
+export function indexMinusOne(e: Ex): string {
+  return e.k !== undefined ? String(toNumber(e.k) - 1) : `${e.c} - 1`;
+}
+
+/**
  * The number a literal can be stored as without anyone noticing, or undefined when it must stay
  * text. This is TurboWarp's rule (`createConstantInput` in its irgen): with `n = +s`, the literal
  * becomes a number when `n` is not NaN, `s` is not blank (or contains a tab), and `n.toString()`

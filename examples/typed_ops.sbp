@@ -1,0 +1,115 @@
+# Operators with typed fast paths: mod, letter of, item of and replace item. Each is a plain
+# JavaScript form only where the static types prove the result is the same; the edge cases here
+# (zero, fractions, negatives, -0, NaN, Infinity, indexes at or past the ends) must read the same
+# whichever form the compiler picks, and the same in Scratch and TurboWarp.
+var num = 1234
+var negz = 0
+var nan = 0
+var inf = 0
+list items = [10, "b", 3.5]
+list grid = ["a", "b", "c"]
+
+sprite Main:
+  # Dividend zero or positive, divisor positive: compiles to a plain %.
+  define warp modpos(a, m):
+    log(a % m)
+
+  # Negative, -0, NaN, zero and infinite operands: the helper.
+  define warp modany(a, m):
+    log(a % m)
+    log(1 / (a % m))
+
+  define warp lettered(i, s):
+    log(join("[", letter(i, s), "]"))
+
+  define warp letteranyindex(i, s):
+    log(join("[", letter(i, s), "]"))
+
+  define warp itemat(i):
+    log(join("<", items[i], ">"))
+
+  define warp itemany(i):
+    log(join("<", items[i], ">"))
+
+  define warp replaceat(i, v):
+    grid[i] = v
+
+  define warp replaceany(i, v):
+    grid[i] = v
+
+  when flag:
+    negz = 0 * -1
+    nan = 0 / 0
+    inf = 1 / 0
+
+    modpos(0, 3)
+    modpos(7, 3)
+    modpos(6, 3)
+    modpos(7.5, 2)
+    modpos(0.75, 0.5)
+    modpos(5.5, 0.5)
+    modpos(0, 0.25)
+    modpos(123456789012, 7)
+
+    modany(-7, 3)
+    modany(7, -3)
+    modany(-6, 3)
+    modany(negz, 3)
+    modany(0, negz)
+    modany(5, 0)
+    modany(nan, 3)
+    modany(inf, 3)
+    modany(5, inf)
+    modany(-5, inf)
+    modany(-0.5, 2)
+
+    lettered(1, "abc")
+    lettered(3, "abc")
+    lettered(4, "abc")
+    lettered(1000000, "abc")
+    lettered(2, "")
+    lettered(2, join(num, "xyz"))
+    lettered(1, num)
+    lettered(5, num)
+    lettered(1, 3.5)
+
+    letteranyindex(0, "abc")
+    letteranyindex(-1, "abc")
+    letteranyindex(1.5, "abc")
+    letteranyindex(2.9, "abc")
+    letteranyindex("2", "abc")
+    letteranyindex(" 2", "abc")
+    letteranyindex("x", "abc")
+    letteranyindex(nan, "abc")
+    letteranyindex(true, "abc")
+
+    itemat(1)
+    itemat(2)
+    itemat(3)
+    itemat(4)
+    itemat(1000000)
+
+    itemany(0)
+    itemany(-1)
+    itemany(1.5)
+    itemany(3.9)
+    itemany("last")
+    itemany("2")
+    itemany("x")
+    itemany(nan)
+
+    replaceat(2, "B")
+    replaceat(3, 0.5)
+    replaceat(4, "no")
+    replaceat(1000000, "no")
+    log(grid.length)
+    log(grid[1])
+    log(grid[2])
+    log(grid[3])
+    log(grid[4])
+    replaceany(0, "zero")
+    replaceany("last", "L")
+    replaceany(1.5, "F")
+    log(grid[1])
+    log(grid[3])
+    log(grid.length)

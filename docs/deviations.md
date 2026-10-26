@@ -24,18 +24,18 @@ or test that pins Bytecat's behaviour.
 | Difference | Reason | Pinned by |
 | --- | --- | --- |
 | A list position of 2³² or more is out of range in Bytecat. TurboWarp's fast path cuts it to 32 bits (`index \| 0`), so `replace item 4294967297` changes item 1, while its `item 4294967297` still gives `""`. | Follows scratch-vm, since TurboWarp disagrees with itself here; no real list is that long. | "treats huge positions as out of range" in `packages/runtime/test/ops.test.ts`. |
+| `letter i of s` with an index of 2³¹ or more: where Bytecat proves the index is a whole number it uses `s.charAt(i - 1)` without TurboWarp's 32-bit cut, so `letter 4294967297` is `""`; elsewhere it cuts like TurboWarp and gives the first letter. TurboWarp does the same, but its type inference proves whole numbers in different places, so the two can pick different paths. | TurboWarp disagrees with itself here, and no real string is that long. | "index fast paths match the helpers" in `packages/compiler/test/blocks.test.ts`. |
 
 ## Found by the fuzzer
 
 Places where Bytecat and TurboWarp still disagree, found by [the differential fuzzer](fuzzing.md).
-Unlike the tables above these are not decisions: the first four are Bytecat bugs and the last two
+Unlike the tables above these are not decisions: the first three are Bytecat bugs and the last two
 are TurboWarp quirks Bytecat does not copy yet. `tests/fuzz/generate.ts` avoids each of them (the
 `KNOWN:` comments) so the fuzzer can keep looking for other differences. When one is fixed, remove
 the avoidance. Logs below are Bytecat, then TurboWarp.
 
 | Difference | Smallest program | Bytecat / TurboWarp | Avoided by the generator |
 | --- | --- | --- | --- |
-| A numeric result that is NaN is not turned into 0 when it feeds another numeric block (the compiler gives it the type "number" and skips the cast). Applies to `+ - * / %`, the math functions, `round`, negation, comparisons, list and letter indexes, `change by`. | `log((0 / 0) + 1)` and `log((0 / 0) > -1)` | `NaN`, `false` / `1`, `true` | A subexpression that can be NaN is wrapped as `join("", e)` wherever a number is wanted. |
 | A boolean parameter that receives an empty boolean slot (a literal `false` argument) reads as `""`. | `define p(b: bool): log(b)` then `p(false)` | `` (empty) / `false` | A bare `false` is never passed as an argument. |
 | `when flag` scripts in different targets start in declaration order (stage first). TurboWarp and scratch-vm start the topmost sprite first and the stage last. | `stage: when flag: log("stage")` and `sprite A: when flag: log("A")` | `stage`, `A` / `A`, `stage` | All flag scripts of a program live in one target. |
 | A blank literal containing a tab (`"\t"`) is compared as text by the compiler, using `trim()`. TurboWarp counts a tab as zero. (The runtime helpers in `ops.ts` already match TurboWarp, so only literals are affected.) | `var s = "0"` then `log(s = "\t")` | `false` / `true` | The tab string is not used as a literal in expressions. |
@@ -48,3 +48,5 @@ The fuzzer also found and fixed these in `packages/runtime/src/ops.ts` (covered 
 text of a list treated a one-digit number as more than one character; list indexes `"LAST"` and
 `"ALL"` were matched ignoring case; comparing a tab with 0
 did not treat the tab as zero; `letter` of a large or fractional index was not cut to 32 bits.
+It also found that a NaN result was not turned into 0 when it fed another numeric block, such as
+`(0 / 0) + 1`; the compiler's type inference now keeps the cast wherever a value may be NaN.

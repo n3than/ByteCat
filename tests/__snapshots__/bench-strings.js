@@ -7,7 +7,7 @@ function p1_0(t, th, a0) {
   S.v["var_0"] = "";
   S.v["var_1"] = 1;
   while (!(S.v["var_1"] > a0)) {
-    S.v["var_0"] = (S.v["var_0"] + letterOf((mod(S.v["var_1"], 26) + 1), "abcdefghijklmnopqrstuvwxyz"));
+    S.v["var_0"] = (S.v["var_0"] + "abcdefghijklmnopqrstuvwxyz".charAt(((S.v["var_1"] % 26) + 1) - 1));
     S.v["var_1"] = S.v["var_1"] + 1;
   }
 }
@@ -15,7 +15,7 @@ function p1_1(t, th) {
   S.v["var_2"] = 0;
   S.v["var_1"] = 1;
   while (!(S.v["var_1"] > S.v["var_0"].length)) {
-    S.v["var_3"] = letterOf(S.v["var_1"], S.v["var_0"]);
+    S.v["var_3"] = S.v["var_0"].charAt(S.v["var_1"] - 1);
     if ((((((S.v["var_3"].toLowerCase() === "a") || (S.v["var_3"].toLowerCase() === "e")) || (S.v["var_3"].toLowerCase() === "i")) || (S.v["var_3"].toLowerCase() === "o")) || (S.v["var_3"].toLowerCase() === "u"))) {
       S.v["var_2"] = S.v["var_2"] + 1;
     }

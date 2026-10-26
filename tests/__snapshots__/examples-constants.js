@@ -38,10 +38,10 @@ return [
     S.l["list_b"].push(toStr(S.v["var_0"]).length);
     S.v["var_0"] = 1;
     S.l["list_b"].push(toStr(S.v["var_0"]).length);
-    S.l["list_b"].push(letterOf(1, 10));
+    S.l["list_b"].push("10".charAt(0));
     S.l["list_b"].push(letterOf("2", 10));
-    S.l["list_b"].push(letterOf(1, 1.5));
-    S.l["list_b"].push(letterOf(1, (-3)));
+    S.l["list_b"].push("1.5".charAt(0));
+    S.l["list_b"].push("-3".charAt(0));
     S.l["list_b"].push("1e3".length);
     S.l["list_b"].push("1e21".length);
     S.l["list_b"].push("0.5".length);
@@ -64,7 +64,7 @@ return [
     S.l["list_b"].push((1.5 * 2));
     S.l["list_b"].push((0.1 + 0.2));
     S.l["list_b"].push((10 / 4));
-    S.l["list_b"].push(mod(7, 3));
+    S.l["list_b"].push((7 % 3));
     S.l["list_b"].push(mod((-7), 3));
     S.l["list_b"].push((1e+21 + 1));
     S.l["list_b"].push(Math.round(2.5));
@@ -72,7 +72,7 @@ return [
     S.l["list_3"].push("a");
     S.l["list_3"].push("b");
     S.l["list_3"].push("c");
-    S.l["list_b"].push(itemOf(S.l["list_3"], 1));
+    S.l["list_b"].push((S.l["list_3"][0] ?? ""));
     S.l["list_b"].push(itemOf(S.l["list_3"], "1.0"));
     S.l["list_b"].push(itemOf(S.l["list_3"], "1.0"));
     S.l["list_b"].push(itemOf(S.l["list_3"], "2"));
@@ -100,7 +100,7 @@ return [
     S.l["list_3"].length = 0;
     S.l["list_3"].push("2");
     rt.switchCostume(t, "alpha");
-    rt.switchCostume(t, itemOf(S.l["list_3"], 1));
+    rt.switchCostume(t, (S.l["list_3"][0] ?? ""));
     S.l["list_b"].push(("item " + rt.costumeName(t)));
     rt.switchCostume(t, "alpha");
     p1_1(t, th, "2");

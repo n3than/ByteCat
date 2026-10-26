@@ -10,7 +10,7 @@ function p1_0(t, th, a0) {
     p1_0(t, th, (a0 - 1));
     S.l["list_1"].push(S.v["var_0"]);
     p1_0(t, th, (a0 - 2));
-    S.v["var_0"] = toNum(S.v["var_0"]) + toNum(itemOf(S.l["list_1"], S.l["list_1"].length));
+    S.v["var_0"] = toNum(S.v["var_0"]) + toNum((S.l["list_1"][S.l["list_1"].length - 1] ?? ""));
     deleteOf(S.l["list_1"], S.l["list_1"].length);
   }
 }

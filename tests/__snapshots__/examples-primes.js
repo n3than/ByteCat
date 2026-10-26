@@ -6,11 +6,11 @@ const S = rt.stage;
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
     S.l["list_3"].length = 0;
-    while (!!(S.l["list_3"].length < 10)) {
+    while ((S.l["list_3"].length < 10)) {
       S.v["var_2"] = 1;
       S.v["var_1"] = 2;
-      while (!!(!((S.v["var_1"] * S.v["var_1"]) > S.v["var_0"]) && (S.v["var_2"] === 1))) {
-        if ((mod(S.v["var_0"], S.v["var_1"]) === 0)) {
+      while ((!((S.v["var_1"] * S.v["var_1"]) > S.v["var_0"]) && (S.v["var_2"] === 1))) {
+        if (((S.v["var_0"] % S.v["var_1"]) === 0)) {
           S.v["var_2"] = 0;
         }
         S.v["var_1"] = S.v["var_1"] + 1;

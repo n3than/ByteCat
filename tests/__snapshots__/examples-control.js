@@ -19,7 +19,7 @@ return [
     p1_0(t, th, (-5));
     p1_0(t, th, 0);
     p1_0(t, th, 7);
-    while (!!(S.v["var_1"] < 10)) {
+    while ((S.v["var_1"] < 10)) {
       S.v["var_1"] = S.v["var_1"] + 3;
       if (th.warp === 0 && --rt.spin < 0) yield;
     }

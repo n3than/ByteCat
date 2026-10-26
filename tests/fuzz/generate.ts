@@ -226,14 +226,6 @@ class Generator {
   }
 
   // ---- expressions ----
-  //
-  // KNOWN: Bytecat gives a numeric expression the type "number" and skips the cast to number when it
-  // feeds another numeric operation, but Scratch (and TurboWarp) turn NaN into 0 there:
-  // `(0 / 0) + 1` is 1 in TurboWarp and NaN in Bytecat; `(0 / 0) > -1` is true and false.
-  // A subexpression that can be NaN (see nanRisk) is therefore only used where no number cast
-  // happens (log, set, add, join, procedure arguments). Where a number is wanted it is wrapped
-  // as join("", e), which gives the same value in Scratch's rules and hides the NaN from the
-  // compiler's number type. See docs/deviations.md.
 
   private readable(sc: Scope): string[] {
     return [...this.globalVars, ...sc.owner.vars, ...sc.owner.counters];
@@ -247,14 +239,9 @@ class Generator {
     return [...this.globalLists, ...sc.owner.lists];
   }
 
-  /** The expression as a number operand: a possible NaN is hidden behind join("", e). */
-  private launder(e: Ex): string {
-    return e.nan ? `join("", ${e.s})` : e.s;
-  }
-
   /** An operand of a numeric operation. */
   private num(sc: Scope, depth: number): string {
-    return this.launder(this.value(sc, depth, false));
+    return this.value(sc, depth, false).s;
   }
 
   /** A value that nothing casts to a number (log, set, join, argument), so a NaN can stay. */
@@ -321,7 +308,7 @@ class Generator {
     const op = this.r.pick(ARITH_OPS);
     const a = this.value(sc, depth, false);
     const b = this.value(sc, depth, false);
-    const s = `(${this.launder(a)} ${op} ${this.launder(b)})`;
+    const s = `(${a.s} ${op} ${b.s})`;
     // Two known numbers: compute the result, so nesting stays numeric when it cannot be NaN.
     if (a.k !== undefined && b.k !== undefined && !a.nan && !b.nan) {
       const r = evalArith(op, a.k, b.k);
@@ -374,7 +361,7 @@ class Generator {
       case "math": {
         const f = this.r.pick(MATH_FUNCS);
         const x = this.value(sc, depth - 1, false);
-        const s = `${f}(${this.launder(x)})`;
+        const s = `${f}(${x.s})`;
         if (x.k !== undefined && !x.nan) {
           const r = evalMath(f, x.k);
           return { s, nan: Number.isNaN(r), k: r };
@@ -393,7 +380,7 @@ class Generator {
         return { s: this.bool(sc, depth - 1), nan: false, b: true };
       case "neg": {
         const e = this.value(sc, depth - 1, false);
-        const inner = this.launder(e);
+        const inner = e.s;
         // -0x10 would be folded into the text "-0x10", which is not a number; keep a space between.
         const s = /^0x/i.test(inner) ? `(0 - ${inner})` : `(-${inner})`;
         return e.k !== undefined && !e.nan ? { s, nan: false, k: 0 - e.k } : ok(s);
@@ -458,7 +445,7 @@ class Generator {
           const e = this.value(sc, d, false);
           if (e.s === '"Infinity"') return "(1 / 0)";
           if (e.s === '"-Infinity"') return "(0 - (1 / 0))";
-          return ordered && e.b ? `join("", ${e.s})` : this.launder(e);
+          return ordered && e.b ? `join("", ${e.s})` : e.s;
         };
         return `(${operand()} ${op} ${operand()})`;
       }
