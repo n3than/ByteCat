@@ -64,3 +64,9 @@ sprite Main:
     big = 0 - 1e308
     big -= 1e308
     log(big * 0 + 1)
+    # Infinity prints as "Infinity", which equals the text "infinity" ignoring case.
+    inf = 1 / 0
+    s = "infinity"
+    log(inf = s)
+    s = "-INFINITY"
+    log(0 - inf = s)

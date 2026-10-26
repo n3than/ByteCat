@@ -1,3 +1,4 @@
+import { ops, type Value } from "@bytecat/runtime";
 import { describe, expect, it } from "vitest";
 import { reporters, statements } from "../src/blocks/index.js";
 import * as control from "../src/blocks/control.js";
@@ -10,7 +11,7 @@ import * as procedures from "../src/blocks/procedures.js";
 import * as sensing from "../src/blocks/sensing.js";
 import { comparison } from "../src/blocks/operators.js";
 import type { Ex } from "../src/types.js";
-import { NUM, POS_INT, STR } from "../src/analysis/typeset.js";
+import { NUM, POS_INT, STR, typeOfValue } from "../src/analysis/typeset.js";
 import { anyEx, lit, numEx, strEx } from "../src/cast.js";
 import { block, stubGen } from "./helpers.js";
 
@@ -107,6 +108,32 @@ describe("comparison", () => {
     expect(cmp({ OPERAND1: anyEx("v"), OPERAND2: lit("3") })).toBe("eq(v, 3)");
     expect(cmp({ OPERAND1: anyEx("v"), OPERAND2: lit("3.0") })).toBe('eq(v, "3.0")');
   });
+});
+
+describe("comparison matches the runtime helpers", () => {
+  // Every pair of these values, each typed exactly as its kind, must compare as eq / lt / gt do.
+  const values: Value[] = [
+    0, -0, 1, -1, 2.5, 1e21, Infinity, -Infinity, NaN, "", " ", "abc", "1", "1.0", " 1 ", "-0", "1e3",
+    "Infinity", "infinity", "-infinity", "INFINITY", "NaN", "nan", "true", "1e+21", true, false,
+  ];
+  const run = (code: string, x: Value, y: Value) =>
+    new Function("ops", "x", "y", `const { toNum, toStr, eq, lt, gt } = ops; return ${code};`)(ops, x, y) as boolean;
+  const show = (v: Value) => (typeof v === "string" ? JSON.stringify(v) : Object.is(v, -0) ? "-0" : String(v));
+
+  for (const [jsOp, helper] of [["===", "eq"], ["<", "lt"], [">", "gt"]] as const) {
+    it(helper, () => {
+      const misses: string[] = [];
+      for (const x of values) {
+        for (const y of values) {
+          const code = comparison(b(), stubGen({ OPERAND1: anyEx("x", typeOfValue(x)), OPERAND2: anyEx("y", typeOfValue(y)) }), jsOp, helper).c;
+          const want = ops[helper](x, y);
+          if (run(code, x, y) !== want) misses.push(`${show(x)} ${jsOp} ${show(y)}: ${code} gives ${!want}`);
+        }
+      }
+      expect(misses).toEqual([]);
+    });
+  }
+  const b = () => block("operator_equals");
 });
 
 describe("category files", () => {

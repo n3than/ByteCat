@@ -60,6 +60,11 @@ return [
     S.v["var_5"] = (0 - 1e+308);
     S.v["var_5"] = toNum(S.v["var_5"]) + (-1e+308);
     S.l["list_b"].push((toNum((toNum(S.v["var_5"]) * 0)) + 1));
+    S.v["var_1"] = (1 / 0);
+    S.v["var_4"] = "infinity";
+    S.l["list_b"].push(eq(S.v["var_1"], S.v["var_4"]));
+    S.v["var_4"] = "-INFINITY";
+    S.l["list_b"].push(eq((0 - S.v["var_1"]), S.v["var_4"]));
 } },
 ];
 })
