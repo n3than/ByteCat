@@ -4,23 +4,32 @@ const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, matho
   itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
 const S = rt.stage;
 function p1_0(t, th, a0) {
-  S.v["var_0"] = 0;
-  S.v["var_1"] = 1;
+  let v0 = S.v["var_0"], v1 = S.v["var_1"], v2 = S.v["var_2"];
+  v0 = 0;
+  v1 = 1;
   for (let r0 = Math.round(a0); r0 > 0; r0--) {
-    S.v["var_2"] = (S.v["var_0"] + S.v["var_1"]);
-    S.v["var_0"] = S.v["var_1"];
-    S.v["var_1"] = S.v["var_2"];
+    v2 = (v0 + v1);
+    v0 = v1;
+    v1 = v2;
   }
+  S.v["var_0"] = v0; S.v["var_1"] = v1; S.v["var_2"] = v2;
 }
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
-    S.v["var_3"] = 0;
-    while (!(S.v["var_3"] > 10)) {
-      p1_0(t, th, S.v["var_3"]);
-      S.l["list_m"].push(S.v["var_0"]);
-      S.v["var_3"] = S.v["var_3"] + 1;
-      if (th.warp === 0 && --rt.spin < 0) yield;
+    let v0 = S.v["var_3"], v1 = S.v["var_0"];
+    v0 = 0;
+    while (!(v0 > 10)) {
+      p1_0(t, th, v0);
+      v1 = S.v["var_0"];
+      S.l["list_m"].push(v1);
+      v0 = v0 + 1;
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_3"] = v0;
+        yield;
+        v0 = S.v["var_3"]; v1 = S.v["var_0"];
+      }
     }
+    S.v["var_3"] = v0;
 } },
 ];
 })

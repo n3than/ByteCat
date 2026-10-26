@@ -54,6 +54,8 @@ export function stubGen(inputs: Record<string, Ex> = {}, fields: Record<string, 
     markYields: () => {
       g.yielded = true;
     },
+    store: () => "store;",
+    load: () => "load;",
   } as Gen & { yielded: boolean };
   return g;
 }

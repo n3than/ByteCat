@@ -16,23 +16,34 @@ function p1_0(t, th, a0) {
 }
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
+    let v0 = S.v["var_1"], v1 = S.v["var_0"];
     p1_0(t, th, (-5));
     p1_0(t, th, 0);
     p1_0(t, th, 7);
-    while ((S.v["var_1"] < 10)) {
-      S.v["var_1"] = S.v["var_1"] + 3;
-      if (th.warp === 0 && --rt.spin < 0) yield;
+    while ((v0 < 10)) {
+      v0 = v0 + 3;
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_1"] = v0; S.v["var_0"] = v1;
+        yield;
+        v0 = S.v["var_1"]; v1 = S.v["var_0"];
+      }
     }
-    S.l["list_a"].push(S.v["var_1"]);
-    S.v["var_0"] = 0;
+    S.l["list_a"].push(v0);
+    v1 = 0;
     for (;;) {
-      S.v["var_0"] = S.v["var_0"] + 1;
-      if ((S.v["var_0"] === 4)) {
-        S.l["list_a"].push(S.v["var_0"]);
+      v1 = v1 + 1;
+      if ((v1 === 4)) {
+        S.l["list_a"].push(v1);
+        S.v["var_1"] = v0; S.v["var_0"] = v1;
         return;
       }
-      if (th.warp === 0 && --rt.spin < 0) yield;
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_1"] = v0; S.v["var_0"] = v1;
+        yield;
+        v0 = S.v["var_1"]; v1 = S.v["var_0"];
+      }
     }
+    S.v["var_1"] = v0; S.v["var_0"] = v1;
 } },
 ];
 })

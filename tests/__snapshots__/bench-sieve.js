@@ -4,30 +4,32 @@ const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, matho
   itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
 const S = rt.stage;
 function p1_0(t, th, a0) {
+  let v0 = S.v["var_0"], v1 = S.v["var_1"], v2 = S.v["var_2"];
   S.l["list_3"].length = 0;
-  S.v["var_0"] = 1;
-  while (!(S.v["var_0"] > a0)) {
+  v0 = 1;
+  while (!(v0 > a0)) {
     S.l["list_3"].push(1);
-    S.v["var_0"] = S.v["var_0"] + 1;
+    v0 = v0 + 1;
   }
   if (1 <= S.l["list_3"].length) S.l["list_3"][0] = 0;
-  S.v["var_0"] = 2;
-  while (!(S.v["var_0"] > a0)) {
-    if (((S.l["list_3"][S.v["var_0"] - 1] ?? "") === 1)) {
-      S.v["var_1"] = (S.v["var_0"] * S.v["var_0"]);
-      while (!(S.v["var_1"] > a0)) {
-        if (S.v["var_1"] > 0 && S.v["var_1"] <= S.l["list_3"].length) S.l["list_3"][S.v["var_1"] - 1] = 0;
-        S.v["var_1"] = S.v["var_1"] + S.v["var_0"];
+  v0 = 2;
+  while (!(v0 > a0)) {
+    if (((S.l["list_3"][v0 - 1] ?? "") === 1)) {
+      v1 = (v0 * v0);
+      while (!(v1 > a0)) {
+        if (v1 > 0 && v1 <= S.l["list_3"].length) S.l["list_3"][v1 - 1] = 0;
+        v1 = v1 + v0;
       }
     }
-    S.v["var_0"] = S.v["var_0"] + 1;
+    v0 = v0 + 1;
   }
-  S.v["var_2"] = 0;
-  S.v["var_0"] = 1;
-  while (!(S.v["var_0"] > a0)) {
-    S.v["var_2"] = S.v["var_2"] + toNum((S.l["list_3"][S.v["var_0"] - 1] ?? ""));
-    S.v["var_0"] = S.v["var_0"] + 1;
+  v2 = 0;
+  v0 = 1;
+  while (!(v0 > a0)) {
+    v2 = v2 + toNum((S.l["list_3"][v0 - 1] ?? ""));
+    v0 = v0 + 1;
   }
+  S.v["var_0"] = v0; S.v["var_1"] = v1; S.v["var_2"] = v2;
 }
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {

@@ -4,7 +4,12 @@ import type { StatementHandler } from "../types.js";
 
 export const controlStatements: Record<string, StatementHandler> = {
   control_wait: (b, g) => g.y(`yield* rt.wait(${g.num(b, "DURATION")});`),
-  control_wait_until: (b, g) => g.y(`while (${notCode(g.input(b, "CONDITION"))}) yield rt.WAIT;`),
+  // The condition is checked again after each wait, when other scripts may have changed it.
+  control_wait_until: (b, g) => {
+    const lines = [g.store(), `while (${notCode(g.input(b, "CONDITION"))}) {`, "  yield rt.WAIT;", `  ${g.load()}`, "}"];
+    g.markYields();
+    return lines;
+  },
   control_repeat: (b, g) => {
     const r = g.tmp();
     return [`for (let ${r} = Math.round(${g.num(b, "TIMES")}); ${r} > 0; ${r}--) {`, ...g.substack(b, "SUBSTACK"), ...g.loopYield(), "}"];
@@ -34,9 +39,9 @@ export const controlStatements: Record<string, StatementHandler> = {
   ],
   control_stop: (b, g) => {
     const option = g.field(b, "STOP_OPTION");
-    if (option === "all") return ["throw rt.STOP_ALL;"];
+    if (option === "all") return [g.store(), "throw rt.STOP_ALL;"];
     // In Scratch 3, "stop this script" inside a custom block returns from that block only.
-    if (option === "this script") return ["return;"];
+    if (option === "this script") return [g.store(), "return;"];
     return ["rt.stopOthers(t, th);"];
   },
 };

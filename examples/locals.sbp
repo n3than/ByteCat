@@ -1,0 +1,92 @@
+# Variables used in loops live in JavaScript locals, stored back before every yield, call and
+# exit and reloaded after. Each part checks that other scripts and procedures still see the
+# current value, and that changes they make are seen.
+var shared = 0
+var flag = 0
+var seen = 0
+var total = 0
+
+sprite A:
+  var mine = 0
+
+  # Reads and writes a variable the caller keeps in a local.
+  define warp bump():
+    shared += 100
+    total += shared
+
+  # Only reads it.
+  define warp peek():
+    log(join("peek ", shared))
+
+  # Waits, so it is a generator; another script changes shared meanwhile.
+  define pause():
+    wait(0)
+
+  # Stops this script after changing the counter.
+  define warp count_to(n):
+    shared = 0
+    forever:
+      shared += 1
+      if shared = n:
+        stop("this script")
+
+  # Assigns total only when c is 1, but keeps it in a local and stores it back either way.
+  define warp maybe_set(c):
+    repeat 1:
+      if c = 1:
+        total = 5
+
+  when flag:
+    # Two scripts take turns adding to the same variable; every loop iteration yields.
+    repeat 4:
+      shared += 1
+      mine += 1
+    wait_until(flag = 1)
+    log(join("A sees ", shared))
+    # A procedure in a loop sees the caller's latest value and the caller sees its change.
+    shared = 1
+    repeat 3:
+      shared += 1
+      bump()
+      peek()
+    log(join("total ", total))
+    # A generator call in a loop: B changes shared while A waits inside it.
+    shared = 0
+    repeat 2:
+      shared += 1
+      pause()
+      log(join("after pause ", shared))
+    count_to(7)
+    log(join("counted ", shared))
+    log(join("mine ", mine))
+    # A broadcast in a loop: the receiver runs while this script waits, then at the loop's yield.
+    repeat 2:
+      seen += 1
+      broadcast("look")
+      wait(0)
+      seen += 10
+      broadcast("look")
+    log(join("done ", seen))
+    # A call that may write total but doesn't must see the caller's latest value.
+    total = 0
+    repeat 3:
+      total += 1
+      maybe_set(0)
+    log(join("kept ", total))
+    stop("all")
+
+sprite B:
+  var mine = 50
+
+  when flag:
+    repeat 4:
+      shared += 10
+      mine += 1
+    flag = 1
+    # Waits for A to reach its generator calls, then changes shared each frame.
+    wait_until(shared = 1)
+    shared += 1000
+    log(join("B mine ", mine))
+
+  when receive "look":
+    log(join("look ", seen))

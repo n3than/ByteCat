@@ -65,8 +65,9 @@ describe("statement handlers", () => {
 
   it("stop options", () => {
     const stop = (option: string) => statements.control_stop!(block("control_stop"), stubGen({}, { STOP_OPTION: option }));
-    expect(stop("all")).toEqual(["throw rt.STOP_ALL;"]);
-    expect(stop("this script")).toEqual(["return;"]);
+    // Leaving the script stores the variables it keeps in locals first.
+    expect(stop("all")).toEqual(["store;", "throw rt.STOP_ALL;"]);
+    expect(stop("this script")).toEqual(["store;", "return;"]);
     expect(stop("other scripts in sprite")).toEqual(["rt.stopOthers(t, th);"]);
   });
 });

@@ -5,13 +5,19 @@ const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, matho
 const S = rt.stage;
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
+    let v0 = S.v["var_0"];
     S.l["list_3"].push("hello");
     for (let r0 = Math.round(3); r0 > 0; r0--) {
-      S.v["var_0"] = S.v["var_0"] + 1;
-      S.l["list_3"].push(("count is " + ("" + S.v["var_0"])));
-      if (th.warp === 0 && --rt.spin < 0) yield;
+      v0 = v0 + 1;
+      S.l["list_3"].push(("count is " + ("" + v0)));
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_0"] = v0;
+        yield;
+        v0 = S.v["var_0"];
+      }
     }
     rt.say(t, "say", "done");
+    S.v["var_0"] = v0;
 } },
 ];
 })
