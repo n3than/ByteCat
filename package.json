@@ -17,7 +17,8 @@
     "examples:html": "tsx packages/cli/src/main.ts bundle examples -o out/examples",
     "web": "tsx packages/cli/src/main.ts web",
     "bench": "tsx packages/cli/src/main.ts bench",
-    "docs": "tsx scripts/gen-docs.ts"
+    "docs": "tsx scripts/gen-docs.ts",
+    "fuzz": "tsx tests/fuzz/main.ts"
   },
   "devDependencies": {
     "@bytecat/bench": "workspace:*",

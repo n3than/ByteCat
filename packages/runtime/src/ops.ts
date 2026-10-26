@@ -20,8 +20,18 @@ export function toBool(v: Value): boolean {
   return v !== 0 && !Number.isNaN(v);
 }
 
-function isWhitespace(v: Value): boolean {
-  return typeof v === "string" && v.trim().length === 0;
+/**
+ * True for a string that converts to the number 0 only because it is empty or blank ("", " "), which
+ * Scratch compares as text, not as zero. Like TurboWarp, a string with a digit or a tab in it is
+ * a real zero ("0", "-0", "\t").
+ */
+function isNotActuallyZero(v: Value): boolean {
+  if (typeof v !== "string") return false;
+  for (let i = 0; i < v.length; i++) {
+    const code = v.charCodeAt(i);
+    if ((code >= 48 && code <= 57) || code === 9) return false;
+  }
+  return true;
 }
 
 /** Scratch comparison: numeric when both sides look like numbers, else case-insensitive text. */
@@ -31,8 +41,8 @@ export function compare(a: Value, b: Value): number {
   }
   let n1 = Number(a);
   let n2 = Number(b);
-  if (n1 === 0 && isWhitespace(a)) n1 = NaN;
-  if (n2 === 0 && isWhitespace(b)) n2 = NaN;
+  if (n1 === 0 && isNotActuallyZero(a)) n1 = NaN;
+  if (n2 === 0 && isNotActuallyZero(b)) n2 = NaN;
   if (Number.isNaN(n1) || Number.isNaN(n2)) {
     const s1 = String(a).toLowerCase();
     const s2 = String(b).toLowerCase();
@@ -68,9 +78,10 @@ export function random(from: Value, to: Value): number {
   return Math.random() * (high - low) + low;
 }
 
+/** Like TurboWarp, the index is cut to a 32-bit integer with `| 0` first (1.5 is 1, 4294967297 is 1). */
 export function letterOf(index: Value, s: Value): string {
   const str = toStr(s);
-  const i = toNum(index) - 1;
+  const i = (toNum(index) | 0) - 1;
   if (i < 0 || i >= str.length) return "";
   return str.charAt(i);
 }
@@ -79,7 +90,9 @@ export function contains(a: Value, b: Value): boolean {
   return toStr(a).toLowerCase().includes(toStr(b).toLowerCase());
 }
 
-const DEG = Math.PI / 180;
+// The degree conversions below are written the way TurboWarp and scratch-vm write them
+// ((Math.PI * x) / 180 and (y * 180) / Math.PI): multiplying by a precomputed Math.PI / 180 rounds
+// differently in the last digit.
 
 export function mathop(op: string, x: number): number {
   switch (op) {
@@ -87,12 +100,12 @@ export function mathop(op: string, x: number): number {
     case "floor": return Math.floor(x);
     case "ceiling": return Math.ceil(x);
     case "sqrt": return Math.sqrt(x);
-    case "sin": return Math.round(Math.sin(x * DEG) * 1e10) / 1e10;
-    case "cos": return Math.round(Math.cos(x * DEG) * 1e10) / 1e10;
+    case "sin": return Math.round(Math.sin((Math.PI * x) / 180) * 1e10) / 1e10;
+    case "cos": return Math.round(Math.cos((Math.PI * x) / 180) * 1e10) / 1e10;
     case "tan": return tan(x);
-    case "asin": return Math.asin(x) / DEG;
-    case "acos": return Math.acos(x) / DEG;
-    case "atan": return Math.atan(x) / DEG;
+    case "asin": return (Math.asin(x) * 180) / Math.PI;
+    case "acos": return (Math.acos(x) * 180) / Math.PI;
+    case "atan": return (Math.atan(x) * 180) / Math.PI;
     case "ln": return Math.log(x);
     case "log": return Math.log(x) / Math.LN10;
     case "e ^": return Math.exp(x);
@@ -102,10 +115,10 @@ export function mathop(op: string, x: number): number {
 }
 
 function tan(x: number): number {
-  const a = mod(x, 360);
-  if (a === 90) return Infinity;
-  if (a === 270) return -Infinity;
-  return Math.round(Math.tan(x * DEG) * 1e10) / 1e10;
+  const a = x % 360;
+  if (a === 90 || a === -270) return Infinity;
+  if (a === 270 || a === -90) return -Infinity;
+  return Math.round(Math.tan((Math.PI * a) / 180) * 1e10) / 1e10;
 }
 
 // ---- lists ----
