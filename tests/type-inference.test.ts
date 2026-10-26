@@ -36,6 +36,6 @@ describe("type inference in the benchmarks", () => {
   it("knows the string accumulator in strings is text", () => {
     const code = procedures("strings");
     expect(calls(code, "toNum")).toBe(0);
-    expect(code).toContain('S.v["var_0"].length');
+    expect(code).toMatch(/\(\w+ > \w+\.length\)/);
   });
 });

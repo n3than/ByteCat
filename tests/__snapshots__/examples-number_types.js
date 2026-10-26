@@ -13,6 +13,7 @@ function p1_0(t, th, a0) {
 }
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {
+    let v0 = S.v["var_3"], v1 = S.v["var_4"];
     S.v["var_0"] = (0 / 0);
     S.v["var_1"] = (1 / 0);
     S.v["var_2"] = (0 * (-1));
@@ -40,19 +41,27 @@ return [
     p1_0(t, th, (1 / 0));
     p1_0(t, th, S.v["var_2"]);
     p1_0(t, th, "abc");
-    S.v["var_3"] = 1;
+    v0 = 1;
     for (let r0 = Math.round(3); r0 > 0; r0--) {
-      S.v["var_3"] = S.v["var_3"] + S.v["var_3"];
-      if (th.warp === 0 && --rt.spin < 0) yield;
+      v0 = v0 + v0;
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_3"] = v0; S.v["var_4"] = v1;
+        yield;
+        v0 = S.v["var_3"]; v1 = S.v["var_4"];
+      }
     }
-    S.l["list_b"].push(S.v["var_3"]);
-    S.v["var_4"] = 1;
+    S.l["list_b"].push(v0);
+    v1 = 1;
     for (let r1 = Math.round(3); r1 > 0; r1--) {
-      S.v["var_4"] = (toStr(S.v["var_4"]) + "0");
-      if (th.warp === 0 && --rt.spin < 0) yield;
+      v1 = (toStr(v1) + "0");
+      if (th.warp === 0 && --rt.spin < 0) {
+        S.v["var_3"] = v0; S.v["var_4"] = v1;
+        yield;
+        v0 = S.v["var_3"]; v1 = S.v["var_4"];
+      }
     }
-    S.l["list_b"].push((toNum(S.v["var_4"]) + 1));
-    S.l["list_b"].push(gt(S.v["var_4"], 999));
+    S.l["list_b"].push((toNum(v1) + 1));
+    S.l["list_b"].push(gt(v1, 999));
     S.v["var_5"] = "1e308";
     S.v["var_5"] = toNum(S.v["var_5"]) + 1e+308;
     S.l["list_b"].push(S.v["var_5"]);
@@ -61,10 +70,11 @@ return [
     S.v["var_5"] = toNum(S.v["var_5"]) + (-1e+308);
     S.l["list_b"].push((toNum((toNum(S.v["var_5"]) * 0)) + 1));
     S.v["var_1"] = (1 / 0);
-    S.v["var_4"] = "infinity";
-    S.l["list_b"].push(eq(S.v["var_1"], S.v["var_4"]));
-    S.v["var_4"] = "-INFINITY";
-    S.l["list_b"].push(eq((0 - S.v["var_1"]), S.v["var_4"]));
+    v1 = "infinity";
+    S.l["list_b"].push(eq(S.v["var_1"], v1));
+    v1 = "-INFINITY";
+    S.l["list_b"].push(eq((0 - S.v["var_1"]), v1));
+    S.v["var_3"] = v0; S.v["var_4"] = v1;
 } },
 ];
 })

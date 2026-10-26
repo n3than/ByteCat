@@ -1,5 +1,6 @@
 import type { Block, Target } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
+import { analyzeEffects } from "../src/analysis/effects.js";
 import { analyzeSync, collectProcedures } from "../src/analysis/procedures.js";
 import { LOOPS, SUBSTACKS, YIELDING_STATEMENTS, stackYields } from "../src/analysis/yields.js";
 import { statements } from "../src/blocks/index.js";
@@ -173,5 +174,53 @@ describe("generated procedures", () => {
     expect(code).toMatch(/function\* p1_0\(/);
     expect(code).toMatch(/function\* p1_1\(/);
     expect(code).toMatch(/function p1_2\(/);
+  });
+});
+
+describe("analyzeEffects", () => {
+  const v = (name: string) => ({ VARIABLE: [name, name] as [string, string] });
+  const effectsOf = (t: Target) => {
+    const table = collectProcedures(t, 0);
+    return analyzeEffects(t.blocks, table, (f) => String(f?.[0]));
+  };
+
+  it("collects reads, writes and stops through calls and recursion", () => {
+    const t = withProcs({
+      // outer reads a through an input, assigns b, and calls inner.
+      outer: {
+        blocks: {
+          start: block("data_setvariableto", { fields: v("b"), inputs: { VALUE: [3, [12, "a", "a"], [10, ""]] }, next: "c" }),
+          c: call("inner"),
+        },
+      },
+      // inner changes c (a read and a write), loops, and calls itself.
+      inner: {
+        blocks: {
+          start: block("control_repeat", { inputs: substack("body") }),
+          body: block("data_changevariableby", { fields: v("c"), next: "again" }),
+          again: call("inner"),
+        },
+      },
+      stopper: { blocks: { start: block("control_stop", { fields: { STOP_OPTION: ["all", null] } }) } },
+      caller: { blocks: { start: call("stopper") } },
+    });
+    const e = effectsOf(t);
+    expect([...e.get("outer")!.reads].sort()).toEqual(["a", "c"]);
+    expect([...e.get("outer")!.writes].sort()).toEqual(["b", "c"]);
+    expect(e.get("outer")!.stops).toBe(false);
+    expect([...e.get("inner")!.writes]).toEqual(["c"]);
+    expect(e.get("caller")!.stops).toBe(true);
+  });
+
+  it("counts a variable reporter block as a read", () => {
+    const t = withProcs({
+      p: {
+        blocks: {
+          start: block("looks_say", { inputs: { MESSAGE: [3, "r", [10, ""]] } }),
+          r: block("data_variable", { fields: v("x") }),
+        },
+      },
+    });
+    expect([...effectsOf(t).get("p")!.reads]).toEqual(["x"]);
   });
 });

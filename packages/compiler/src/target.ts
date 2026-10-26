@@ -1,6 +1,8 @@
 import type { Block, CompactPrimitive, Input, InputValue, Target } from "@bytecat/sb3";
 import { TypeEnv } from "./analysis/env.js";
+import { analyzeEffects, type Effects } from "./analysis/effects.js";
 import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
+import { LOOPS } from "./analysis/yields.js";
 import { ZERO, type TypeSet } from "./analysis/typeset.js";
 import { statements, reporters } from "./blocks/index.js";
 import { anyEx, asAny, asBool, asNum, asStr, indent, lit, strEx } from "./cast.js";
@@ -23,6 +25,16 @@ export class TargetCodegen implements Gen {
   private yields = false;
   /** Every procedure definition with its compiled body. */
   private readonly procDefs: { proc: Proc; body: string[] }[];
+  /** What each procedure can do to variables, by function name. */
+  private readonly effects = new Map<string, Effects>();
+  /** Storage references of the variables the function being compiled uses, in order of first use. */
+  private refs: string[] = [];
+  /** The ones used inside a loop, which are worth keeping in JavaScript locals. */
+  private hot = new Set<string>();
+  /** The ones the function assigns. */
+  private assigned = new Set<string>();
+  /** How many loops the block being compiled is inside, in the current function. */
+  private loopDepth = 0;
 
   constructor(
     readonly target: Target,
@@ -40,6 +52,11 @@ export class TargetCodegen implements Gen {
     this.procs = table.procs;
     // Settle which procedures are sync before compiling any call to them.
     analyzeSync(target, table);
+    const effects = analyzeEffects(this.blocks, table, (field) => this.scope.variable(field));
+    for (const [proccode, proc] of this.procs) {
+      const e = effects.get(proccode);
+      if (e) this.effects.set(proc.fn, e);
+    }
     this.procDefs = table.defs.map(({ proc, definition }) => ({ proc, body: this.procBody(proc, definition) }));
   }
 
@@ -62,7 +79,7 @@ export class TargetCodegen implements Gen {
     this.paramKeys = new Map(proc.params.map((name, i) => [name, TypeEnv.paramKey(proc.fn, i)]));
     this.inWarp = proc.warp;
     this.yields = false;
-    const body = this.stack(block.next);
+    const body = this.withLocals(() => this.stack(block.next), this.effects.get(proc.fn));
     // The analysis and the handlers must agree, or a generator would be called as a plain function.
     if (this.yields === proc.sync) {
       throw new Error(`internal error: yield analysis disagrees with codegen for ${proc.fn}`);
@@ -102,11 +119,72 @@ export class TargetCodegen implements Gen {
           }
           continue;
       }
-      const body = indent(this.stack(block.next), 2).join("\n");
+      const body = indent(this.withLocals(() => this.stack(block.next)), 2).join("\n");
       const argPart = arg === undefined ? "" : ` arg: ${JSON.stringify(arg)},`;
       out.push(`{ target: ${this.index}, kind: "${kind}",${argPart} fn: function* (t, th) {\n${body}\n} }`);
     }
     return out;
+  }
+
+  // ---- variables in locals ----
+
+  /**
+   * Compiles one function body, keeping the variables it uses inside loops in JavaScript locals,
+   * which are much faster than the target's variable objects. Handlers get a placeholder for each
+   * variable (`variable`), replaced here by the local or by the storage reference. Locals are
+   * loaded on entry and stored back wherever another script or a called procedure could see the
+   * variables: before every yield, call and exit (handlers place `store` and `load` lines there,
+   * see `Gen`), and at the end. Other scripts only run while this one is yielded, so between those
+   * points the locals are the truth. A procedure's `effects` are checked against its body.
+   */
+  private withLocals(compile: () => string[], effects?: Effects): string[] {
+    this.refs = [];
+    this.hot = new Set();
+    this.assigned = new Set();
+    this.loopDepth = 0;
+    const body = [...compile(), STORE];
+    const { refs, assigned } = this;
+    if (effects) {
+      for (const ref of refs) {
+        if (!effects.reads.has(ref) && !effects.writes.has(ref)) throw new Error(`internal error: effects miss a use of ${ref}`);
+      }
+      for (const ref of assigned) {
+        if (!effects.writes.has(ref)) throw new Error(`internal error: effects miss an assignment to ${ref}`);
+      }
+    }
+    const locals = new Map<string, string>();
+    for (const ref of refs) if (this.hot.has(ref)) locals.set(ref, `v${locals.size}`);
+    const stored = [...assigned].filter((ref) => locals.has(ref));
+    const out = locals.size === 0 ? [] : [`let ${[...locals].map(([ref, local]) => `${local} = ${ref}`).join(", ")};`];
+    for (const raw of body) {
+      const line = raw.replace(/\u0002(\d+)\u0002/g, (_, i: string) => {
+        const ref = refs[Number(i)]!;
+        return locals.get(ref) ?? ref;
+      });
+      const at = line.indexOf(MARK);
+      if (at < 0) {
+        out.push(line);
+        continue;
+      }
+      const [kind, fn] = line.slice(at + 1).split(":");
+      const callee = fn ? this.effects.get(fn) : undefined;
+      const code =
+        kind === "store"
+          ? // A sync callee only needs the variables it reads, unless it can stop everything.
+            stored.filter((ref) => !callee || callee.stops || callee.reads.has(ref)).map((ref) => `${ref} = ${locals.get(ref)};`)
+          : [...locals].filter(([ref]) => !callee || callee.writes.has(ref)).map(([ref, local]) => `${local} = ${ref};`);
+      if (code.length > 0) out.push(line.slice(0, at) + code.join(" "));
+    }
+    this.refs = [];
+    return collapseYields(out);
+  }
+
+  store(proc?: Proc): string {
+    return proc?.sync ? `${MARK}store:${proc.fn}` : `${MARK}store`;
+  }
+
+  load(proc?: Proc): string {
+    return proc?.sync ? `${MARK}load:${proc.fn}` : `${MARK}load`;
   }
 
   // ---- Gen: services for block handlers ----
@@ -139,12 +217,12 @@ export class TargetCodegen implements Gen {
   loopYield(): string[] {
     if (this.inWarp) return [];
     this.yields = true;
-    return ["  if (th.warp === 0 && --rt.spin < 0) yield;"];
+    return ["  if (th.warp === 0 && --rt.spin < 0) {", `    ${this.store()}`, "    yield;", `    ${this.load()}`, "  }"];
   }
 
   y(line: string): string[] {
     this.yields = true;
-    return [line];
+    return [this.store(), line, this.load()];
   }
 
   markYields(): void {
@@ -169,7 +247,11 @@ export class TargetCodegen implements Gen {
   }
 
   variable(field: FieldRef): string {
-    return this.scope.variable(field);
+    const ref = this.scope.variable(field);
+    let i = this.refs.indexOf(ref);
+    if (i < 0) i = this.refs.push(ref) - 1;
+    if (this.loopDepth > 0) this.hot.add(ref);
+    return `\u0002${i}\u0002`;
   }
 
   varType(field: FieldRef): TypeSet {
@@ -177,6 +259,7 @@ export class TargetCodegen implements Gen {
   }
 
   noteWrite(field: FieldRef, type: TypeSet): void {
+    this.assigned.add(this.scope.variable(field));
     this.env.note(this.varKey(field), type);
   }
 
@@ -231,7 +314,10 @@ export class TargetCodegen implements Gen {
 
   private statement(b: Block): string[] {
     const handler = Object.hasOwn(statements, b.opcode) ? statements[b.opcode] : undefined;
+    const loop = LOOPS.has(b.opcode);
+    if (loop) this.loopDepth++;
     const lines = handler?.(b, this);
+    if (loop) this.loopDepth--;
     if (lines) return lines;
     this.warnings.add(b.opcode);
     return [`/* unsupported: ${b.opcode} */`];
@@ -279,4 +365,24 @@ export class TargetCodegen implements Gen {
     this.warnings.add(b.opcode);
     return lit("");
   }
+}
+
+/** Starts the placeholder lines for storing and loading cached variables (`TargetCodegen.store`). */
+const MARK = "\u0001";
+const STORE = `${MARK}store`;
+
+/** `if (c) {` / `yield;` / `}` back on one line, where no variables needed storing around the yield. */
+function collapseYields(lines: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const head = /^(\s*)((?:if|while) \(.*\)) \{$/.exec(lines[i]!);
+    const body = lines[i + 1];
+    if (head && body?.trim().startsWith("yield") && lines[i + 2] === `${head[1]}}` && body.startsWith(`${head[1]}  `)) {
+      out.push(`${head[1]}${head[2]} ${body.trim()}`);
+      i += 2;
+    } else {
+      out.push(lines[i]!);
+    }
+  }
+  return out;
 }

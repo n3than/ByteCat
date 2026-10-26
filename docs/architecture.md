@@ -47,6 +47,7 @@ one stage:
 | `analysis/procedures.ts` | `collectProcedures` (the custom-block table) and `analyzeSync`, which settles which procedures are plain functions rather than generators by repeating `stackYields` until nothing changes. Runs before any code is generated. |
 | `analysis/typeset.ts` | The static type lattice: a type is a bit set of runtime kinds (positive or negative integer or fraction, +0, -0, the infinities, NaN, numeric string, other string, boolean), with `castNum` and transfer functions for `+ - * / mod round`. Pure, and tested by sampling values of every kind. |
 | `analysis/env.ts` | `TypeEnv`: the whole-program types of variables, list items and procedure parameters, which codegen reads and widens until they stop changing. |
+| `analysis/effects.ts` | `analyzeEffects`: which variables each procedure (with everything it calls) may read or assign, and whether it may `stop all`. Callers use it to store and reload only the variables a call can see; codegen checks it against every body it compiles. |
 | `target.ts` | `TargetCodegen`: implements `Gen` for one target, dispatches blocks to handlers and compiles procedures and hat scripts. It throws if the code it generates for a procedure disagrees with the analysis. |
 | `emit.ts` | `emitProgram`: assembles the final `function (rt)` text. |
 | `codegen.ts` | `compileProject`: the driver over all targets. |
@@ -107,6 +108,16 @@ item` is `if (i <= list.length) list[i - 1] = v;` for the same index, plus `i > 
 index and string, and `replace item` skips the item when the index is out of range, so both keep
 the helper when an operand draws a random number or reads a clock (`effectful` in `cast.ts`). An
 `until` loop or `not` over another `not` reuses the inner code (`Ex.neg`) instead of stacking `!`.
+
+A variable used inside a loop is kept in a JavaScript `let` local for the whole function
+(`TargetCodegen.withLocals`), because locals are far faster than the target's variable objects.
+Other scripts only run while this one yields, so the local is the truth in between: the function
+loads its locals on entry, stores the ones it assigns before every yield, call, `stop` and at the
+end, and reloads them after a yield or call. For a call to a plain-function procedure it stores
+only the variables the callee reads and reloads only the ones it assigns (`analysis/effects.ts`),
+unless the callee can `stop all`. A `wait until` reloads before checking its condition again.
+Variables only used outside loops are read and written in place. `examples/locals` checks other
+scripts and procedures see every change.
 
 Comparisons against a
 literal are specialized: a text literal makes it a lowercase string comparison, and a numeric

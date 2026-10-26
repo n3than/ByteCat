@@ -80,6 +80,13 @@ export interface Gen {
   y(line: string): string[];
   /** Marks the code being compiled as able to yield, without emitting anything. */
   markYields(): void;
+  /**
+   * A line that stores the variables the function keeps in locals back to the target, before code
+   * where other scripts, or the given sync procedure, could read them: a yield, a call, an exit.
+   */
+  store(proc?: Proc): string;
+  /** A line that reloads the cached variables after code that may have changed them. */
+  load(proc?: Proc): string;
 }
 
 /** Compiles a statement block to lines of JavaScript; undefined means the block is unsupported. */

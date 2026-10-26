@@ -4,12 +4,14 @@ const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, matho
   itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;
 const S = rt.stage;
 function p1_0(t, th, a0) {
-  S.v["var_0"] = 0;
-  S.v["var_1"] = 1;
-  while (!(S.v["var_1"] > a0)) {
-    S.v["var_0"] = mod(((toNum(S.v["var_0"]) * 31) + (S.v["var_1"] * 7)), 1000003);
-    S.v["var_1"] = S.v["var_1"] + 1;
+  let v0 = S.v["var_0"], v1 = S.v["var_1"];
+  v0 = 0;
+  v1 = 1;
+  while (!(v1 > a0)) {
+    v0 = mod(((toNum(v0) * 31) + (v1 * 7)), 1000003);
+    v1 = v1 + 1;
   }
+  S.v["var_0"] = v0; S.v["var_1"] = v1;
 }
 return [
 { target: 1, kind: "flag", fn: function* (t, th) {

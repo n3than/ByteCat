@@ -16,10 +16,10 @@ export const procedureStatements: Record<string, StatementHandler> = {
     const recursive = proc === g.procedure && !proc.warp;
     const lead = recursive ? g.y("if (th.warp === 0) yield;") : [];
     // A sync procedure never reads th.warp, so it needs no warp bookkeeping.
-    if (proc.sync) return [call];
+    if (proc.sync) return [g.store(proc), call, g.load(proc)];
     g.markYields();
-    if (!proc.warp) return [...lead, `yield* ${call}`];
-    return ["th.warp++;", `try { yield* ${call} } finally { th.warp--; }`];
+    if (!proc.warp) return [...lead, g.store(), `yield* ${call}`, g.load()];
+    return ["th.warp++;", g.store(), `try { yield* ${call} } finally { th.warp--; }`, g.load()];
   },
 };
 
