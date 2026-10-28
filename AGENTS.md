@@ -58,6 +58,7 @@ The browser tests need Chromium. First-time setup: `pnpm exec playwright install
 - New pseudocode builtin: add it to `packages/pseudo/src/builtins.ts`, run `pnpm docs`, and cover
   it in an example or a test in `packages/pseudo/test/lower.test.ts`.
 - New syntax: update `ast.ts`, `parser.ts`, `lower.ts`, `docs/pseudocode.md`, and add tests.
+- `tests/lower-hashes.test.ts` pins `project.json` hashes (fixture `tests/fixtures/lower-hashes.json`) and ignores new examples. When pseudocode lowering intentionally changes or the fuzz generator changes, regenerate it with `WRITE_LOWER_HASHES=1 pnpm exec vitest run tests/lower-hashes.test.ts` and review the diff.
 - New Scratch block in the compiler: add a handler to the matching file in `packages/compiler/src/blocks/` and a test in `packages/compiler/test/blocks.test.ts` (see "Compiler modules" in `docs/architecture.md`). Keep compiler stages small and pure so each can be tested alone.
 - Update `docs/` in the same change as the code it describes.
 
