@@ -31,6 +31,8 @@ Commands:
         [--timeout ms] [--json] [--answer text]...
   bench [names...]                Time bench/NAME.sbp (default: every bench/*.sbp) on each engine and check its output
         [--engines bytecat,scratch-vm,turbowarp] [--runs 5] [--warmup 1]   (default: every engine)
+        [--runs-bytecat N] [--warmup-bytecat N]   Override --runs and --warmup for the Bytecat engine only: its runs
+                                      take a few ms, so a steady median needs many more of them
         [--baseline turbowarp]        Engine the speedup columns compare against (default: turbowarp, else
                                       scratch-vm, if selected, else the first selected engine other than bytecat)
         [--json] [-o results.json]    Exits with code 1 if an engine gave a wrong log or did not finish
@@ -58,6 +60,8 @@ const { positionals, values } = parseArgs({
     fps: { type: "string" },
     passes: { type: "string" },
     turbo: { type: "boolean" },
+    "runs-bytecat": { type: "string" },
+    "warmup-bytecat": { type: "string" },
     help: { type: "boolean", short: "h" },
   },
 });
@@ -230,6 +234,17 @@ switch (command) {
     }
     const runs = Number(values.runs);
     const warmup = Number(values.warmup);
+    const bytecatRuns = values["runs-bytecat"] === undefined ? undefined : Number(values["runs-bytecat"]);
+    const bytecatWarmup = values["warmup-bytecat"] === undefined ? undefined : Number(values["warmup-bytecat"]);
+    if (
+      (bytecatRuns !== undefined && (!Number.isInteger(bytecatRuns) || bytecatRuns < 1)) ||
+      (bytecatWarmup !== undefined && (!Number.isInteger(bytecatWarmup) || bytecatWarmup < 0))
+    ) {
+      console.error("--runs-bytecat must be a positive integer and --warmup-bytecat a non-negative integer");
+      process.exit(2);
+    }
+    const engineRuns: Record<string, number> = bytecatRuns === undefined ? {} : { bytecat: bytecatRuns };
+    const engineWarmup: Record<string, number> = bytecatWarmup === undefined ? {} : { bytecat: bytecatWarmup };
     const timeoutMs = values.timeout === undefined ? 60_000 : Number(values.timeout);
     if (!Number.isInteger(runs) || runs < 1 || !Number.isInteger(warmup) || warmup < 0 || !(timeoutMs > 0)) {
       console.error("--runs must be a positive integer, --warmup a non-negative integer and --timeout a positive number");
@@ -248,7 +263,7 @@ switch (command) {
         process.exit(2);
       }
       if (!values.json) console.error(`benchmarking ${name}...`);
-      results.push(await benchmark(name, compileFile(path).project, expected, engines, { runs, warmup, timeoutMs }));
+      results.push(await benchmark(name, compileFile(path).project, expected, engines, { runs, warmup, timeoutMs, engineRuns, engineWarmup }));
     }
     if (values.out) {
       mkdirSync(dirname(values.out), { recursive: true });

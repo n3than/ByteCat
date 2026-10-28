@@ -25,6 +25,14 @@ describe("benchmark", () => {
     expect(r.engines[0]).toMatchObject({ engine: "e", medianMs: 25, minMs: 10, maxMs: 40, correct: true });
   });
 
+  it("gives one engine its own number of runs and warmup runs, and leaves the others on the defaults", async () => {
+    const fast = fake("fast", [{ runMs: 1 }]);
+    const slow = fake("slow", [{ runMs: 100 }]);
+    await benchmark("b", project, ["ok"], [fast, slow], { warmup: 1, runs: 3, engineRuns: { fast: 20 }, engineWarmup: { fast: 5 } });
+    expect(fast.calls).toBe(5 + 20);
+    expect(slow.calls).toBe(1 + 3);
+  });
+
   it("reports the median compile time when the engine provides one", async () => {
     const e = fake("e", [{ compileMs: 1 }, { compileMs: 5 }, { compileMs: 3 }]);
     const r = await benchmark("b", project, ["ok"], [e], { warmup: 0, runs: 3 });
