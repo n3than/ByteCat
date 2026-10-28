@@ -28,6 +28,7 @@
     "@bytecat/reference": "workspace:*",
     "@bytecat/runtime": "workspace:*",
     "@bytecat/sb3": "workspace:*",
+    "@bytecat/trace": "workspace:*",
     "@bytecat/web": "workspace:*",
     "@types/node": "^22.10.0",
     "playwright": "1.63.0",

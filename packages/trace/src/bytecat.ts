@@ -1,0 +1,110 @@
+// Bytecat as a lockstep engine: the compiled program on the real scheduler (`Runtime.tick`), with a
+// virtual clock, a pass-counting scheduler clock and no lone-thread spin, so a frame does exactly
+// the work TurboWarp's does (docs/testing.md, "Frame boundaries").
+import { compile } from "@bytecat/compiler";
+import { DEFAULT_DATE, flushPromises, mulberry32, withVirtualGlobals, type VirtualGlobals } from "@bytecat/reference";
+import { passClock, Runtime } from "@bytecat/runtime";
+import type { ProjectJson } from "@bytecat/sb3";
+import type { FrameOptions, LockstepEngine } from "./engine.js";
+import { toSnapshot, type Snapshot, type StageState } from "./snapshot.js";
+
+/** The raw visible state of a Bytecat runtime. */
+export function bytecatState(rt: Runtime): StageState {
+  const targets = rt.targets.map((t, i) => {
+    const json = rt.project.targets[i]!;
+    return {
+      name: t.name,
+      isStage: t.isStage,
+      variables: Object.entries(json.variables).map(([id, [name]]) => [name, t.v[id]] as [string, unknown]),
+      lists: Object.entries(json.lists).map(([id, [name]]) => [name, t.l[id] ?? []] as [string, unknown[]]),
+      costume: t.costume,
+      costumeName: t.costumes[t.costume]?.name ?? "",
+      ...(t.isStage
+        ? {}
+        : {
+            x: t.x,
+            y: t.y,
+            direction: t.direction,
+            size: t.size,
+            visible: t.visible,
+            rotationStyle: t.rotationStyle,
+            bubble: t.bubble,
+          }),
+    };
+  });
+  // Back to front. Ties keep project order, the reverse of the order hats start in (orderHats).
+  const layers = rt.targets
+    .map((t, i) => ({ t, i }))
+    .filter(({ t }) => !t.isStage)
+    .sort((a, b) => a.t.layer - b.t.layer || a.i - b.i)
+    .map(({ t }) => t.name);
+  return { targets, layers };
+}
+
+export class BytecatLockstep implements LockstepEngine {
+  readonly name = "bytecat";
+  readonly rt: Runtime;
+  readonly questions: string[] = [];
+  readonly problems: string[] = [];
+  private readonly resolvers: ((answer: string) => void)[] = [];
+  private readonly clock: ReturnType<typeof passClock>;
+  private readonly env: VirtualGlobals;
+
+  constructor(project: ProjectJson, options: FrameOptions = {}) {
+    const { fps = 30, turbo = false, passes = 50, seed = 1, date = DEFAULT_DATE } = options;
+    const { program, warnings } = compile(project);
+    for (const w of warnings) this.problems.push(`bytecat does not support ${w}`);
+    this.clock = passClock(passes, fps);
+    const rt = new Runtime(project, program, { clock: "virtual", fps, turbo, maxSpin: 0, schedulerClock: this.clock.read });
+    this.rt = rt;
+    rt.onAsk = (question) =>
+      new Promise((resolve) => {
+        this.questions.push(question);
+        this.resolvers.push(resolve);
+      });
+    this.env = { random: mulberry32(seed), date: () => date + rt.now() };
+    withVirtualGlobals(this.env, () => rt.greenFlag());
+  }
+
+  step(): void {
+    this.clock.reset();
+    withVirtualGlobals(this.env, () => this.rt.tick());
+  }
+
+  snapshot(frame: number): Snapshot {
+    return toSnapshot(frame, bytecatState(this.rt));
+  }
+
+  get running(): boolean {
+    return this.rt.running;
+  }
+
+  keyDown(key: string): void {
+    this.rt.keyDown(key);
+  }
+
+  keyUp(key: string): void {
+    this.rt.keyUp(key);
+  }
+
+  mouseMove(x: number, y: number): void {
+    this.rt.mouse.x = x;
+    this.rt.mouse.y = y;
+  }
+
+  /** Headless there is no hit test, so a click hits the stage, like headless TurboWarp. */
+  click(x: number, y: number): void {
+    this.mouseMove(x, y);
+    this.rt.click(this.rt.stage);
+  }
+
+  async answer(text: string): Promise<void> {
+    this.questions.shift();
+    this.resolvers.shift()?.(text);
+    await flushPromises();
+  }
+
+  dispose(): void {
+    this.rt.stopAll();
+  }
+}

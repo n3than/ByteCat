@@ -8,6 +8,7 @@ import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
 import { runProject } from "@bytecat/reference";
 import { Runtime } from "@bytecat/runtime";
+import { describeTrace, parseInput, traceProject } from "@bytecat/trace";
 import { buildWebApp } from "@bytecat/web";
 import { readSb3, writeSb3, type Project, type ProjectJson } from "@bytecat/sb3";
 
@@ -33,6 +34,9 @@ Commands:
         [--baseline turbowarp]        Engine the speedup columns compare against (default: turbowarp, else
                                       scratch-vm, if selected, else the first selected engine other than bytecat)
         [--json] [-o results.json]    Exits with code 1 if an engine gave a wrong log or did not finish
+  trace <file.sbp|file.sb3>       Run on Bytecat and TurboWarp in lockstep and compare what every frame shows
+        [--frames 300] [--input file.input] [--seed 1]   (docs/testing.md); exits with code 1 on a difference
+        [--fps 30] [--passes 50] [--turbo] [--json]
 `;
 
 const { positionals, values } = parseArgs({
@@ -48,6 +52,12 @@ const { positionals, values } = parseArgs({
     baseline: { type: "string" },
     runs: { type: "string", default: "5" },
     warmup: { type: "string", default: "1" },
+    frames: { type: "string" },
+    input: { type: "string" },
+    seed: { type: "string" },
+    fps: { type: "string" },
+    passes: { type: "string" },
+    turbo: { type: "boolean" },
     help: { type: "boolean", short: "h" },
   },
 });
@@ -261,6 +271,30 @@ switch (command) {
       }
     }
     if (failed) process.exitCode = 1;
+    break;
+  }
+  case "trace": {
+    need(1);
+    const int = (name: string, text: string | undefined, fallback: number, min = 1): number => {
+      const n = text === undefined ? fallback : Number(text);
+      if (!Number.isInteger(n) || n < min) {
+        console.error(`--${name} must be an integer of at least ${min}`);
+        process.exit(2);
+      }
+      return n;
+    };
+    const input = values.input ? parseInput(readFileSync(values.input, "utf8"), values.input) : [];
+    const result = await traceProject(load(files[0]!), {
+      frames: int("frames", values.frames, 300),
+      input,
+      seed: int("seed", values.seed, 1, 0),
+      fps: int("fps", values.fps, 30),
+      passes: int("passes", values.passes, 50),
+      turbo: values.turbo ?? false,
+    });
+    if (values.json) console.log(JSON.stringify(result, null, 2));
+    else console.log(describeTrace(result));
+    if (result.diff || result.problems.length) process.exitCode = 1;
     break;
   }
   default:

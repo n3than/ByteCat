@@ -41,6 +41,41 @@ const MAX_STRIDE = 128;
  */
 const MAX_SPIN = 32;
 
+/**
+ * A read of the scheduler clock this long after the previous one marks the interval as heavy: the
+ * stride and the spin limit go back to their floor.
+ */
+const HEAVY_INTERVAL = 0.25;
+
+/** How long `tick` keeps stepping threads, in milliseconds: 75% of a frame, as in Scratch. */
+export function frameBudget(fps: number): number {
+  return (1000 / fps) * 0.75;
+}
+
+/**
+ * A scheduler clock for lockstep runs (the trace oracle, docs/testing.md). With it, and with
+ * `maxSpin: 0`, a frame ends after exactly `passes` passes over the threads (sooner on a redraw or
+ * when every thread is blocked), whatever the machine. Each read moves it on by HEAVY_INTERVAL, so
+ * `tick` keeps reading it after every pass, and the read after the last allowed pass is past any
+ * budget. Call `reset()` before each tick. `passes` can be at most frameBudget(fps) / 0.25 + 1
+ * (101 at 30 fps), since every earlier read must stay inside the budget.
+ */
+export function passClock(passes: number, fps = 30): { read: () => number; reset: () => void } {
+  if (!(Number.isInteger(passes) && passes >= 1 && (passes - 1) * HEAVY_INTERVAL < frameBudget(fps))) {
+    throw new RangeError(`passes must be an integer from 1 to ${Math.ceil(frameBudget(fps) / HEAVY_INTERVAL)} at ${fps} fps, got ${passes}`);
+  }
+  let reads = 0;
+  return {
+    read: () => {
+      const k = reads++;
+      return k < passes ? k * HEAVY_INTERVAL : Infinity;
+    },
+    reset: () => {
+      reads = 0;
+    },
+  };
+}
+
 export class Thread {
   done = false;
   /** Above zero while inside a "run without screen refresh" procedure. */
@@ -62,6 +97,12 @@ export interface RuntimeOptions {
   answers?: string[];
   /** The clock the scheduler reads, in milliseconds, to end frames on time. Tests inject one. */
   schedulerClock?: () => number;
+  /**
+   * The most loop iterations a thread running alone may complete per step without yielding (see
+   * `spin`). Default 32. With 0 every loop iteration yields, as in TurboWarp; the trace oracle
+   * uses that so both engines do the same work in a pass.
+   */
+  maxSpin?: number;
 }
 
 export interface SayEvent {
@@ -105,7 +146,7 @@ export class Runtime {
   private ordered: Hat[] | null = null;
 
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
-    this.options = { turbo: false, fps: 30, clock: "real", ...options };
+    this.options = { turbo: false, fps: 30, clock: "real", maxSpin: MAX_SPIN, ...options };
     this.answers = [...(options.answers ?? [])];
     this.schedulerClock = options.schedulerClock ?? (() => performance.now());
     this.targets = Target.all(project);
@@ -232,8 +273,10 @@ export class Runtime {
    * removed) `spin` is 0 and every iteration yields, so threads interleave as before.
    */
   tick(): void {
-    const budget = (1000 / this.options.fps) * 0.75;
+    const budget = frameBudget(this.options.fps);
     const clock = this.schedulerClock;
+    const maxSpin = this.options.maxSpin;
+    const minSpin = Math.min(1, maxSpin);
     const frameStart = clock();
     let lastCheck = frameStart;
     // Reading the clock costs about as much as a pass of one short thread, so it is read every
@@ -241,10 +284,11 @@ export class Runtime {
     // as soon as one takes longer. The clock's resolution is too coarse to size it from one pass.
     // `spinLimit`, how many loop iterations a thread running alone may skip yielding for per step,
     // grows the same way while that thread runs alone, and then the clock is read after every
-    // pass (stride 1), so at most MAX_SPIN iterations run between two reads. Like
-    // `stride` it starts at 1 each frame and drops back to 1 when the set of threads changes,
-    // since the cost of a pass no longer says what the next one costs.
-    let spinLimit = 1;
+    // pass (stride 1), so at most `maxSpin` (MAX_SPIN unless the option lowers it) iterations run
+    // between two reads. Like `stride` it starts at 1 (0 with `maxSpin: 0`) each frame and drops
+    // back to that when the set of threads changes, since the cost of a pass no longer says what
+    // the next one costs.
+    let spinLimit = minSpin;
     let stride = 1;
     let untilCheck = 1;
     this.redraw = false;
@@ -267,19 +311,19 @@ export class Runtime {
       // starting. Not on the very next pass: projects that start threads all the time (every
       // broadcast and wait does) would then read it on nearly every pass.
       if (this.threads.length !== count && untilCheck > START_CHECK) untilCheck = START_CHECK;
-      if (finished || this.threads.length !== count) spinLimit = 1;
+      if (finished || this.threads.length !== count) spinLimit = minSpin;
       if (finished) this.threads = this.threads.filter((th) => !th.done);
       if (!progressed || this.threads.length === 0) break;
       if (this.redraw && !this.options.turbo) break;
       if (--untilCheck === 0) {
         const now = clock();
         if (now - frameStart >= budget) break;
-        if (now - lastCheck >= 0.25) {
+        if (now - lastCheck >= HEAVY_INTERVAL) {
           stride = 1;
-          spinLimit = 1;
+          spinLimit = minSpin;
         } else if (this.threads.length === 1) {
           stride = 1;
-          spinLimit = Math.min(spinLimit * 2, MAX_SPIN);
+          spinLimit = Math.min(spinLimit * 2, maxSpin);
         } else {
           stride = Math.min(stride * 2, MAX_STRIDE);
         }
@@ -319,10 +363,13 @@ export class Runtime {
   // ---- block helpers used by generated code ----
 
   *wait(seconds: number): Generator<unknown, void, unknown> {
-    const end = this.now() + seconds * 1000;
+    // Elapsed time against the duration, as TurboWarp compares it: `now < start + duration` rounds
+    // differently and can end a frame earlier (a 1 second wait started at frame 1, at 30 fps).
+    const start = this.now();
+    const duration = seconds * 1000;
     this.requestRedraw();
     do yield WAIT;
-    while (this.now() < end);
+    while (this.now() - start < duration);
   }
 
   timer(): number {
@@ -351,7 +398,15 @@ export class Runtime {
     const s = ops.toStr(text);
     t.bubble = s === "" ? null : { kind, text: s };
     if (s !== "") this.says.push({ target: t.name, kind, text: s });
-    this.requestRedraw();
+    // Like TurboWarp's renderer: a redraw only when a bubble appears on a visible sprite or one that
+    // is drawn goes away.
+    if (s !== "" && t.visible) {
+      t.bubbleDrawn = true;
+      this.requestRedraw();
+    } else if (t.bubbleDrawn) {
+      t.bubbleDrawn = false;
+      this.requestRedraw();
+    }
   }
 
   *sayFor(t: Target, kind: "say" | "think", text: Value, seconds: number): Generator<unknown, void, unknown> {
@@ -385,11 +440,15 @@ export class Runtime {
     const duration = seconds * 1000;
     const x0 = t.x;
     const y0 = t.y;
-    for (;;) {
-      const frac = duration <= 0 ? 1 : (this.now() - start) / duration;
-      if (frac >= 1) break;
-      this.setXY(t, x0 + (x - x0) * frac, y0 + (y - y0) * frac);
+    if (duration > 0) {
+      // Like TurboWarp, the first step only starts the glide: no move, so no redraw yet.
       yield WAIT;
+      for (;;) {
+        const frac = (this.now() - start) / duration;
+        if (frac >= 1) break;
+        this.setXY(t, x0 + (x - x0) * frac, y0 + (y - y0) * frac);
+        yield WAIT;
+      }
     }
     this.setXY(t, x, y);
   }
