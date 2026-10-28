@@ -39,6 +39,9 @@ export function switchCostume(rt: Runtime, t: Target, value: Value): void {
   else if (value === "previous costume" || value === "previous backdrop") t.costume = ops.mod(t.costume - 1, t.costumes.length);
   else if (typeof value === "number" || (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value)))) {
     t.costume = ops.mod(Math.round(ops.toNum(value)) - 1, t.costumes.length);
+  } else {
+    // No such costume: TurboWarp's `_setCostume` does not call setCostume, so nothing redraws.
+    return;
   }
   // TurboWarp redraws for a costume change only when it shows (the stage is always visible).
   if (t.visible) rt.requestRedraw();
@@ -60,8 +63,16 @@ export function setSize(rt: Runtime, t: Target, size: number): void {
 
 export function setVisible(rt: Runtime, t: Target, visible: boolean): void {
   t.visible = visible;
-  // Like TurboWarp: showing a sprite redraws, hiding one does not.
-  if (visible) rt.requestRedraw();
+  // Like TurboWarp: showing a sprite redraws, hiding one does not. TurboWarp's show and hide then
+  // re-render the bubble: showing brings back a bubble the sprite still has, and hiding removes
+  // a drawn one, which redraws.
+  if (visible) {
+    if (t.bubble) t.bubbleDrawn = true;
+    rt.requestRedraw();
+  } else if (t.bubbleDrawn) {
+    t.bubbleDrawn = false;
+    rt.requestRedraw();
+  }
 }
 
 export function goToFront(rt: Runtime, t: Target): void {

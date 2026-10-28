@@ -116,15 +116,40 @@ describe("lib helpers", () => {
       expect(redraws((rt, one) => say(rt, one, "say", "hi"))).toBe(true);
       expect(redraws((rt, one) => say(rt, one, "say", "hi"), true)).toBe(false);
       expect(redraws((rt, one) => say(rt, one, "say", ""))).toBe(false);
+    });
+
+    // TurboWarp's show and hide re-render the bubble after changing visibility.
+    it("hiding removes a drawn bubble, with a redraw", () => {
       const { rt, one } = make();
       say(rt, one, "say", "hi");
       rt.redraw = false;
       setVisible(rt, one, false);
-      say(rt, one, "say", "still hidden");
-      expect(rt.redraw).toBe(true); // the drawn bubble goes away
+      expect([rt.redraw, one.bubbleDrawn]).toEqual([true, false]);
       rt.redraw = false;
       say(rt, one, "say", "");
       expect(rt.redraw).toBe(false);
+    });
+
+    it("showing brings back the bubble the sprite still has", () => {
+      const { rt, one } = make();
+      setVisible(rt, one, false);
+      say(rt, one, "say", "hi");
+      expect(one.bubbleDrawn).toBe(false);
+      setVisible(rt, one, true);
+      expect(one.bubbleDrawn).toBe(true);
+      rt.redraw = false;
+      say(rt, one, "say", "");
+      expect(rt.redraw).toBe(true);
+    });
+
+    it("hiding without a drawn bubble does not redraw", () => {
+      expect(redraws((rt, one) => setVisible(rt, one, false))).toBe(false);
+      expect(redraws((rt, one) => (setVisible(rt, one, true), (rt.redraw = false), setVisible(rt, one, false)), true)).toBe(false);
+    });
+
+    it("switching to a costume that does not exist does nothing", () => {
+      expect(redraws((rt, one) => switchCostume(rt, one, "no such costume"))).toBe(false);
+      expect(redraws((rt, one) => switchCostume(rt, one, " "))).toBe(false);
     });
   });
 

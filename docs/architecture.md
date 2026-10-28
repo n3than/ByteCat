@@ -147,8 +147,10 @@ yields at the end of its current iteration:
   The blocks request a redraw exactly where TurboWarp's renderer code does, since that decides
   where frames end: moving, turning, resizing or changing the costume of a visible sprite (and any
   backdrop change), showing a sprite, `wait`, and a speech bubble that appears on a visible sprite
-  or a drawn one that goes away (`Target.bubbleDrawn`). Hiding a sprite, changing its layer, or a
-  costume change or `say` on a hidden sprite do not end the frame (`packages/runtime/test/lib.test.ts`).
+  or a drawn one that goes away (`Target.bubbleDrawn`; show and hide bring back or remove the
+  bubble, as TurboWarp re-renders it). Hiding a sprite without a drawn bubble, changing its layer,
+  switching to a costume that does not exist, and a costume change or `say` on a hidden sprite do
+  not end the frame (`packages/runtime/test/lib.test.ts`).
 
 `spinLimit` is local to a `tick`. It starts at 1 each frame, and each time the scheduler reads the
 clock while one thread runs alone it doubles, up to 32, if less than 0.25 ms passed since the
