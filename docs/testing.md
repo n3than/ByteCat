@@ -91,8 +91,9 @@ So the oracle runs **both schedulers on a virtual cost clock**:
   that advances 0.25 ms per read. That makes `tick` read it after every pass, and the read after
   the last allowed pass is past the budget. The 0.25 ms step caps `passes` at 101 at 30 fps
   (51 at 60).
-- **One loop iteration per step.** Bytecat runs with `maxSpin: 0`, so a lone thread yields at the
-  end of every loop iteration, as in TurboWarp. `spin` exists only to save scheduler work. A
+- **One loop iteration per step.** The Bytecat driver pins its runtime's `spin` to 0 (an accessor
+  on that one instance, so the scheduler itself has no lockstep option), so a lone thread yields
+  at the end of every loop iteration, as in TurboWarp. `spin` exists only to save scheduler work. A
   thread running alone cannot observe it, except through how much fits in a frame, and that is
   now set by the pass budget. `packages/runtime/test/scheduler.test.ts` checks spin itself.
 - **Redraws as with a renderer.** Headless TurboWarp has no renderer, and TurboWarp only requests

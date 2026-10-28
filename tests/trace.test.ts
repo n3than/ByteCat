@@ -137,7 +137,7 @@ describe("TurboWarp lockstep driver", () => {
     expect(turbowarpUsesCounterIds()).toBe(true);
   });
 
-  it("agrees with Bytecat on the pass budget, with maxSpin 0", async () => {
+  it("agrees with Bytecat on the pass budget, with spin pinned to 0", async () => {
     const json = compile(counter).project.json;
     const bytecat = new BytecatLockstep(json, { passes: 7 });
     bytecat.step();

@@ -55,7 +55,11 @@ export class BytecatLockstep implements LockstepEngine {
     const { program, warnings } = compile(project);
     for (const w of warnings) this.problems.push(`bytecat does not support ${w}`);
     this.clock = passClock(passes, fps);
-    const rt = new Runtime(project, program, { clock: "virtual", fps, turbo, maxSpin: 0, schedulerClock: this.clock.read });
+    const rt = new Runtime(project, program, { clock: "virtual", fps, turbo, schedulerClock: this.clock.read });
+    // One loop iteration per step, as in TurboWarp: `spin` (how many iterations a lone thread may
+    // run without yielding) always reads 0 and ignores writes, so loops yield every iteration. This
+    // is done here, on this instance only, so the scheduler's hot loop has no lockstep option.
+    Object.defineProperty(rt, "spin", { get: () => 0, set: () => {}, configurable: true });
     this.rt = rt;
     rt.onAsk = (question) =>
       new Promise((resolve) => {

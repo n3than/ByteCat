@@ -3,7 +3,7 @@ import * as ops from "./ops.js";
 import { Target } from "./target.js";
 import type { Value } from "./ops.js";
 import { STOP_ALL, Thread, WAIT, type Hat, type HatKind, type ProgramFactory } from "./thread.js";
-import { MAX_SPIN, tick } from "./scheduler.js";
+import { tick } from "./scheduler.js";
 import { wait } from "./lib/control.js";
 import { costumeName, goToFront, nextCostume, say, sayFor, setSize, setVisible, switchCostume } from "./lib/looks.js";
 import { bounce, coord, glide, move, setDirection, setXY } from "./lib/motion.js";
@@ -20,12 +20,6 @@ export interface RuntimeOptions {
   answers?: string[];
   /** The clock the scheduler reads, in milliseconds, to end frames on time. Tests inject one. */
   schedulerClock?: () => number;
-  /**
-   * The most loop iterations a thread running alone may complete per step without yielding (see
-   * `spin`). Default 32. With 0 every loop iteration yields, as in TurboWarp; the trace oracle
-   * uses that so both engines do the same work in a pass.
-   */
-  maxSpin?: number;
 }
 
 export interface SayEvent {
@@ -74,7 +68,7 @@ export class Runtime {
   ordered: Hat[] | null = null;
 
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
-    this.options = { turbo: false, fps: 30, clock: "real", maxSpin: MAX_SPIN, ...options };
+    this.options = { turbo: false, fps: 30, clock: "real", ...options };
     this.answers = [...(options.answers ?? [])];
     this.schedulerClock = options.schedulerClock ?? (() => performance.now());
     this.targets = Target.all(project);

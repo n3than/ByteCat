@@ -15,11 +15,13 @@ const MAX_STRIDE = 128;
  * (`spinLimit`). Smaller than MAX_STRIDE: a lone loop reaches its limit far more often than the
  * stride reaches its own, and 32 already makes the scheduler's share of a cheap loop small.
  */
-export const MAX_SPIN = 32;
+const MAX_SPIN = 32;
 
 /**
- * A read of the scheduler clock this long after the previous one marks the interval as heavy: the
- * stride and the spin limit go back to their floor.
+ * A read of the scheduler clock this long after the previous one marks the interval as heavy, and
+ * `tick` sends the stride and the spin limit back to their floor. `tick` writes it as a literal so
+ * its hot loop is unchanged by the lockstep hooks below; `passClock` depends on the two agreeing
+ * (tests/trace.test.ts checks that a frame runs exactly the pass budget).
  */
 const HEAVY_INTERVAL = 0.25;
 
@@ -29,12 +31,12 @@ export function frameBudget(fps: number): number {
 }
 
 /**
- * A scheduler clock for lockstep runs (the trace oracle, docs/testing.md). With it, and with
- * `maxSpin: 0`, a frame ends after exactly `passes` passes over the threads (sooner on a redraw or
- * when every thread is blocked), whatever the machine. Each read moves it on by HEAVY_INTERVAL, so
- * `tick` keeps reading it after every pass, and the read after the last allowed pass is past any
- * budget. Call `reset()` before each tick. Every earlier read must stay inside the budget, so
- * `passes` is at most frameBudget(fps) / 0.25 + 1 (101 at 30 fps).
+ * A scheduler clock for lockstep runs (the trace oracle, docs/testing.md). With it, and with the
+ * runtime's `spin` pinned to 0, a frame ends after exactly `passes` passes over the threads (sooner
+ * on a redraw or when every thread is blocked), whatever the machine. Each read moves it on by
+ * HEAVY_INTERVAL, so `tick` keeps reading it after every pass, and the read after the last allowed
+ * pass is past any budget. Call `reset()` before each tick. Every earlier read must stay inside
+ * the budget, so `passes` is at most frameBudget(fps) / 0.25 + 1 (101 at 30 fps).
  */
 export function passClock(passes: number, fps = 30): { read: () => number; reset: () => void } {
   if (!(Number.isInteger(passes) && passes >= 1 && (passes - 1) * HEAVY_INTERVAL < frameBudget(fps))) {
@@ -64,10 +66,8 @@ export function passClock(passes: number, fps = 30): { read: () => number; reset
  * removed) `spin` is 0 and every iteration yields, so threads interleave as before.
  */
 export function tick(rt: Runtime): void {
-  const budget = frameBudget(rt.options.fps);
+  const budget = (1000 / rt.options.fps) * 0.75;
   const clock = rt.schedulerClock;
-  const maxSpin = rt.options.maxSpin;
-  const minSpin = Math.min(1, maxSpin);
   const frameStart = clock();
   let lastCheck = frameStart;
   // Reading the clock costs about as much as a pass of one short thread, so it is read every
@@ -75,11 +75,10 @@ export function tick(rt: Runtime): void {
   // as soon as one takes longer. The clock's resolution is too coarse to size it from one pass.
   // `spinLimit`, how many loop iterations a thread running alone may skip yielding for per step,
   // grows the same way while that thread runs alone, and then the clock is read after every
-  // pass (stride 1), so at most `maxSpin` (MAX_SPIN unless the option lowers it) iterations run
-  // between two reads. Like `stride` it starts at 1 (0 with `maxSpin: 0`) each frame and drops
-  // back to that when the set of threads changes, since the cost of a pass no longer says what
-  // the next one costs.
-  let spinLimit = minSpin;
+  // pass (stride 1), so at most MAX_SPIN iterations run between two reads. Like
+  // `stride` it starts at 1 each frame and drops back to 1 when the set of threads changes,
+  // since the cost of a pass no longer says what the next one costs.
+  let spinLimit = 1;
   let stride = 1;
   let untilCheck = 1;
   rt.redraw = false;
@@ -102,19 +101,19 @@ export function tick(rt: Runtime): void {
     // starting. Not on the very next pass: projects that start threads all the time (every
     // broadcast and wait does) would then read it on nearly every pass.
     if (rt.threads.length !== count && untilCheck > START_CHECK) untilCheck = START_CHECK;
-    if (finished || rt.threads.length !== count) spinLimit = minSpin;
+    if (finished || rt.threads.length !== count) spinLimit = 1;
     if (finished) rt.threads = rt.threads.filter((th) => !th.done);
     if (!progressed || rt.threads.length === 0) break;
     if (rt.redraw && !rt.options.turbo) break;
     if (--untilCheck === 0) {
       const now = clock();
       if (now - frameStart >= budget) break;
-      if (now - lastCheck >= HEAVY_INTERVAL) {
+      if (now - lastCheck >= 0.25) {
         stride = 1;
-        spinLimit = minSpin;
+        spinLimit = 1;
       } else if (rt.threads.length === 1) {
         stride = 1;
-        spinLimit = Math.min(spinLimit * 2, maxSpin);
+        spinLimit = Math.min(spinLimit * 2, MAX_SPIN);
       } else {
         stride = Math.min(stride * 2, MAX_STRIDE);
       }
