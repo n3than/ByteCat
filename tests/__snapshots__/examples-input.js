@@ -12,11 +12,11 @@ return [
     S.v["var_0"] = S.v["var_0"] + 1;
     S.l["list_4"].push("cat clicked");
 } },
-{ target: 1, kind: "key", arg: "space", fn: function* (t, th) {
+{ target: 1, kind: "key", arg: "space", restart: false, fn: function* (t, th) {
     S.v["var_0"] = S.v["var_0"] + 1;
     S.l["list_4"].push("space");
 } },
-{ target: 1, kind: "key", arg: "a", fn: function* (t, th) {
+{ target: 1, kind: "key", arg: "a", restart: false, fn: function* (t, th) {
     S.v["var_0"] = S.v["var_0"] + 1;
     S.l["list_4"].push("a");
 } },

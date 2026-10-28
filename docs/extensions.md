@@ -90,7 +90,7 @@ A hat spec carries TurboWarp's hat metadata and how Bytecat starts the script:
 | --- | --- |
 | `event` | The runtime event that starts it, `Hat.kind` in `@bytecat/runtime`: `flag`, `broadcast`, `key`, `click`. Left out while the hat is missing. |
 | `matchField` | The field the event is matched against, ignoring case (TurboWarp's `optMatchFields`): `BROADCAST_OPTION`, `KEY_OPTION`. Its lowercased value becomes `Hat.arg`. |
-| `restartExistingThreads` | TurboWarp's rule from `getHats`: whether starting the hat while its script runs restarts the script (flag, broadcast, click, backdrop) or leaves it running and drops the new start (`when key pressed`, `when I start as a clone`, the edge-triggered hats). |
+| `restartExistingThreads` | TurboWarp's rule from `getHats`: whether starting the hat while its script runs restarts the script (flag, broadcast, click, backdrop) or leaves it running and drops the new start (`when key pressed`, `when I start as a clone`, the edge-triggered hats). The compiler passes `false` on to the runtime as `restart: false` on the hat. |
 | `edgeActivated` | TurboWarp's edge-triggered hats (`when timer > 10`, `when touching`): the runtime checks a condition every frame and starts the script when it turns true. |
 | `predicate` | For an edge-activated hat, the condition, compiled from the hat block's inputs like a reporter. The scheduler cannot check one yet, so an edge-activated hat counts as missing for now. |
 

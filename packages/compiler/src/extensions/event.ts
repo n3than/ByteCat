@@ -5,11 +5,7 @@ export const event: Extension = {
   name: "Events",
   blocks: {
     event_whenflagclicked: hat("flag", { restartExistingThreads: true }),
-    event_whenkeypressed: hat("key", {
-      matchField: "KEY_OPTION",
-      restartExistingThreads: false,
-      partial: "a running script restarts; TurboWarp lets it finish",
-    }),
+    event_whenkeypressed: hat("key", { matchField: "KEY_OPTION", restartExistingThreads: false }),
     event_whenthisspriteclicked: hat("click", { restartExistingThreads: true }),
     event_whenstageclicked: hat("click", { restartExistingThreads: true }),
     event_whenbackdropswitchesto: missingHat({ restartExistingThreads: true }, "switching backdrops starts no hats yet"),

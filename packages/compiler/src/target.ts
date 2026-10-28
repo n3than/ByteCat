@@ -94,8 +94,9 @@ export class TargetCodegen implements Gen {
   }
 
   /**
-   * The hat scripts, each with the event that starts it (`HatSpec.event`) and the argument it
-   * matches, read from the hat's `matchField` and lowercased. A hat the extension declares but
+   * The hat scripts, each with the event that starts it (`HatSpec.event`), the argument it
+   * matches, read from the hat's `matchField` and lowercased, and whether starting it again
+   * restarts a running script (`restartExistingThreads`). A hat the extension declares but
    * cannot start is reported as unsupported, and so is an unknown block with a script under it;
    * other top-level blocks never run.
    */
@@ -118,7 +119,9 @@ export class TargetCodegen implements Gen {
       const arg = spec.matchField === undefined ? undefined : (block.fields[spec.matchField]?.[0] ?? "").toLowerCase();
       const body = indent(this.withLocals(() => this.stack(block.next)), 2).join("\n");
       const argPart = arg === undefined ? "" : ` arg: ${JSON.stringify(arg)},`;
-      out.push(`{ target: ${this.index}, kind: "${spec.event}",${argPart} fn: function* (t, th) {\n${body}\n} }`);
+      // The runtime restarts a running script unless told otherwise (Hat.restart).
+      const restartPart = spec.restartExistingThreads === false ? " restart: false," : "";
+      out.push(`{ target: ${this.index}, kind: "${spec.event}",${argPart}${restartPart} fn: function* (t, th) {\n${body}\n} }`);
     }
     return out;
   }

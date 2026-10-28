@@ -7,6 +7,7 @@ expected `log` output, and times it.
 pnpm bench                                   # every bench/*.sbp on every engine, 1 warmup + 5 timed runs
 pnpm bench arith sieve                       # only these benchmarks
 pnpm bench --engines bytecat --runs 10       # choose engines, timed runs and warmup runs (--warmup)
+pnpm bench --runs-bytecat 40 --warmup-bytecat 10  # more runs for Bytecat only: its runs take a few ms
 pnpm bench --baseline scratch-vm             # speedup columns relative to scratch-vm instead of TurboWarp
 pnpm bench --json -o out/bench.json          # raw results; -o writes them to a file as JSON
 ```
@@ -63,27 +64,51 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
 
 The `bench` job in `.github/workflows/ci.yml` runs on every pull request and posts the
 comparison as a PR comment (one comment, updated on every push). It checks out the PR head and
-its base commit into two directories, installs both, and runs
-`pnpm bench --engines bytecat,turbowarp --json -o results/SIDE-N.json` on each, interleaved: base,
-head, base, head. Interleaving means that a runner that gets faster or slower part-way through
-affects both sides. scratch-vm is left out because it is slow and CI does not depend on it;
-TurboWarp stays in as a noise reference, since the PR cannot change it.
+its base commit into two directories, installs both, and times both, interleaved (base, head,
+base, head, ...) so that a runner that gets faster or slower part-way through affects both sides.
 
-`scripts/bench-compare.ts` (tested in `tests/bench-compare.test.ts`) reads the result files and
-writes the comment. For each benchmark and engine it takes the median over the runs on each
-side (each run is already a median of timed runs) and shows base, head and the change. A Bytecat
-median more than 10% slower than the base is marked with a warning and listed above the table;
-other engines are never flagged. Benchmarks that only one side has are listed apart, and a result
-that was wrong or did not finish shows as `FAIL`; a Bytecat failure on either side is also named in the
-comment's headline, ahead of any slowdown.
+**Why rounds.** Bytecat's benchmarks take 2 to 10 ms, and their timings vary by 25% and more from
+one process to the next (JIT and GC decisions, not machine load), however many runs one process
+times: measured on one machine, six processes of `sieve` with 40 timed runs each gave medians from
+2.7 to 4.4 ms. More runs per process only steady the number inside that process. So the job
+runs many separate processes ("rounds") and compares across them:
+
+- Bytecat: 10 rounds per side, each a fresh `pnpm bench --engines bytecat --runs 40 --warmup 10`
+  (about 8 s a round). Engines run in separate processes so TurboWarp's garbage does not slow
+  Bytecat. (`--runs-bytecat N` and `--warmup-bytecat N` give the same per-engine counts when all
+  engines run in one command.)
+- TurboWarp: 2 rounds per side at the default runs, after rounds 5 and 10. It is the noise
+  reference, since the PR cannot change it, and takes about 15 s a round.
+- scratch-vm is left out because it is slow and CI does not depend on it.
+
+The job takes about 4 minutes of benchmarking plus install.
+
+`scripts/bench-compare.ts` (tested in `tests/bench-compare.test.ts`) reads the round files and
+writes the comment. For each benchmark and engine it shows the median over the rounds on each
+side, the change, and the spread of the rounds on each side (Q1 to Q3). The rule for the flag:
+
+> A Bytecat row is flagged when its head median is more than 10% slower than the base median
+> **and** the head's Q1 is slower than the base's Q3, that is, the middle halves of the two sets of
+> rounds do not overlap.
+
+A difference over 10% that fails the second condition is shown as "(within noise)" and not
+flagged. The rule is deliberately conservative. Resampling 20 rounds measured on one machine into
+two sets of 10 (500 times, every benchmark): identical code was flagged on 0.3% of rows (about
+one pull request in 50), a 15% slowdown (injected into the head's rounds) on 65% of rows and a
+30% slowdown on 99%. So a flag means a real slowdown; a smaller one can still pass as noise,
+which is why the table shows the spread.
+
+Other engines are never flagged. Benchmarks that only one side has are listed apart, and a
+result that was wrong or did not finish shows as `FAIL`; a Bytecat failure on either side is also
+named in the comment's headline, ahead of any slowdown.
 
 The job reports and never fails the build (`continue-on-error`, and the script exits 0
-whatever it finds), because shared runners are noisy: two identical builds can differ by more than
-10% on the short benchmarks. Treat a flag as a reason to re-run and look, then follow the rule in
-[roadmap.md](roadmap.md): a real slowdown needs a stated reason in the PR. On a pull request from a
-fork the token cannot comment; the same table is then in the job summary. To compare by hand, run
-`pnpm bench --json -o out/bench-SIDE.json` on both commits and pass them to
-`pnpm exec tsx scripts/bench-compare.ts --base a.json,b.json --head c.json,d.json`.
+whatever it finds), because shared runners are noisy. Treat a flag as a reason to re-run and look,
+then follow the rule in [roadmap.md](roadmap.md): a real slowdown needs a stated reason in the PR.
+On a pull request from a fork the token cannot comment; the same table is then in the job summary.
+To compare by hand, run `pnpm bench --engines bytecat --runs 40 --warmup 10 --json -o out/SIDE-N.json`
+repeatedly on both commits (alternating) and pass the files to
+`pnpm exec tsx scripts/bench-compare.ts --base a1.json,a2.json,... --head b1.json,b2.json,...`.
 
 ## Adding a benchmark
 
