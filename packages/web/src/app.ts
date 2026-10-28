@@ -20,6 +20,7 @@ interface Loaded {
   sb3?: Uint8Array;
   code: string;
   warnings: string[];
+  unknownExtensions: string[];
   compileMs: number;
 }
 
@@ -160,8 +161,8 @@ function plural(n: number, word: string): string {
 function compileLoaded(name: string, project: Project, sb3?: Uint8Array): Loaded | null {
   const start = performance.now();
   try {
-    const { code, warnings } = compileProject(project.json);
-    return { name, project, code, warnings, compileMs: performance.now() - start, ...(sb3 ? { sb3 } : {}) };
+    const { code, warnings, unknownExtensions } = compileProject(project.json);
+    return { name, project, code, warnings, unknownExtensions, compileMs: performance.now() - start, ...(sb3 ? { sb3 } : {}) };
   } catch (e) {
     showError(`Could not compile ${name}: ${(e as Error).message}`);
     return null;
@@ -319,6 +320,7 @@ function renderOutput(force = false): void {
 
 function renderPanels(): void {
   const warnings = [
+    ...(loaded?.unknownExtensions ?? []).map((id) => `Unknown extension ${id}: Bytecat does not know it, so its blocks are skipped.`),
     ...(loaded?.warnings ?? []).map((op) => `Unsupported block ${op}: Bytecat skips it, so scripts that use it may behave differently.`),
     ...assetErrors.map((name) => `Costume image ${name} could not be decoded and will not be drawn.`),
   ];

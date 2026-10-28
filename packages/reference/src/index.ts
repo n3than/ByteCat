@@ -12,6 +12,8 @@ const twLogLevels = ["debug", "log", "info", "warn", "warning"];
  * the oracle for behaviour and the engine Bytecat is measured against. `scratch` is the official
  * scratch-vm, kept as a second check.
  */
+export { turbowarpBlocks, type TurboWarpBlocks, type TurboWarpHat } from "./blocks.js";
+
 export type Engine = "scratch" | "turbowarp";
 
 export const engines: readonly Engine[] = ["scratch", "turbowarp"];

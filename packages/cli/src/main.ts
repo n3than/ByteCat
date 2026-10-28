@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { compile as compileToJs, compileProject, toModule } from "@bytecat/compiler";
+import { compile as compileToJs, compileProject, toModule, type CompileResult } from "@bytecat/compiler";
 import { benchmark, engineNames, formatTable, getEngine, pickBaseline, type BenchResult } from "@bytecat/bench";
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
@@ -57,6 +57,12 @@ const { positionals, values } = parseArgs({
 });
 
 const [command, ...files] = positionals;
+
+/** Prints what the compiler could not handle: unknown extensions first, then unsupported blocks. */
+function printWarnings(result: CompileResult): void {
+  for (const id of result.unknownExtensions) console.error(`warning: unknown extension ${id}; its blocks are skipped`);
+  for (const w of result.warnings) console.error(`warning: unsupported block ${w}`);
+}
 
 function compileFile(path: string) {
   const source = readFileSync(path, "utf8");
@@ -132,8 +138,9 @@ switch (command) {
   }
   case "compile": {
     need(1);
-    const { code, warnings } = compileToJs(loadJson(files[0]!));
-    for (const w of warnings) console.error(`warning: unsupported block ${w}`);
+    const result = compileToJs(loadJson(files[0]!));
+    const { code } = result;
+    printWarnings(result);
     if (values.out) {
       mkdirSync(dirname(values.out), { recursive: true });
       writeFileSync(values.out, toModule(code));
@@ -151,8 +158,9 @@ switch (command) {
       const name = basename(file, extname(file));
       const out = isDir || !values.out ? join(values.out ?? "out", `${name}.html`) : values.out;
       const project = loadProject(file);
-      const { code, warnings } = compileProject(project.json);
-      for (const w of warnings) console.error(`warning: unsupported block ${w}`);
+      const result = compileProject(project.json);
+      const { code } = result;
+      printWarnings(result);
       mkdirSync(dirname(out), { recursive: true });
       writeFileSync(out, await bundleHtml(project, code, name));
       console.log(`${file} -> ${out}`);
@@ -184,7 +192,8 @@ switch (command) {
       if (!result.finished) process.exitCode = 3;
     } else if (values.engine === "bytecat") {
       const json = loadJson(files[0]!);
-      const { program, warnings } = compileToJs(json);
+      const compiled = compileToJs(json);
+      const { program, warnings } = compiled;
       const rt = new Runtime(json, program, { clock: "virtual", turbo: true, answers });
       const { finished, elapsedMs, frames } = rt.runUntilDone(timeoutMs);
       const log = rt.log();
@@ -193,7 +202,7 @@ switch (command) {
       } else {
         for (const line of log) console.log(line);
         for (const s of rt.says) console.error(`[${s.target} ${s.kind}s] ${s.text}`);
-        for (const w of warnings) console.error(`warning: unsupported block ${w}`);
+        printWarnings(compiled);
         console.error(`${finished ? "finished" : "timed out"} in ${elapsedMs.toFixed(0)} ms`);
       }
       if (!finished) process.exitCode = 3;

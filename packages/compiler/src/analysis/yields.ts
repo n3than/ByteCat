@@ -1,36 +1,6 @@
 import type { Block } from "@bytecat/sb3";
+import type { ExtensionRegistry } from "../extensions/registry.js";
 import type { Proc } from "../types.js";
-
-/** Statements that can wait for a later frame whatever they are given. */
-export const YIELDING_STATEMENTS: ReadonlySet<string> = new Set([
-  "motion_glidesecstoxy",
-  "looks_sayforsecs",
-  "looks_thinkforsecs",
-  "event_broadcastandwait",
-  "control_wait",
-  "control_wait_until",
-  "sensing_askandwait",
-]);
-
-/** Loops, which yield at the end of every iteration unless the script is in warp mode. */
-export const LOOPS: ReadonlySet<string> = new Set([
-  "control_repeat",
-  "control_forever",
-  "control_repeat_until",
-  "control_while",
-  "control_for_each",
-]);
-
-/** The substack inputs each statement runs, for the statements that nest others. */
-export const SUBSTACKS: Readonly<Record<string, readonly string[]>> = {
-  control_repeat: ["SUBSTACK"],
-  control_forever: ["SUBSTACK"],
-  control_repeat_until: ["SUBSTACK"],
-  control_while: ["SUBSTACK"],
-  control_for_each: ["SUBSTACK"],
-  control_if: ["SUBSTACK"],
-  control_if_else: ["SUBSTACK", "SUBSTACK2"],
-};
 
 export interface YieldContext {
   blocks: Record<string, Block>;
@@ -40,13 +10,16 @@ export interface YieldContext {
   warp: boolean;
   /** Proccode of the procedure being analysed; undefined in a hat script. */
   proccode?: string | undefined;
+  /** Where each statement says whether it yields (`StatementSpec.yields`) and what it nests. */
+  registry: ExtensionRegistry;
 }
 
 /**
  * True when compiling the stack that starts at `id` produces code that can yield: a waiting
- * statement, a loop outside warp mode, or a call to a procedure not (yet) known to be sync.
- * It follows the same blocks the code generator does: the `next` chain and the substacks of
- * the statements in `SUBSTACKS`. A direct recursive call outside warp mode counts as a yield.
+ * statement, a loop outside warp mode, or a statement whose own rule says so (a call to a
+ * procedure not yet known to be sync). It follows the same blocks the code generator does: the
+ * `next` chain and the substacks each statement declares. A test checks every handler against
+ * its declaration, so the two cannot drift.
  */
 export function stackYields(ctx: YieldContext, id: string | null | undefined): boolean {
   while (id) {
@@ -59,15 +32,13 @@ export function stackYields(ctx: YieldContext, id: string | null | undefined): b
 }
 
 function statementYields(ctx: YieldContext, b: Block): boolean {
-  if (YIELDING_STATEMENTS.has(b.opcode)) return true;
-  if (LOOPS.has(b.opcode) && !ctx.warp) return true;
-  if (b.opcode === "procedures_call") {
-    // Like scratch-vm and TurboWarp, a direct recursive call outside warp mode yields first.
-    if (!ctx.warp && b.mutation?.proccode === ctx.proccode) return true;
-    const proc = b.mutation?.proccode ? ctx.procs.get(b.mutation.proccode) : undefined;
-    return proc !== undefined && !proc.sync;
-  }
-  for (const name of Object.hasOwn(SUBSTACKS, b.opcode) ? SUBSTACKS[b.opcode]! : []) {
+  const spec = ctx.registry.statement(b.opcode);
+  if (!spec?.compile) return false;
+  const { yields } = spec;
+  if (yields === "wait") return true;
+  if (yields === "loop" && !ctx.warp) return true;
+  if (typeof yields === "function" && yields(b, ctx)) return true;
+  for (const name of spec.substacks ?? []) {
     const v = b.inputs[name]?.[1];
     if (typeof v === "string" && stackYields(ctx, v)) return true;
   }
