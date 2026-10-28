@@ -52,6 +52,7 @@ Test projects are written in Bytecat pseudocode, documented in [docs/pseudocode.
 - **fuzz**: `pnpm fuzz --count 1000 --seed 100000`, a seed range the fixed seeds in `pnpm verify` do
   not cover. A failing program is uploaded as the `fuzz-failures` artifact.
 - **bench** (pull requests only): builds the PR head and its base commit, times both on the same
-  runner and posts one comment with the median per benchmark and engine, flagging a Bytecat
-  median more than 10% slower. It reports and never fails the build. See
-  [docs/benchmarks.md](docs/benchmarks.md#comparing-a-branch-with-main).
+  runner (10 interleaved rounds of Bytecat, 2 of TurboWarp as a noise reference) and posts one
+  comment with the median per benchmark and engine and the spread of the rounds. A Bytecat row is
+  flagged only when it is more than 10% slower beyond that spread. It reports and never fails the
+  build. See [docs/benchmarks.md](docs/benchmarks.md#comparing-a-branch-with-main).
