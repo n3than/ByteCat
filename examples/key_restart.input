@@ -1,0 +1,9 @@
+// Press space twice while its script waits (0.2 s is 6 frames), then once more after it ends.
+press space
+release space
+press space
+release space
+step 10
+press space
+release space
+step 10

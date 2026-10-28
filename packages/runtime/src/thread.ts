@@ -14,6 +14,11 @@ export interface Hat {
   kind: HatKind;
   /** Broadcast name (lowercase) or key name. */
   arg?: string;
+  /**
+   * False when starting the hat while its script runs leaves the script running and drops the
+   * new start: TurboWarp's `restartExistingThreads`, false for `when key pressed`. Default true.
+   */
+  restart?: boolean;
   fn: ScriptFn;
 }
 

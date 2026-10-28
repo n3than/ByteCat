@@ -31,6 +31,16 @@ describe("compileProject", () => {
     expect(warnings).toEqual(["constructor"]);
   });
 
+  it("tells the runtime which hats do not restart a running script", () => {
+    const blocks = {
+      key: block("event_whenkeypressed", { topLevel: true, fields: { KEY_OPTION: ["Space", null] } }),
+      flag: block("event_whenflagclicked", { topLevel: true }),
+    };
+    const { code } = compileProject(project(target(blocks)));
+    expect(code).toContain('{ target: 1, kind: "key", arg: "space", restart: false, fn: function* (t, th) {');
+    expect(code).toContain('{ target: 1, kind: "flag", fn: function* (t, th) {');
+  });
+
   it("warns about hats it cannot start", () => {
     const blocks = { hat: block("event_whenbackdropswitchesto", { topLevel: true }) };
     expect(compileProject(project(target(blocks))).warnings).toEqual(["event_whenbackdropswitchesto"]);

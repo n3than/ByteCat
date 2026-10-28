@@ -2,8 +2,8 @@ import type { Block, Target } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
 import { analyzeEffects } from "../src/analysis/effects.js";
 import { analyzeSync, collectProcedures } from "../src/analysis/procedures.js";
-import { LOOPS, SUBSTACKS, YIELDING_STATEMENTS, stackYields } from "../src/analysis/yields.js";
-import { statements } from "../src/blocks/index.js";
+import { stackYields } from "../src/analysis/yields.js";
+import { builtins } from "../src/extensions/index.js";
 import { compileProject } from "../src/index.js";
 import { block, project, stubGen, target } from "./helpers.js";
 
@@ -38,27 +38,36 @@ function withProcs(procs: Record<string, { warp?: boolean; blocks: B }>): Target
 
 function syncOf(t: Target): Record<string, boolean> {
   const table = collectProcedures(t, 0);
-  analyzeSync(t, table);
+  analyzeSync(t, table, builtins);
   return Object.fromEntries([...table.procs].map(([code, p]) => [code, p.sync]));
 }
 
-describe("yield tables match the block handlers", () => {
-  it("a statement handler yields exactly when the tables say so", () => {
-    for (const [op, handler] of Object.entries(statements)) {
-      if (op === "procedures_call") continue; // depends on the callee, covered below
+describe("yield declarations match the block handlers", () => {
+  it("a statement handler yields exactly when its spec says so", () => {
+    for (const [op, handler] of Object.entries(builtins.statements)) {
+      const { yields } = builtins.statement(op)!;
+      if (typeof yields === "function") continue; // depends on the project, covered below
       const g = stubGen();
       handler(block(op), g);
-      expect(g.yielded, op).toBe(YIELDING_STATEMENTS.has(op) || LOOPS.has(op));
+      expect(g.yielded, op).toBe(yields === "wait" || yields === "loop");
     }
   });
 
-  it("nesting statements are known statements", () => {
-    for (const op of Object.keys(SUBSTACKS)) expect(statements, op).toHaveProperty(op);
+  it("only a statement that runs a substack declares one", () => {
+    for (const op of Object.keys(builtins.statements)) {
+      const declared = builtins.statement(op)!.substacks ?? [];
+      // A stub substack call records the input names the handler compiles.
+      const g = stubGen();
+      const used: string[] = [];
+      g.substack = (_b, name) => (used.push(name), ["  body;"]);
+      builtins.statements[op]!(block(op), g);
+      expect(used.sort(), op).toEqual([...declared].sort());
+    }
   });
 });
 
 describe("stackYields", () => {
-  const ctx = (blocks: B, warp = false) => ({ blocks, procs: new Map(), warp });
+  const ctx = (blocks: B, warp = false) => ({ blocks, procs: new Map(), warp, registry: builtins });
 
   it("is false for straight-line code", () => {
     const blocks = { start: block("motion_ifonedgebounce", { next: "b" }), b: block("looks_show") };

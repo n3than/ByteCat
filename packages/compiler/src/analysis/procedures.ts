@@ -1,4 +1,5 @@
 import type { Block, Target } from "@bytecat/sb3";
+import type { ExtensionRegistry } from "../extensions/registry.js";
 import type { Proc } from "../types.js";
 import { stackYields } from "./yields.js";
 
@@ -41,12 +42,12 @@ export function collectProcedures(target: Target, index: number): ProcedureTable
  * plain functions. A body that can yield makes its procedure a generator, which can make its
  * callers generators too, so this repeats until nothing changes. Sets `proc.sync` in place.
  */
-export function analyzeSync(target: Target, table: ProcedureTable): void {
+export function analyzeSync(target: Target, table: ProcedureTable, registry: ExtensionRegistry): void {
   for (let changed = true; changed; ) {
     changed = false;
     for (const { proc, proccode, definition } of table.defs) {
       if (!proc.sync) continue;
-      const ctx = { blocks: target.blocks, procs: table.procs, warp: proc.warp, proccode };
+      const ctx = { blocks: target.blocks, procs: table.procs, warp: proc.warp, proccode, registry };
       if (stackYields(ctx, definition.next)) {
         proc.sync = false;
         changed = true;
