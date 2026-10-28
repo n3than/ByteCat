@@ -39,7 +39,7 @@ one stage:
 
 | File | Role |
 | --- | --- |
-| `types.ts` | `Ex` (generated expression plus its static type), `Proc`, `CompileResult`, and `Gen`, the interface block handlers use to reach the compiler. |
+| `types.ts` | `Ex` (generated expression plus its static type), `MenuEx` (a menu value, with the special values marked), `Proc`, `CompileResult`, and `Gen`, the interface block handlers use to reach the compiler, including the shared menu resolver `Gen.menu`. |
 | `cast.ts` | Pure helpers: literals, `asNum`/`asStr`/`asBool`/`asAny` casts that skip casts that cannot change the value, `indent`. |
 | `scope.ts` | `Scope`: variable and list fields → `t.v[id]` / `S.v[id]`, with the stale-id fallback and the startup prelude for unknown ones. |
 | `extensions/*.ts` | Every block category is an extension (see [extensions.md](extensions.md)): one file per id (`motion`, `looks`, `sound`, `event`, `control`, `sensing`, `operator`, `data`, `procedures`, `argument`, `pen`), each declaring every opcode TurboWarp knows in it with its kind, status (compiled, partial, missing), handler, yield behaviour, hat rules and the runtime functions it uses. A handler is a pure function of a block and a `Gen`; returning `undefined` makes the block unsupported. `extensions/api.ts` defines the specs, `extensions/registry.ts` the `ExtensionRegistry` every other stage looks opcodes up in, and `extensions/index.ts` the built-in list. |
