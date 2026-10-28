@@ -6,7 +6,7 @@ import { numEx } from "../src/cast.js";
 import {
   BUILTIN_EXTENSIONS, ExtensionRegistry, builtins, checkExtension, hat, missing, reporter, statement, type Extension,
 } from "../src/extensions/index.js";
-import { compileProject } from "../src/index.js";
+import { CODEGEN_USES, compileProject } from "../src/index.js";
 import { block, project, stubGen, target } from "./helpers.js";
 
 /** A third-party extension, written the way docs/extensions.md describes. */
@@ -52,8 +52,8 @@ describe("the built-in extensions", () => {
     const stage = { isStage: true, name: "Stage", variables: {}, lists: {}, costumes: [], currentCostume: 0, layerOrder: 0 };
     const rt = new Runtime({ targets: [stage] } as unknown as ProjectJson, () => []) as unknown as Record<string, unknown>;
     const exists = (name: string) => name in rt || name in ops;
-    // Always available, so never listed: the casts and the loop yield.
-    const always = new Set(["toNum", "toStr", "toBool", "spin"]);
+    // Emitted by the code generator itself, so never listed by a block.
+    const always = new Set(CODEGEN_USES);
     const helpers = Object.keys(ops);
     for (const e of BUILTIN_EXTENSIONS) {
       for (const [op, spec] of Object.entries(e.blocks)) {
