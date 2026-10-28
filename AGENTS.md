@@ -22,7 +22,7 @@ pnpm bytecat dump examples/NAME.sbp    # print the generated project.json
 pnpm bench           # time bench/*.sbp on each engine (add names, --engines, --runs); exits 1 on a wrong log
 pnpm fuzz            # differential fuzzer: random programs on Bytecat vs TurboWarp (--count N --seed S --also-scratch)
 pnpm bytecat trace examples/NAME.sbp --frames 300 [--input F] [--seed S]  # frame-by-frame oracle vs TurboWarp (docs/testing.md)
-pnpm docs            # regenerate the builtin tables in docs/pseudocode.md
+pnpm run docs        # regenerate the builtin tables in docs/pseudocode.md and docs/blocks.md (`pnpm docs` is a pnpm built-in)
 ```
 
 ## Writing test projects
@@ -56,11 +56,11 @@ The browser tests need Chromium. First-time setup: `pnpm exec playwright install
 - Keep output deterministic. Never use `Math.random()` or wall-clock time for ids or file content.
 - Errors in user input are `PseudoError`s with a source position and a message that says how to
   fix the problem.
-- New pseudocode builtin: add it to `packages/pseudo/src/builtins.ts`, run `pnpm docs`, and cover
+- New pseudocode builtin: add it to `packages/pseudo/src/builtins.ts`, run `pnpm run docs`, and cover
   it in an example or a test in `packages/pseudo/test/lower.test.ts`.
 - New syntax: update `ast.ts`, `parser.ts`, `lower.ts`, `docs/pseudocode.md`, and add tests.
 - `tests/lower-hashes.test.ts` pins `project.json` hashes (fixture `tests/fixtures/lower-hashes.json`) and ignores new examples. When pseudocode lowering intentionally changes or the fuzz generator changes, regenerate it with `WRITE_LOWER_HASHES=1 pnpm exec vitest run tests/lower-hashes.test.ts` and review the diff.
-- New Scratch block in the compiler: add a handler to the matching file in `packages/compiler/src/blocks/` and a test in `packages/compiler/test/blocks.test.ts` (see "Compiler modules" in `docs/architecture.md`). Keep compiler stages small and pure so each can be tested alone.
+- New Scratch block in the compiler: every category is an extension (`docs/extensions.md`). Replace the opcode's `missing(...)` entry in `packages/compiler/src/extensions/ID.ts` with its handler (with `yields`, `substacks` and `uses` as they apply), add a test in `packages/compiler/test/blocks.test.ts`, and run `pnpm run docs` to update `docs/blocks.md`. Keep compiler stages small and pure so each can be tested alone.
 - Update `docs/` in the same change as the code it describes.
 
 ## Model routing

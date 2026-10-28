@@ -92,20 +92,31 @@ export class Runtime {
 
   // ---- starting scripts ----
 
-  private start(hat: Hat): Thread {
-    const target = this.targets[hat.target]!;
-    const th = new Thread(hat, target);
+  private start(hat: Hat): Thread | undefined {
+    // A hat that does not restart its script (`when key pressed`) is not started again while the
+    // script runs. Once it has finished, the new run goes at the end of the list like any new
+    // thread, even if the finished one is still listed, as in TurboWarp.
+    if (hat.restart === false) {
+      if (this.threads.some((old) => old.hat === hat && !old.done)) return undefined;
+      return this.push(new Thread(hat, this.targets[hat.target]!));
+    }
+    const th = new Thread(hat, this.targets[hat.target]!);
     // Re-triggering a hat restarts its script in the same place in the thread list, like
     // TurboWarp, so the new run waits for the next pass if that place is behind. That includes a
     // run that finished earlier in this pass: TurboWarp only forgets a thread when the pass ends,
-    // and so does `tick`. There is at most one thread per hat in the list.
+    // and so does `tick`. There is at most one thread per restarting hat in the list.
     const i = this.threads.findIndex((old) => old.hat === hat);
     if (i >= 0) {
       this.threads[i]!.done = true;
       this.threads[i] = th;
-    } else {
-      this.threads.push(th);
+      this.spin = 0;
+      return th;
     }
+    return this.push(th);
+  }
+
+  private push(th: Thread): Thread {
+    this.threads.push(th);
     // A loop that is spinning must yield at the end of its iteration so the new thread runs in
     // the same pass, as in Scratch.
     this.spin = 0;
@@ -119,9 +130,9 @@ export class Runtime {
   private startHats(kind: HatKind, arg?: string): Thread[] {
     const started: Thread[] = [];
     for (const hat of this.ordered ?? this.orderHats()) {
-      if (hat.kind === kind && (arg === undefined || hat.arg === arg || (kind === "key" && hat.arg === "any"))) {
-        started.push(this.start(hat));
-      }
+      if (hat.kind !== kind || (arg !== undefined && hat.arg !== arg)) continue;
+      const th = this.start(hat);
+      if (th) started.push(th);
     }
     return started;
   }
@@ -151,9 +162,11 @@ export class Runtime {
     while (started.some((th) => !th.done));
   }
 
+  /** A key press starts the hats for that key, then the "any" key hats, like TurboWarp. */
   keyDown(key: string): void {
     this.keys.add(key);
     this.startHats("key", key);
+    this.startHats("key", "any");
   }
 
   keyUp(key: string): void {
