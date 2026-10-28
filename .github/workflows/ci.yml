@@ -10,6 +10,14 @@ on:
 permissions:
   contents: read
 
+env:
+  # pnpm-lock.yaml records the TurboWarp git dependencies (turbowarp-vm and its scratch-parser) as
+  # git@github.com:TurboWarp/... SSH URLs, and the runner has no SSH key. This makes git fetch
+  # them over HTTPS instead; the repositories are public, so no credentials are needed.
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: url.https://github.com/.insteadOf
+  GIT_CONFIG_VALUE_0: "git@github.com:"
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -26,8 +34,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      # The TurboWarp VM (turbowarp-vm) is installed from GitHub by git URL, so this step needs
-      # network access to github.com but no credentials: the repository is public.
+      # The TurboWarp VM (turbowarp-vm) is installed from GitHub by git URL: see GIT_CONFIG_* above.
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify
