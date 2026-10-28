@@ -64,6 +64,17 @@ describe("the menu resolver", () => {
     expect(e.special).toBeUndefined();
   });
 
+  it("keeps a reporter's constant result as it is, not as menu text", () => {
+    // An argument reporter outside its custom block is the number 0, as in TurboWarp.
+    const e = resolve([3, "r", "m"], {
+      r: block("argument_reporter_string_number", { fields: { VALUE: ["n", null] } }),
+      m: shadow("motion_goto_menu", "TO", "Cat"),
+    });
+    expect(e).toMatchObject({ k: "0" });
+    expect(e.text).toBeUndefined();
+    expect(e.special).toBeUndefined();
+  });
+
   it("falls back to the input for a shadow no extension declares, and for a missing input", () => {
     expect(resolve([1, "m"], { m: shadow("other_menu", "X", "_random_") })).toMatchObject({ k: "_random_", special: "_random_" });
     expect(resolve(undefined)).toMatchObject({ c: '""', k: "" });

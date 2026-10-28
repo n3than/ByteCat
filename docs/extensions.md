@@ -114,9 +114,10 @@ A handler reads a menu input with `g.menu(b, "TO")`, the shared resolver. It ret
   checks `isConstant('_stage_')`.
 - When a reporter was dropped into the slot, the value is that reporter's expression, computed at
   run time and never marked special. Its runtime helper must then recognise the special values
-  itself, as TurboWarp's do.
+  itself, as TurboWarp's do. This holds even when the reporter folds to a constant: an argument
+  reporter outside its custom block stays the number 0, not the text "0".
 - A shadow no extension declares, a plain literal or a missing input falls back to `g.input`,
-  and any literal it gives is a menu value too.
+  and the literal it gives is a menu value too.
 
 `switch costume to` and `switch backdrop to` use it. `broadcast` still reads its input with
 `g.any`, which passes a broadcast named "1" as the number 1. The behaviour is the same either
