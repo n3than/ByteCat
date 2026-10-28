@@ -1,0 +1,145 @@
+# CI: `pnpm verify` and a fuzz run on every pull request and push to main, plus a benchmark
+# comparison against the base commit on pull requests. See README.md ("CI") and docs/benchmarks.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # pnpm-lock.yaml records the TurboWarp git dependencies (turbowarp-vm and its scratch-parser) as
+  # git@github.com:TurboWarp/... SSH URLs, and the runner has no SSH key. This makes git fetch
+  # them over HTTPS instead; the repositories are public, so no credentials are needed.
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: url.https://github.com/.insteadOf
+  GIT_CONFIG_VALUE_0: "git@github.com:"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The pnpm version comes from the `packageManager` field in package.json.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # The TurboWarp VM (turbowarp-vm) is installed from GitHub by git URL: see GIT_CONFIG_* above.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm verify
+
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Seeds 100000 to 100999: a range the 50 fixed seeds in tests/fuzz.test.ts do not cover.
+      - run: pnpm fuzz --count 1000 --seed 100000
+      - name: Upload failing programs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-failures
+          path: out/fuzz/
+          if-no-files-found: ignore
+
+  # Pull requests only. Builds the PR head and its base commit side by side, times both, and posts
+  # one comment with the comparison. It reports and never fails the build: shared runners are noisy.
+  bench:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          # This job runs the PR's code with a pull-requests:write token. Keep the token out of
+          # .git/config; only the github-script step below uses it.
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: head/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: head/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: head
+      - run: pnpm install --frozen-lockfile
+        working-directory: base
+      # Interleaved (base, head, base, head) so drift in the runner's speed hits both sides. Bytecat
+      # and TurboWarp only: scratch-vm is slow, and TurboWarp shows how much the runner drifted.
+      - name: Run benchmarks
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/results"
+          for i in 1 2; do
+            for side in base head; do
+              (cd "$side" && pnpm bench --engines bytecat,turbowarp --json -o "$GITHUB_WORKSPACE/results/$side-$i.json" > /dev/null) \
+                || echo "::warning::bench on $side (run $i) reported a failure"
+            done
+          done
+      - name: Compare
+        run: |
+          results="$GITHUB_WORKSPACE/results"
+          base_files=$(ls "$results"/base-*.json | paste -sd, -)
+          head_files=$(ls "$results"/head-*.json | paste -sd, -)
+          cd head
+          pnpm exec tsx scripts/bench-compare.ts --base "$base_files" --head "$head_files" \
+            --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" -o "$results/comment.md"
+          cat "$results/comment.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Post or update the PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('results/comment.md', 'utf8');
+            const marker = '<!-- bytecat-bench-comparison -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            try {
+              const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+              const existing = comments.find((c) => c.body && c.body.startsWith(marker));
+              if (existing) {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+              } else {
+                await github.rest.issues.createComment({ owner, repo, issue_number, body });
+              }
+            } catch (e) {
+              // A pull request from a fork gets a read-only token. The table is in the job summary.
+              core.warning(`Could not post the benchmark comment: ${e.message}`);
+            }

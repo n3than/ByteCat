@@ -59,6 +59,32 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
 - Bytecat follows TurboWarp and has no list length limit. scratch-vm caps lists at 200000 items,
   so keep benchmark lists below that or the engines will disagree.
 
+## Comparing a branch with main
+
+The `bench` job in `.github/workflows/ci.yml` runs on every pull request and posts the
+comparison as a PR comment (one comment, updated on every push). It checks out the PR head and
+its base commit into two directories, installs both, and runs
+`pnpm bench --engines bytecat,turbowarp --json -o results/SIDE-N.json` on each, interleaved: base,
+head, base, head. Interleaving means that a runner that gets faster or slower part-way through
+affects both sides. scratch-vm is left out because it is slow and CI does not depend on it;
+TurboWarp stays in as a noise reference, since the PR cannot change it.
+
+`scripts/bench-compare.ts` (tested in `tests/bench-compare.test.ts`) reads the result files and
+writes the comment. For each benchmark and engine it takes the median over the runs on each
+side (each run is already a median of timed runs) and shows base, head and the change. A Bytecat
+median more than 10% slower than the base is marked with a warning and listed above the table;
+other engines are never flagged. Benchmarks that only one side has are listed apart, and a result
+that was wrong or did not finish shows as `FAIL`; a Bytecat failure on either side is also named in the
+comment's headline, ahead of any slowdown.
+
+The job reports and never fails the build (`continue-on-error`, and the script exits 0
+whatever it finds), because shared runners are noisy: two identical builds can differ by more than
+10% on the short benchmarks. Treat a flag as a reason to re-run and look, then follow the rule in
+[roadmap.md](roadmap.md): a real slowdown needs a stated reason in the PR. On a pull request from a
+fork the token cannot comment; the same table is then in the job summary. To compare by hand, run
+`pnpm bench --json -o out/bench-SIDE.json` on both commits and pass them to
+`pnpm exec tsx scripts/bench-compare.ts --base a.json,b.json --head c.json,d.json`.
+
 ## Adding a benchmark
 
 1. Write `bench/NAME.sbp` in pseudocode (see [pseudocode.md](pseudocode.md)). Keep the output small
