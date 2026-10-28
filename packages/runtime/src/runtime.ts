@@ -177,7 +177,10 @@ export class Runtime {
     for (const th of this.threads) th.done = true;
     this.threads = [];
     this.spin = 0;
-    for (const t of this.targets) t.bubble = null;
+    for (const t of this.targets) {
+      t.bubble = null;
+      t.bubbleDrawn = false;
+    }
   }
 
   stopOthers(t: Target, self: Thread): void {

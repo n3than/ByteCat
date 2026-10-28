@@ -63,18 +63,24 @@ export function mod(n: number, m: number): number {
   return r;
 }
 
+/** scratch-vm's `Cast.isInt`: NaN and the infinities count as whole numbers. */
 function isIntLike(v: Value): boolean {
-  if (typeof v === "number") return Number.isInteger(v);
+  if (typeof v === "number") return Number.isNaN(v) || v === Math.floor(v);
   if (typeof v === "boolean") return true;
   return !v.includes(".");
 }
 
+/**
+ * `pick random`, written as TurboWarp writes it (`_random`, `randomInt`): equal ends return without
+ * drawing a number, so a seeded generator stays in step with TurboWarp's.
+ */
 export function random(from: Value, to: Value): number {
   const a = toNum(from);
   const b = toNum(to);
-  const low = Math.min(a, b);
-  const high = Math.max(a, b);
-  if (isIntLike(from) && isIntLike(to)) return low + Math.floor(Math.random() * (high - low + 1));
+  const low = a <= b ? a : b;
+  const high = a <= b ? b : a;
+  if (low === high) return low;
+  if (isIntLike(from) && isIntLike(to)) return low + Math.floor(Math.random() * (high + 1 - low));
   return Math.random() * (high - low) + low;
 }
 
