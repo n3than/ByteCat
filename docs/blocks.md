@@ -15,7 +15,7 @@ below but not counted.
 
 | Extension | Id | Compiled | Partial | Missing |
 | --- | --- | --- | --- | --- |
-| [Motion](#motion) | `motion` | 14 | 1 | 3 |
+| [Motion](#motion) | `motion` | 7 | 8 | 3 |
 | [Looks](#looks) | `looks` | 13 | 3 | 5 |
 | [Sound](#sound) | `sound` | 0 | 0 | 9 |
 | [Events](#event) | `event` | 7 | 0 | 2 |
@@ -26,29 +26,29 @@ below but not counted.
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
 | [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **87** | **8** | **39** |
+| **All** | | **80** | **15** | **39** |
 
 <a id="motion"></a>
 
 ## Motion (`motion`)
 
-14 compiled, 1 partial, 8 missing, counting hidden blocks.
+7 compiled, 8 partial, 8 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
-| `motion_movesteps` | statement | Compiled | yes |  |
+| `motion_movesteps` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_turnright` | statement | Compiled | yes |  |
 | `motion_turnleft` | statement | Compiled | yes |  |
 | `motion_goto` | statement | Missing | yes | go to random position, mouse pointer or a sprite; needs the shared menu resolver |
-| `motion_gotoxy` | statement | Compiled | yes | no motion block keeps the sprite on the stage yet (fencing, Phase 2); headless TurboWarp does not either |
+| `motion_gotoxy` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_glideto` | statement | Missing | yes | glide to random position, mouse pointer or a sprite |
-| `motion_glidesecstoxy` | statement, waits | Compiled | yes |  |
+| `motion_glidesecstoxy` | statement, waits | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_pointindirection` | statement | Compiled | yes |  |
 | `motion_pointtowards` | statement | Missing | yes | point towards mouse pointer or a sprite |
-| `motion_changexby` | statement | Compiled | yes |  |
-| `motion_setx` | statement | Compiled | yes |  |
-| `motion_changeyby` | statement | Compiled | yes |  |
-| `motion_sety` | statement | Compiled | yes |  |
+| `motion_changexby` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
+| `motion_setx` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
+| `motion_changeyby` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
+| `motion_sety` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_ifonedgebounce` | statement | Partial | yes | treats the sprite as a point; TurboWarp uses the costume's bounds |
 | `motion_setrotationstyle` | statement | Compiled | yes |  |
 | `motion_xposition` | reporter | Compiled | yes |  |
