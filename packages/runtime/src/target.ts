@@ -26,6 +26,8 @@ export class Target {
   rotationStyle = "all around";
   /** Current speech bubble, or null. */
   bubble: { kind: "say" | "think"; text: string } | null = null;
+  /** Whether a renderer would have the bubble drawn: it appeared on a visible sprite and is still up. */
+  bubbleDrawn = false;
 
   constructor(json: TargetJson) {
     this.name = json.name;

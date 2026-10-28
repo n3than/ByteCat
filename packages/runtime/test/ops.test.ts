@@ -278,3 +278,32 @@ describe("list helpers match the original implementation", () => {
     }
   });
 });
+
+// pick random as TurboWarp computes it (scratch3_operators `_random`, the compiler's `randomInt`).
+describe("random", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("draws nothing when both ends are equal, so a seeded generator stays in step", () => {
+    const spy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    expect(ops.random(5, 5)).toBe(5);
+    expect(ops.random("1", "1.0")).toBe(1);
+    expect(ops.random(Infinity, Infinity)).toBe(Infinity);
+    expect(spy).not.toHaveBeenCalled();
+    expect(ops.random(1, 10)).toBe(6);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats NaN and the infinities as whole numbers, like Cast.isInt", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.37);
+    expect(ops.random(NaN, 10)).toBe(4); // NaN casts to 0: 0 + floor(0.37 * 11)
+    expect(ops.random(10, NaN)).toBe(4);
+    expect(ops.random(1, 2.5)).toBeCloseTo(1.555);
+    expect(ops.random("1", "2.0")).toBeCloseTo(1.37);
+  });
+
+  it("orders the ends as TurboWarp does", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    expect(ops.random(10, 1)).toBe(1);
+    expect(Object.is(ops.random(0, -0), 0)).toBe(true);
+  });
+});

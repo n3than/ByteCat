@@ -25,11 +25,15 @@ export function* glide(rt: Runtime, t: Target, seconds: number, x: number, y: nu
   const duration = seconds * 1000;
   const x0 = t.x;
   const y0 = t.y;
-  for (;;) {
-    const frac = duration <= 0 ? 1 : (rt.now() - start) / duration;
-    if (frac >= 1) break;
-    setXY(rt, t, x0 + (x - x0) * frac, y0 + (y - y0) * frac);
+  if (duration > 0) {
+    // Like TurboWarp, the first step only starts the glide: no move, so no redraw yet.
     yield WAIT;
+    for (;;) {
+      const frac = (rt.now() - start) / duration;
+      if (frac >= 1) break;
+      setXY(rt, t, x0 + (x - x0) * frac, y0 + (y - y0) * frac);
+      yield WAIT;
+    }
   }
   setXY(rt, t, x, y);
 }
