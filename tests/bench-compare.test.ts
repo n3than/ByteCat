@@ -89,6 +89,23 @@ describe("renderComment", () => {
     expect(text).toContain("`1234567`");
   });
 
+  it("puts a wrong log on the head in the headline, ahead of any slowdown claim", () => {
+    const text = renderComment(compare(base, [run({ arith: { bytecat: "fail", turbowarp: 40 } })]));
+    const headline = text.split("\n").slice(0, 6).join("\n");
+    expect(headline).toContain(":x: Bytecat gave a wrong log or did not finish: `arith` on head.");
+    expect(text).not.toContain("No Bytecat median is more than");
+    expect(text).toContain("| arith | bytecat | 10.0 | FAIL | FAIL on head |");
+  });
+
+  it("names the base when the failure is there, and ignores a failing reference engine", () => {
+    const failedBase = [run({ arith: { bytecat: "fail", turbowarp: 40 } })];
+    expect(renderComment(compare(failedBase, [run({ arith: { bytecat: 9, turbowarp: 40 } })]))).toContain("`arith` on base.");
+    // Only Bytecat failures are in the headline; a TurboWarp one shows in the table.
+    const text = renderComment(compare(base, [run({ arith: { bytecat: 10, turbowarp: "fail" } })]));
+    expect(text).not.toContain(":x:");
+    expect(text).toContain("| arith | turbowarp | 40.0 | FAIL | FAIL on head |");
+  });
+
   it("says so when nothing is slower", () => {
     const text = renderComment(compare(base, [run({ arith: { bytecat: 9, turbowarp: 40 } })]));
     expect(text).toContain("No Bytecat median is more than 10% slower than main.");
@@ -114,7 +131,8 @@ describe("command line", () => {
     const h1 = file("h1.json", run({ arith: { bytecat: 20 } }));
     const h2 = file("h2.json", run({ arith: { bytecat: 20 } }));
     const out = join(dir, "comment.md");
-    execFileSync(process.execPath, [join(import.meta.dirname, "..", "node_modules", "tsx", "dist", "cli.mjs"), join(import.meta.dirname, "..", "scripts", "bench-compare.ts"), "--base", `${b1},${b2}`, "--head", `${h1},${h2}`, "-o", out], { stdio: "pipe" });
+    const root = join(import.meta.dirname, "..");
+    execFileSync("pnpm", ["exec", "tsx", "scripts/bench-compare.ts", "--base", `${b1},${b2}`, "--head", `${h1},${h2}`, "-o", out], { cwd: root, stdio: "pipe" });
     const text = readFileSync(out, "utf8");
     expect(text).toContain("**+100.0%** :warning:");
   });

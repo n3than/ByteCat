@@ -74,7 +74,8 @@ writes the comment. For each benchmark and engine it takes the median over the r
 side (each run is already a median of timed runs) and shows base, head and the change. A Bytecat
 median more than 10% slower than the base is marked with a warning and listed above the table;
 other engines are never flagged. Benchmarks that only one side has are listed apart, and a result
-that was wrong or did not finish shows as `FAIL`.
+that was wrong or did not finish shows as `FAIL`; a Bytecat failure on either side is also named in the
+comment's headline, ahead of any slowdown.
 
 The job reports and never fails the build (`continue-on-error`, and the script exits 0
 whatever it finds), because shared runners are noisy: two identical builds can differ by more than

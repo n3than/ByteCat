@@ -28,6 +28,8 @@ export interface Row {
   ratio: number | undefined;
   /** True for a Bytecat median more than `threshold` slower than the base. */
   slower: boolean;
+  /** Sides on which any run of this benchmark and engine gave a wrong log or did not finish. */
+  failedOn: ("base" | "head")[];
 }
 
 export interface Comparison {
@@ -80,6 +82,13 @@ function keys(runs: BenchFile[][]): [string, string][] {
   return out;
 }
 
+/** True when any run gave a wrong log or did not finish for this benchmark and engine. */
+function anyFailed(runs: BenchFile[][], name: string, engine: string): boolean {
+  return runs.some((run) =>
+    run.some((b) => b.name === name && b.engines.some((e) => e.engine === engine && (!e.correct || e.error !== undefined))),
+  );
+}
+
 export function compare(base: BenchFile[][], head: BenchFile[][], threshold = 0.1): Comparison {
   const b = medians(base);
   const h = medians(head);
@@ -100,6 +109,7 @@ export function compare(base: BenchFile[][], head: BenchFile[][], threshold = 0.
       head: headMs,
       ratio,
       slower: engine === FLAGGED_ENGINE && ratio !== undefined && ratio > 1 + threshold,
+      failedOn: [...(anyFailed(base, name, engine) ? (["base"] as const) : []), ...(anyFailed(head, name, engine) ? (["head"] as const) : [])],
     });
   }
   return {
@@ -112,7 +122,8 @@ export function compare(base: BenchFile[][], head: BenchFile[][], threshold = 0.
 const ms = (v: number | undefined) => (v === undefined ? "FAIL" : v.toFixed(1));
 
 function change(r: Row): string {
-  if (r.ratio === undefined) return r.head === undefined && r.base !== undefined ? "FAIL on head" : "n/a";
+  if (r.failedOn.length) return `FAIL on ${r.failedOn.join(" and ")}`;
+  if (r.ratio === undefined) return "n/a";
   const pct = (r.ratio - 1) * 100;
   const text = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
   return r.slower ? `**${text}** :warning:` : text;
@@ -131,13 +142,24 @@ export function renderComment(c: Comparison, o: CommentOptions = {}): string {
   const threshold = o.threshold ?? 0.1;
   const slower = c.rows.filter((r) => r.slower);
   const short = (s: string | undefined) => (s ? `\`${s.slice(0, 7)}\`` : "");
+  const failed = c.rows.filter((r) => r.engine === FLAGGED_ENGINE && r.failedOn.length);
   const lines = [MARKER, "## Benchmark comparison", ""];
+  if (failed.length) {
+    // A wrong log is worse than a slowdown, so it comes first in the headline.
+    lines.push(
+      `:x: Bytecat gave a wrong log or did not finish: ${failed.map((r) => `\`${r.name}\` on ${r.failedOn.join(" and ")}`).join(", ")}. ` +
+        "A failing result is not comparable, so fix it before reading the timings.",
+      "",
+    );
+  }
   if (slower.length) {
     lines.push(
       `:warning: ${slower.length} Bytecat median${slower.length === 1 ? " is" : "s are"} more than ${Math.round(threshold * 100)}% slower than main: ` +
         `${slower.map((r) => `\`${r.name}\``).join(", ")}. ` +
         "The roadmap needs a stated reason for each. Shared runners are noisy, so re-run before trusting a small difference.",
     );
+  } else if (failed.length) {
+    // The failure line above is the headline; no claim about the other benchmarks.
   } else if (c.rows.some((r) => r.engine === FLAGGED_ENGINE && r.ratio !== undefined)) {
     lines.push(`No Bytecat median is more than ${Math.round(threshold * 100)}% slower than main.`);
   } else {

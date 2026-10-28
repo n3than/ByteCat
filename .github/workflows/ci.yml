@@ -28,6 +28,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       # The pnpm version comes from the `packageManager` field in package.json.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -44,6 +46,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -78,10 +82,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           path: head
+          # This job runs the PR's code with a pull-requests:write token. Keep the token out of
+          # .git/config; only the github-script step below uses it.
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: head/package.json
