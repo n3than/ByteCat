@@ -104,6 +104,24 @@ A `menu` spec names the field of a shadow menu block (`motion_goto_menu` holds i
 `looks_costume` in `COSTUME`). A menu always compiles: its value is a literal, or whatever
 reporter the user dropped into the slot.
 
+A handler reads a menu input with `g.menu(b, "TO")`, the shared resolver. It returns a `MenuEx`:
+
+- When the slot holds its shadow menu, the value is a literal string (`k`) read from the field the
+  menu declares. It stays text even when it looks like a number, because a costume or sprite
+  named "2" is not number 2. The special values `_mouse_`, `_random_`, `_edge_`, `_stage_` and
+  `_myself_` are marked in `special`, so a handler can emit specialised code ("go to mouse
+  pointer" reads `rt.mouse` directly instead of looking a sprite up by name), the way TurboWarp
+  checks `isConstant('_stage_')`.
+- When a reporter was dropped into the slot, the value is that reporter's expression, computed at
+  run time and never marked special. Its runtime helper must then recognise the special values
+  itself, as TurboWarp's do.
+- A shadow no extension declares, a plain literal or a missing input falls back to `g.input`,
+  and any literal it gives is a menu value too.
+
+`switch costume to` and `switch backdrop to` use it. `broadcast` still reads its input with
+`g.any`, which passes a broadcast named "1" as the number 1. The behaviour is the same either
+way, but switching it would change generated code, so that waits for a PR that changes broadcasts.
+
 ## The registry
 
 `ExtensionRegistry` (`extensions/registry.ts`) holds the extensions of one compile and looks every
