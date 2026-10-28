@@ -50,3 +50,20 @@ text of a list treated a one-digit number as more than one character; list index
 did not treat the tab as zero; `letter` of a large or fractional index was not cut to 32 bits.
 It also found that a NaN result was not turned into 0 when it fed another numeric block, such as
 `(0 / 0) + 1`; the compiler's type inference now keeps the cast wherever a value may be NaN.
+
+## Found by the trace oracle
+
+Places where Bytecat and TurboWarp still disagree, found by [the trace oracle](testing.md). These
+are Bytecat bugs, not decisions. No example uses them, so `tests/trace.test.ts` stays green. Run
+the smallest program with `pnpm bytecat trace FILE` (add `--turbo` or `--input` where noted).
+Values below are Bytecat's, then TurboWarp's.
+
+| Difference | Smallest program | First difference |
+| --- | --- | --- |
+| A frame ends as soon as every step in a pass returns WAIT, even when a thread did work before waiting. TurboWarp busy-waits and re-checks its waits until the frame budget runs out. | stage: `when flag: wait_until(x = 1); log("a")` and `when flag: x = 1; wait_until(x = 2)` | frame 1, `log`: `[]` / `["a"]` |
+| The same rule in turbo mode: `wait(0)` takes a frame, but TurboWarp passes it within the frame. | `when flag: repeat 10: wait(0); n += 1` with `--turbo` | frame 1, `n`: `0` / `10` |
+| `stop all` stops every thread at once. TurboWarp only stops the running one; the threads after it in the same pass still run their step before the list is cleared. This also shows in the log of a finite run. | stage: `when flag: n += 1; log(n)`, sprite: `when flag: stop("all")` | frame 1, `n`: `0` / `1` |
+| `when key any` scripts start in the same pass as the scripts for the pressed key. TurboWarp starts every script for the key first, then the `any` ones. | sprite B: `when key "space": log("B space")`, sprite A on top: `when key "any": log("A any")`, input `press space` | frame 2, `log[1]`: `"A any"` / `"B space"` |
+| A bubble shows a number as is. TurboWarp rounds a non-integer of 0.01 or more to two decimals and cuts the text at 330 characters (`_formatBubbleText`). | `say(1.234)` | frame 1, bubble: `"say: 1.234"` / `"say: 1.23"` |
+| `ask` from a hidden sprite shows the question in a bubble. TurboWarp only does that for a visible sprite. | sprite `hidden`, `ask("name?")` | frame 1, bubble: `"say: name?"` / `""` |
+| `set rotation style` makes no redraw request, so it does not end a frame. TurboWarp's renderer requests one for a visible sprite. (The fix changes generated code.) | `repeat 10: rotation_style("left-right"); n += 1` | frame 1, `n`: `10` / `1` |

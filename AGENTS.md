@@ -21,6 +21,7 @@ pnpm web             # build the web app into out/web/index.html (docs/web.md)
 pnpm bytecat dump examples/NAME.sbp    # print the generated project.json
 pnpm bench           # time bench/*.sbp on each engine (add names, --engines, --runs); exits 1 on a wrong log
 pnpm fuzz            # differential fuzzer: random programs on Bytecat vs TurboWarp (--count N --seed S --also-scratch)
+pnpm bytecat trace examples/NAME.sbp --frames 300 [--input F] [--seed S]  # frame-by-frame oracle vs TurboWarp (docs/testing.md)
 pnpm docs            # regenerate the builtin tables in docs/pseudocode.md
 ```
 

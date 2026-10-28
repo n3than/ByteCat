@@ -15,13 +15,14 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 | --- | --- | --- |
 | `packages/sb3` | Types for `project.json`, deterministic ids, generated SVG assets, `.sb3` zip read/write, and a plain TypeScript `md5` so it runs in the browser. No Scratch semantics. | fflate |
 | `packages/pseudo` | Pseudocode compiler: `lexer.ts` (tokens with INDENT/DEDENT) → `parser.ts` (AST in `ast.ts`) → `lower.ts` (Scratch blocks). `lower.ts` is the core: project and target scopes, declarations, and the walk over scripts, statements and expressions with block id and source map handling. `lower/` has one file per family, each exporting plain functions that lower into a `TargetBuilder`: `control.ts` (if, loops, `for` desugaring), `data.ts` (assignment, list statements and list reporters), `procedures.ts` (`define` and calls), `events.ts` (`when` hats), `operators.ts` (arithmetic, comparison, `join`) and `calls.ts` (table-driven calls of builtin functions, `log`, and the "did you mean" hints). The builtin block table is `builtins.ts`. `tests/lower-hashes.test.ts` pins a hash of `project.json` and the source map for every example, bench and 300 fuzz seeds, so a refactor of lowering cannot change a block id. | sb3 |
-| `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
+| `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). `TurboWarpLockstep` (`lockstep.ts`) steps TurboWarp one frame at a time on a virtual clock for the trace oracle; `virtual.ts` holds the seeded random, pinned date and virtual timers, and `tw-ids.ts` makes TurboWarp's ids from a counter. | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
 | `packages/compiler` | `project.json` → one JavaScript program (`compile`, `toModule`, `load`). Reports unsupported opcodes as warnings. Split into small modules, see [Compiler modules](#compiler-modules). | runtime (types), sb3 |
 | `packages/runtime` | Headless scheduler (virtual or real clock), targets, say bubbles and the Scratch value helpers in `ops.ts` that generated code calls. `runtime.ts` is the `Runtime` class (state, events, hat order); `thread.ts` the `Thread`, `Hat` and `WAIT`; `scheduler.ts` the frame loop (`tick`, `step`); `lib/{motion,looks,sensing,control}.ts` the block helpers as plain functions taking `(rt, target, ...)`. `Runtime` keeps one-line delegate methods for them, which generated code still calls (`rt.move(t, 10)`) until it is switched to call the functions directly. | sb3 |
 | `packages/player` | Browser player: canvas renderer (`renderer.ts`), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild |
 | `packages/bench` | Benchmark harness: `Engine` implementations (Bytecat, scratch-vm, more via `registerEngine`), `benchmark` (warmup, timed runs, output check) and `formatTable`. See [benchmarks.md](benchmarks.md). | compiler, runtime, reference, sb3 |
 | `packages/web` | The web app (`pnpm web`): one HTML page that opens an `.sb3` or pseudocode, compiles it in the browser, plays it and offers downloads. See [web.md](web.md). | pseudo, sb3, compiler, player, esbuild |
 | `packages/cli` | The `bytecat` command (`pnpm bytecat ...`). Thin glue over the other packages. | all |
+| `packages/trace` | The trace oracle: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time on a virtual clock, and compares a snapshot of everything visible after every frame (`pnpm bytecat trace`, see [testing.md](testing.md)). The TurboWarp side is `TurboWarpLockstep` in `packages/reference`. | compiler, runtime, reference, sb3 |
 | `tests/fuzz/` | The differential fuzzer: random pseudocode programs run on Bytecat and TurboWarp and compared (`pnpm fuzz`, see [fuzzing.md](fuzzing.md)). | pseudo, compiler, runtime, reference |
 | `tests/` | Cross-package tests: every example end to end (scratch-vm, TurboWarp, Bytecat runtime, and in Chromium with `.pixels` probes and `.input` scripts, see `browser.test.ts`), and docs staying in sync. | |
 | `examples/` | Test projects (`NAME.sbp`), their expected `log` output (`NAME.expected`), and optionally pixel probes (`NAME.pixels`) and scripted input (`NAME.input`). | |
@@ -181,6 +182,15 @@ identical.
 on TurboWarp and compares their `log` lists (`run.ts`, `main.ts`). It exists so that optimizations
 in the compiler cannot change program results without a test noticing. `tests/fuzz.test.ts` runs
 50 fixed seeds in `pnpm test`; `pnpm fuzz --count N` runs more. See [fuzzing.md](fuzzing.md).
+
+## Trace oracle
+
+`packages/trace` compares two engines frame by frame rather than by their final log. Bytecat's
+real scheduler and TurboWarp's sequencer both run on a virtual clock with a budget of passes per
+frame, `pick random` is seeded, and the date is pinned. After every frame a snapshot of each engine
+(variables, lists, and each sprite's position, direction, costume, size, visibility, bubble and
+layer) is compared. `tests/trace.test.ts` traces every example and benchmark. The design, the
+snapshot format and what headless TurboWarp cannot judge are in [testing.md](testing.md).
 
 ## Design rules
 
