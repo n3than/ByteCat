@@ -42,3 +42,16 @@ Test projects are written in Bytecat pseudocode, documented in [docs/pseudocode.
 | Canvas renderer, input, standalone HTML | `@bytecat/player` | working |
 | Benchmarks | `@bytecat/bench` | working (Bytecat vs scratch-vm and TurboWarp) |
 | Web app | `@bytecat/web` | working (single page, runs fully in the browser) |
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`:
+
+- **verify**: `pnpm install --frozen-lockfile`, then `pnpm verify` (typecheck and all tests,
+  including the browser tests in Chromium). Must be green to merge.
+- **fuzz**: `pnpm fuzz --count 1000 --seed 100000`, a seed range the fixed seeds in `pnpm verify` do
+  not cover. A failing program is uploaded as the `fuzz-failures` artifact.
+- **bench** (pull requests only): builds the PR head and its base commit, times both on the same
+  runner and posts one comment with the median per benchmark and engine, flagging a Bytecat
+  median more than 10% slower. It reports and never fails the build. See
+  [docs/benchmarks.md](docs/benchmarks.md#comparing-a-branch-with-main).
