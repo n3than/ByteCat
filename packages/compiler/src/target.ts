@@ -2,9 +2,9 @@ import type { Block, CompactPrimitive, Input, InputValue, Target } from "@byteca
 import { TypeEnv } from "./analysis/env.js";
 import { analyzeEffects, type Effects } from "./analysis/effects.js";
 import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
-import { LOOPS } from "./analysis/yields.js";
 import { ZERO, type TypeSet } from "./analysis/typeset.js";
-import { statements, reporters } from "./blocks/index.js";
+import { builtins } from "./extensions/index.js";
+import type { ExtensionRegistry } from "./extensions/registry.js";
 import { anyEx, asAny, asBool, asNum, asStr, indent, lit, strEx } from "./cast.js";
 import { Scope } from "./scope.js";
 import type { Ex, FieldRef, Gen, Proc } from "./types.js";
@@ -45,13 +45,15 @@ export class TargetCodegen implements Gen {
     private readonly env: TypeEnv,
     /** Names of all costumes, backdrops and sounds in the project. */
     private readonly assetNames: ReadonlySet<string> = new Set(),
+    /** The extensions whose blocks this target may use. */
+    private readonly registry: ExtensionRegistry = builtins,
   ) {
     this.scope = new Scope(target, stage, prelude);
     this.blocks = target.blocks;
     const table = collectProcedures(target, index);
     this.procs = table.procs;
     // Settle which procedures are sync before compiling any call to them.
-    analyzeSync(target, table);
+    analyzeSync(target, table, registry);
     const effects = analyzeEffects(this.blocks, table, (field) => this.scope.variable(field));
     for (const [proccode, proc] of this.procs) {
       const e = effects.get(proccode);
@@ -91,37 +93,32 @@ export class TargetCodegen implements Gen {
     return body;
   }
 
+  /**
+   * The hat scripts, each with the event that starts it (`HatSpec.event`) and the argument it
+   * matches, read from the hat's `matchField` and lowercased. A hat the extension declares but
+   * cannot start is reported as unsupported, and so is an unknown block with a script under it;
+   * other top-level blocks never run.
+   */
   hats(): string[] {
     const out: string[] = [];
     for (const block of Object.values(this.blocks)) {
       if (!block.topLevel) continue;
-      let kind: string;
-      let arg: string | undefined;
-      switch (block.opcode) {
-        case "event_whenflagclicked":
-          kind = "flag";
-          break;
-        case "event_whenbroadcastreceived":
-          kind = "broadcast";
-          arg = (block.fields.BROADCAST_OPTION?.[0] ?? "").toLowerCase();
-          break;
-        case "event_whenkeypressed":
-          kind = "key";
-          arg = (block.fields.KEY_OPTION?.[0] ?? "").toLowerCase();
-          break;
-        case "event_whenthisspriteclicked":
-        case "event_whenstageclicked":
-          kind = "click";
-          break;
-        default:
-          if (block.opcode.startsWith("event_when") || block.opcode.startsWith("control_start_as_clone")) {
-            this.warnings.add(block.opcode);
-          }
-          continue;
+      const spec = this.registry.hat(block.opcode);
+      if (!spec) {
+        // An unknown block with a script under it is most likely a hat of an unknown extension.
+        if (block.next && !this.registry.spec(block.opcode)) this.warnings.add(block.opcode);
+        continue;
       }
+      if (spec.definesProcedure) continue;
+      // An edge-activated hat needs the scheduler to check its predicate, which it cannot yet.
+      if (spec.event === undefined || spec.edgeActivated) {
+        this.warnings.add(block.opcode);
+        continue;
+      }
+      const arg = spec.matchField === undefined ? undefined : (block.fields[spec.matchField]?.[0] ?? "").toLowerCase();
       const body = indent(this.withLocals(() => this.stack(block.next)), 2).join("\n");
       const argPart = arg === undefined ? "" : ` arg: ${JSON.stringify(arg)},`;
-      out.push(`{ target: ${this.index}, kind: "${kind}",${argPart} fn: function* (t, th) {\n${body}\n} }`);
+      out.push(`{ target: ${this.index}, kind: "${spec.event}",${argPart} fn: function* (t, th) {\n${body}\n} }`);
     }
     return out;
   }
@@ -317,8 +314,9 @@ export class TargetCodegen implements Gen {
   // ---- statements ----
 
   private statement(b: Block): string[] {
+    const { statements } = this.registry;
     const handler = Object.hasOwn(statements, b.opcode) ? statements[b.opcode] : undefined;
-    const loop = LOOPS.has(b.opcode);
+    const loop = handler !== undefined && this.registry.statement(b.opcode)!.yields === "loop";
     if (loop) this.loopDepth++;
     const lines = handler?.(b, this);
     if (loop) this.loopDepth--;
@@ -363,6 +361,7 @@ export class TargetCodegen implements Gen {
       const f = Object.values(b.fields)[0];
       return lit(f?.[0] ?? "");
     }
+    const { reporters } = this.registry;
     const handler = Object.hasOwn(reporters, b.opcode) ? reporters[b.opcode] : undefined;
     const ex = handler?.(b, this);
     if (ex) return ex;

@@ -25,15 +25,20 @@ export interface Proc {
 export interface CompileResult {
   /** Source of a `function (rt) { ... }` expression returning the program's hats. */
   code: string;
-  /** Blocks the compiler does not support. They compile to no-ops or empty values. */
+  /** Blocks the compiler does not support, by opcode. They compile to no-ops or empty values. */
   warnings: string[];
+  /**
+   * Extension ids the project lists in project.json that no registered extension has, sorted.
+   * Every block of such an extension is unsupported (and in `warnings`).
+   */
+  unknownExtensions: string[];
 }
 
 export type FieldRef = [string, string | null] | [string] | undefined;
 
 /**
- * What a block handler may ask of the compiler. Handlers in `blocks/` are pure functions of a
- * block and this interface, so each can be tested with a stub.
+ * What a block handler may ask of the compiler. Handlers in `extensions/` are pure functions of
+ * a block and this interface, so each can be tested with a stub.
  */
 export interface Gen {
   /** The target being compiled. */

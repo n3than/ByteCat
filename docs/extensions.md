@@ -1,0 +1,164 @@
+# Extensions
+
+Every block category is an extension, built-in or not. Motion, looks, the other Scratch
+categories, Pen, Music and a third-party extension all plug into the compiler through the same
+API, in `packages/compiler/src/extensions/`. The compiler itself knows no opcode: the code
+generator, the yield analysis, the block inventory and [blocks.md](blocks.md) all read the
+extension specs.
+
+## Why it looks like this
+
+The goal is generated code with no runtime layers (see the vision in the block coverage plan):
+each block compiles to the JavaScript for its operation, or to a call to a plain, named runtime
+function when the semantics need one. An extension is therefore a set of **compile-time** rules.
+The registry is consulted while compiling and never exists at run time: there is no dispatch
+table, no block-function lookup and no argument object in the generated program. A block that
+reads `rt.move(t, 10);` in the output was written by the motion extension's handler, and the
+handler declares that it calls `move` (`uses`), so a program can import exactly the runtime
+functions its blocks need and a bundled project ships only those. A third-party extension gets
+the same treatment, not a generic compatibility path.
+
+## An extension
+
+```ts
+import { hat, missing, numEx, reporter, statement, type Extension } from "@bytecat/compiler";
+
+export const counter: Extension = {
+  id: "counter", // the opcode prefix, and the id project.json lists under `extensions`
+  name: "Counter", // the name docs show
+  runtime: "./counter-runtime.js", // where `uses` names come from (default @bytecat/runtime)
+  blocks: {
+    counter_whenstarted: hat("flag", { restartExistingThreads: true }),
+    counter_bump: statement((b, g) => [`rt.bump(${g.num(b, "BY")});`], { uses: ["bump"] }),
+    counter_pause: statement((b, g) => g.y(`yield* rt.pause(${g.num(b, "SECS")});`), { yields: "wait", uses: ["pause"] }),
+    counter_value: reporter(() => numEx("rt.counter"), { uses: ["counter"] }),
+    counter_reset: missing("statement", "not written yet"),
+  },
+};
+```
+
+`id` is Scratch's opcode prefix (`motion` for `motion_movesteps`, `pen` for `pen_penDown`), and
+every opcode the extension declares must start with `${id}_`. The core ids are `motion`, `looks`,
+`sound`, `event`, `control`, `sensing`, `operator`, `data`, `procedures` and `argument`; `pen` is
+the first non-core one, and `music` and others follow the same pattern.
+
+`blocks` lists **every** opcode the extension knows, compiled or not. Each entry is a spec
+(`BlockSpec` in `extensions/api.ts`) with a `kind`, a `status` and, depending on the kind, how to
+compile it. The helpers `statement`, `reporter`, `boolean`, `hat`, `menu`, `missing` and
+`missingHat` build specs and keep extension files short.
+
+### What every spec says
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | `statement`, `reporter`, `boolean` (a hexagonal reporter), `hat` or `menu` (a shadow menu). |
+| `status` | `compiled` (matches TurboWarp), `partial` (compiles, but differs from TurboWarp in a case real projects reach) or `missing` (reported as an unsupported block). The helpers set it: `partial: "note"` makes a block partial. |
+| `note` | What is partial or missing; required for both. Shown in [blocks.md](blocks.md). |
+| `hidden` | Not in the default palette: Scratch 2 leftovers and TurboWarp-only blocks. |
+| `uses` | The runtime functions the generated code calls, by name (`move` for `rt.move`, `itemOf` for the list helper). The casts and the loop yield are always available and not listed. |
+
+### Statements and reporters
+
+`compile` is the handler: a pure function of the block and a `Gen` (`types.ts`), the interface
+to the compiler. It reads inputs already cast to the type it needs (`g.num`, `g.str`, `g.bool`,
+`g.any`, or `g.input` for the typed expression), fields (`g.field`), variables and lists, and
+returns lines of JavaScript for a statement or an `Ex` (code plus its static type) for a reporter.
+Returning `undefined` makes that use of the block unsupported, for a block that only handles some
+of its options (a `partial` one). Handlers are tested alone against a stub `Gen`
+(`packages/compiler/test/helpers.ts`).
+
+A statement also declares how it can yield, which is all `analysis/yields.ts` knows about it:
+
+- `yields: "wait"`: it can wait for a later frame whatever it is given (`wait`, `glide`, `ask`).
+  The handler wraps the waiting line in `g.y(...)`, which stores and reloads the variables kept
+  in locals around it.
+- `yields: "loop"`: a loop, which yields at the end of every iteration outside warp mode
+  (`g.loopYield()`), and whose body keeps the variables it uses in locals.
+- a function `(block, ctx) => boolean`, for a block whose answer depends on the project; only
+  `procedures_call` needs one (a call yields when its callee can).
+- `substacks`: the substack inputs it runs, which the analysis follows.
+
+A test runs every handler against the stub and fails if it yields when its spec says it cannot,
+or the other way round, or compiles a substack it does not declare. That is what lets a
+procedure that never yields compile to a plain function, which is much faster than a generator.
+
+### Hats
+
+A hat spec carries TurboWarp's hat metadata and how Bytecat starts the script:
+
+| Field | Meaning |
+| --- | --- |
+| `event` | The runtime event that starts it, `Hat.kind` in `@bytecat/runtime`: `flag`, `broadcast`, `key`, `click`. Left out while the hat is missing. |
+| `matchField` | The field the event is matched against, ignoring case (TurboWarp's `optMatchFields`): `BROADCAST_OPTION`, `KEY_OPTION`. Its lowercased value becomes `Hat.arg`. |
+| `restartExistingThreads` | TurboWarp's rule from `getHats`: whether starting the hat while its script runs restarts the script (flag, broadcast, click, backdrop) or leaves it running and drops the new start (`when key pressed`, `when I start as a clone`, the edge-triggered hats). |
+| `edgeActivated` | TurboWarp's edge-triggered hats (`when timer > 10`, `when touching`): the runtime checks a condition every frame and starts the script when it turns true. |
+| `predicate` | For an edge-activated hat, the condition, compiled from the hat block's inputs like a reporter. The scheduler cannot check one yet, so an edge-activated hat counts as missing for now. |
+
+`tests/inventory.test.ts` compares `restartExistingThreads` and `edgeActivated` with TurboWarp's
+`getHats` for every hat. `procedures_definition` is a hat too (`definesProcedure`): the script
+under it compiles to the custom block's function instead of a hat script.
+
+### Menus
+
+A `menu` spec names the field of a shadow menu block (`motion_goto_menu` holds its value in `TO`,
+`looks_costume` in `COSTUME`). A menu always compiles: its value is a literal, or whatever
+reporter the user dropped into the slot.
+
+## The registry
+
+`ExtensionRegistry` (`extensions/registry.ts`) holds the extensions of one compile and looks every
+opcode up by kind. It refuses, with a message per problem, extensions that would make the
+inventory lie: an opcode outside its prefix, an id or opcode registered twice, a `missing` block
+with a handler, a `compiled` or `partial` one without, a partial or missing block without a note,
+a hat the runtime starts without a restart rule, and a loop without a substack.
+
+`builtins` is the registry of `BUILTIN_EXTENSIONS` (`extensions/index.ts`), the extensions
+Bytecat ships.
+
+## Adding a block to a built-in extension
+
+1. Find the opcode's entry in `packages/compiler/src/extensions/ID.ts` (every opcode TurboWarp
+   knows is already listed) and replace `missing(...)` with `statement(...)`, `reporter(...)` or
+   `boolean(...)`, with `yields`, `substacks` and `uses` as they apply. If it does not yet match
+   TurboWarp in every case, pass `partial: "what differs"`.
+2. Add a handler test in `packages/compiler/test/blocks.test.ts`, and an example or runtime test
+   for the behaviour (see `AGENTS.md`).
+3. Run `pnpm run docs` to regenerate [blocks.md](blocks.md); `tests/docs.test.ts` fails until you do.
+
+A new built-in extension (`music`, say) is a new file with its `Extension`, added to
+`BUILTIN_EXTENSIONS`. The inventory test reads TurboWarp's block modules from the `turbowarp-vm`
+dependency (`turbowarpBlocks` in `@bytecat/reference`) and fails if any opcode TurboWarp knows is
+not declared, so add the extension's module there too.
+
+## A third-party extension
+
+Pass it to the compiler:
+
+```ts
+import { compileProject } from "@bytecat/compiler";
+
+const { code, warnings, unknownExtensions } = compileProject(project, { extensions: [counter] });
+```
+
+Its blocks then compile exactly like built-in ones, its hats start like built-in hats, and its
+yield declarations feed the procedure analysis. Its ids and opcodes must not clash with the
+built-in ones.
+
+A project lists the non-core extensions it uses in project.json's `extensions`. An id that no
+registered extension has is reported in `CompileResult.unknownExtensions`, and the CLI and the web
+app warn about it; each block of it is also reported as unsupported in `warnings`. Bytecat has no
+generic path that runs an extension's own JavaScript: if one is ever added for extensions that
+cannot be compiled, it will be reported as a warning and never used for built-in blocks.
+
+**Runtime functions.** Generated code still reaches every runtime function through `rt`
+(`rt.move(t, 10)`), so until the follow-up that makes generated programs import the functions they
+use directly, a third-party extension's functions must be added to the `Runtime` before the
+project starts (`rt.bump = ...`). Its `runtime` module and the `uses` of its blocks are what that
+follow-up will import from.
+
+## What is not part of the API yet
+
+- `analysis/effects.ts` still knows the variable blocks by opcode (which blocks read or assign the
+  variable in their `VARIABLE` field). An extension whose block reads another target's variables
+  (`sensing_of`) will declare that in its spec when it lands.
+- Edge-triggered hats have room in the spec (`edgeActivated`, `predicate`) but no scheduler support.

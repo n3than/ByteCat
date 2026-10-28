@@ -1,8 +1,12 @@
 import type { ProgramFactory } from "@bytecat/runtime";
 import type { ProjectJson } from "@bytecat/sb3";
-import { compileProject, type CompileResult } from "./codegen.js";
+import { compileProject, type CompileOptions, type CompileResult } from "./codegen.js";
 
-export { compileProject, type CompileResult } from "./codegen.js";
+export { compileProject, type CompileOptions, type CompileResult } from "./codegen.js";
+export * from "./extensions/index.js";
+export type { Ex, FieldRef, Gen, Proc, ReporterHandler, StatementHandler } from "./types.js";
+// For extension handlers: literals, typed expressions and the casts that skip what types prove.
+export { anyEx, asAny, asBool, asName, asNum, asStr, boolEx, lit, numEx, strEx } from "./cast.js";
 
 /** Turns generated code into a callable program factory. */
 export function load(code: string): ProgramFactory {
@@ -10,8 +14,8 @@ export function load(code: string): ProgramFactory {
 }
 
 /** Compiles a project and loads it in one step. */
-export function compile(project: ProjectJson): CompileResult & { program: ProgramFactory } {
-  const result = compileProject(project);
+export function compile(project: ProjectJson, options: CompileOptions = {}): CompileResult & { program: ProgramFactory } {
+  const result = compileProject(project, options);
   return { ...result, program: load(result.code) };
 }
 
