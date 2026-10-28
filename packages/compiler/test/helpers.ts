@@ -1,7 +1,7 @@
 import type { Block, ProjectJson, Target } from "@bytecat/sb3";
 import type { Ex, Gen } from "../src/types.js";
 import { ANY } from "../src/analysis/typeset.js";
-import { asAny, asBool, asNum, asStr, indent, lit } from "../src/cast.js";
+import { asAny, asBool, asNum, asStr, indent, lit, menuLiteral } from "../src/cast.js";
 
 export function block(opcode: string, extra: Partial<Block> = {}): Block {
   return { opcode, next: null, parent: null, inputs: {}, fields: {}, shadow: false, topLevel: false, ...extra };
@@ -29,6 +29,10 @@ export function stubGen(inputs: Record<string, Ex> = {}, fields: Record<string, 
     str: (b, name) => asStr(g.input(b, name)),
     bool: (b, name) => asBool(g.input(b, name)),
     any: (b, name) => asAny(g.input(b, name)),
+    menu: (b, name) => {
+      const e = g.input(b, name);
+      return e.k !== undefined ? menuLiteral(e.k) : e;
+    },
     field: (_b, name) => fields[name] ?? "",
     variable: (f) => `t.v[${JSON.stringify(f?.[1] ?? f?.[0])}]`,
     list: (f) => `t.l[${JSON.stringify(f?.[1] ?? f?.[0])}]`,

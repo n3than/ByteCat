@@ -5,9 +5,9 @@ import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
 import { ZERO, type TypeSet } from "./analysis/typeset.js";
 import { builtins } from "./extensions/index.js";
 import type { ExtensionRegistry } from "./extensions/registry.js";
-import { anyEx, asAny, asBool, asNum, asStr, indent, lit, strEx } from "./cast.js";
+import { anyEx, asAny, asBool, asNum, asStr, indent, lit, menuLiteral, strEx } from "./cast.js";
 import { Scope } from "./scope.js";
-import type { Ex, FieldRef, Gen, Proc } from "./types.js";
+import type { Ex, FieldRef, Gen, MenuEx, Proc } from "./types.js";
 
 /** Compiles the procedures and hat scripts of one target. */
 export class TargetCodegen implements Gen {
@@ -309,6 +309,21 @@ export class TargetCodegen implements Gen {
 
   any(b: Block, name: string): string {
     return asAny(this.input(b, name));
+  }
+
+  /**
+   * The shared menu resolver. A shadow menu the extensions declare is read from its declared
+   * field; anything else in the slot (a reporter, or a shadow no extension declares) compiles as
+   * an input, and a literal it gives is a menu value all the same.
+   */
+  menu(b: Block, name: string): MenuEx {
+    const inp: Input | undefined = b.inputs[name];
+    const v = inp?.[1] ?? (inp && inp.length > 2 ? (inp as [3, InputValue, InputValue])[2] : null);
+    const shadow = typeof v === "string" ? this.blocks[v] : undefined;
+    const spec = shadow ? this.registry.menu(shadow.opcode) : undefined;
+    if (shadow && spec) return menuLiteral(shadow.fields[spec.field]?.[0] ?? "");
+    const e = this.input(b, name);
+    return e.k !== undefined ? menuLiteral(e.k) : e;
   }
 
   // ---- statements ----

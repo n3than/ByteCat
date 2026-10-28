@@ -14,6 +14,19 @@ export interface Ex {
   text?: boolean;
 }
 
+/** The menu values Scratch gives a meaning beyond a name: the mouse pointer, a random position, ... */
+export const MENU_SPECIALS = ["_mouse_", "_random_", "_edge_", "_stage_", "_myself_"] as const;
+export type MenuSpecial = (typeof MENU_SPECIALS)[number];
+
+/** The value of a menu input (`Gen.menu`). */
+export interface MenuEx extends Ex {
+  /**
+   * Set when the menu is fixed at compile time and names one of the special values, so a handler
+   * can emit code for "go to mouse pointer" instead of looking a sprite up by name.
+   */
+  special?: MenuSpecial;
+}
+
 export interface Proc {
   fn: string;
   params: string[];
@@ -52,6 +65,13 @@ export interface Gen {
   str(b: Block, name: string): string;
   bool(b: Block, name: string): string;
   any(b: Block, name: string): string;
+  /**
+   * A menu input (costume, sprite, key, broadcast, ...). When the slot holds its shadow menu the
+   * value is a literal string (`k`), with `special` set for `_mouse_`, `_random_`, `_edge_`,
+   * `_stage_` and `_myself_`; when a reporter was dropped into the slot it is that reporter's
+   * expression, computed at run time.
+   */
+  menu(b: Block, name: string): MenuEx;
   /** First value of a field, or the empty string. */
   field(b: Block, name: string): string;
   /** JavaScript reference for a variable or list field. */
