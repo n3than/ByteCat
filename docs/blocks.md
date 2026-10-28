@@ -18,7 +18,7 @@ below but not counted.
 | [Motion](#motion) | `motion` | 14 | 1 | 3 |
 | [Looks](#looks) | `looks` | 13 | 3 | 5 |
 | [Sound](#sound) | `sound` | 0 | 0 | 9 |
-| [Events](#event) | `event` | 6 | 1 | 2 |
+| [Events](#event) | `event` | 7 | 0 | 2 |
 | [Control](#control) | `control` | 8 | 0 | 3 |
 | [Sensing](#sensing) | `sensing` | 10 | 0 | 8 |
 | [Operators](#operator) | `operator` | 18 | 0 | 0 |
@@ -26,7 +26,7 @@ below but not counted.
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
 | [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **86** | **9** | **39** |
+| **All** | | **87** | **8** | **39** |
 
 <a id="motion"></a>
 
@@ -123,12 +123,12 @@ below but not counted.
 
 ## Events (`event`)
 
-6 compiled, 1 partial, 3 missing, counting hidden blocks.
+7 compiled, 0 partial, 3 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
 | `event_whenflagclicked` | hat, restarts | Compiled | yes |  |
-| `event_whenkeypressed` | hat, no restart | Partial | yes | a running script restarts; TurboWarp lets it finish |
+| `event_whenkeypressed` | hat, no restart | Compiled | yes |  |
 | `event_whenthisspriteclicked` | hat, restarts | Compiled | yes |  |
 | `event_whenstageclicked` | hat, restarts | Compiled | yes |  |
 | `event_whenbackdropswitchesto` | hat, restarts | Missing | yes | switching backdrops starts no hats yet |

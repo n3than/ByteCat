@@ -1,0 +1,21 @@
+# TurboWarp's key hat rules. Pressing a key again while its "when key pressed" script runs does
+# not restart the script (restartExistingThreads is false for this hat), and the scripts for the
+# key start before the "any" key scripts, whatever their order.
+# Needs key_restart.input to run, so the node-only test suites skip it.
+var runs = 0
+
+sprite Cat:
+  costume cat = circle "#ffab19"
+
+  when key "any":
+    log("any")
+
+  when key "space":
+    log("space start")
+    wait(0.2)
+    log("space end")
+    runs += 1
+
+  when flag:
+    wait_until(runs = 2)
+    stop("all")

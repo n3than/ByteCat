@@ -61,7 +61,8 @@ checks the inventory against TurboWarp's block modules. `tests/codegen-snapshots
 ## Generated code
 
 `compile` emits a single `function (rt)` expression. Given a `Runtime` it returns the list of hats
-(event kind plus script function). Each script is a generator function: loops end each iteration
+(event kind, the argument it matches, `restart: false` for a hat that does not restart a running
+script, and the script function). Each script is a generator function: loops end each iteration
 with `if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and any blocked state
 (`wait`, `wait until`, `ask`) does `yield rt.WAIT`. A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
@@ -164,6 +165,12 @@ The runtime caches that list per event and clears the cache when a sprite change
 that restarts a script puts the new thread in the old one's place in the thread list, so it runs
 on the next pass if that place is already behind. That includes a thread that finished earlier in
 the same pass, which stays listed until the pass ends, as in TurboWarp (`examples/restart_order`).
+Whether a hat restarts its running script is TurboWarp's `restartExistingThreads`, which the
+hat's extension declares and the compiler passes on as `restart: false` for the hats that do not
+(`when key pressed`): pressing the key again while its script runs leaves the script alone, and a
+start after it has finished goes at the end of the thread list. A key press starts the hats for
+that key and then the "any" key hats, as two separate passes over the hats like TurboWarp
+(`examples/key_restart`, `packages/runtime/test/hats.test.ts`).
 
 The list helpers in `ops.ts` (`itemOf`, `replaceAt`, `deleteOf`, `insertAt`, `indexOf`) have fast
 paths for the common case of a number index (inlined floor and range check, no `listIndex`), and
