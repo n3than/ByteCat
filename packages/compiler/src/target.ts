@@ -5,9 +5,9 @@ import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
 import { ZERO, type TypeSet } from "./analysis/typeset.js";
 import { builtins } from "./extensions/index.js";
 import type { ExtensionRegistry } from "./extensions/registry.js";
-import { anyEx, asAny, asBool, asNum, asStr, indent, lit, strEx } from "./cast.js";
+import { anyEx, asAny, asBool, asNum, asStr, indent, lit, menuLiteral, strEx } from "./cast.js";
 import { Scope } from "./scope.js";
-import type { Ex, FieldRef, Gen, Proc } from "./types.js";
+import type { Ex, FieldRef, Gen, MenuEx, Proc } from "./types.js";
 
 /** Compiles the procedures and hat scripts of one target. */
 export class TargetCodegen implements Gen {
@@ -314,6 +314,23 @@ export class TargetCodegen implements Gen {
     return asAny(this.input(b, name));
   }
 
+  /**
+   * The shared menu resolver. A shadow menu the extensions declare is read from its declared
+   * field. Anything else in the slot compiles as an input; a literal the slot itself holds (a
+   * shadow no extension declares, a primitive, or nothing) is a menu value all the same, but a
+   * reporter keeps its own result even when it folds to a constant, so an argument reporter used
+   * outside its block stays the number 0, as in TurboWarp.
+   */
+  menu(b: Block, name: string): MenuEx {
+    const v = this.slotValue(b, name);
+    const block = typeof v === "string" ? this.blocks[v] : undefined;
+    const spec = block ? this.registry.menu(block.opcode) : undefined;
+    if (block && spec) return menuLiteral(block.fields[spec.field]?.[0] ?? "");
+    const e = this.input(b, name);
+    const constantSlot = typeof v !== "string" || block?.shadow === true;
+    return constantSlot && e.k !== undefined ? menuLiteral(e.k) : e;
+  }
+
   // ---- statements ----
 
   private statement(b: Block): string[] {
@@ -338,10 +355,18 @@ export class TargetCodegen implements Gen {
     return e.k !== undefined && !e.text && this.assetNames.has(e.k) ? lit(e.k, true) : e;
   }
 
-  private rawInput(b: Block, name: string): Ex {
+  /**
+   * What an input slot holds: the reporter dropped into it, else its shadow (a block id or a
+   * compact primitive); null when the input is missing or empty.
+   */
+  private slotValue(b: Block, name: string): InputValue {
     const inp: Input | undefined = b.inputs[name];
-    if (!inp) return lit("");
-    const v: InputValue = inp[1] ?? (inp.length > 2 ? (inp as [3, InputValue, InputValue])[2] : null);
+    if (!inp) return null;
+    return inp[1] ?? (inp.length > 2 ? (inp as [3, InputValue, InputValue])[2] : null);
+  }
+
+  private rawInput(b: Block, name: string): Ex {
+    const v = this.slotValue(b, name);
     if (v === null) return lit("");
     if (Array.isArray(v)) return this.primitive(v);
     return this.reporter(v);

@@ -1,7 +1,7 @@
 import {
   ANY, BOOL, INF, NUM, NUM_OR_NAN, STR, add, castNum, subtract as subtractTypes, typeOfValue, within, type TypeSet,
 } from "./analysis/typeset.js";
-import type { Ex } from "./types.js";
+import { MENU_SPECIALS, type Ex, type MenuEx, type MenuSpecial } from "./types.js";
 
 /**
  * A literal known at compile time. Its type is that of the value `asAny` passes on: a number for
@@ -10,6 +10,16 @@ import type { Ex } from "./types.js";
 export function lit(value: string, text = false): Ex {
   const n = text ? undefined : numericConstant(value);
   return { c: JSON.stringify(value), t: typeOfValue(n ?? value), k: value, ...(text ? { text } : {}) };
+}
+
+/**
+ * A menu value known at compile time. It stays a string (a menu field is always text, and a
+ * costume named "2" must not become costume number 2), and a special value is marked.
+ */
+export function menuLiteral(value: string): MenuEx {
+  const e: MenuEx = lit(value, true);
+  if ((MENU_SPECIALS as readonly string[]).includes(value)) e.special = value as MenuSpecial;
+  return e;
 }
 
 /** A number expression; without a more precise type it may be any number, NaN included. */
