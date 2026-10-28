@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { compare, FLAGGED_ENGINE, MARKER, median, medians, renderComment, type BenchFile } from "../scripts/bench-compare.ts";
+import { compare, FLAGGED_ENGINE, MARKER, median, medians, quantile, renderComment, spread, type BenchFile } from "../scripts/bench-compare.ts";
 
 function run(times: Record<string, Record<string, number | "fail">>): BenchFile[] {
   return Object.entries(times).map(([name, engines]) => ({
@@ -76,15 +76,83 @@ describe("compare", () => {
   });
 });
 
+/** Several rounds of one Bytecat benchmark, one file each. */
+const rounds = (times: number[]) => times.map((t) => run({ arith: { bytecat: t } }));
+
+describe("quantile and spread", () => {
+  it("interpolates between rounds", () => {
+    expect(quantile([1, 2, 3, 4, 5], 0.25)).toBe(2);
+    expect(quantile([1, 2, 3, 4, 5], 0.75)).toBe(4);
+    expect(quantile([4, 1, 3, 2], 0.25)).toBeCloseTo(1.75);
+    expect(quantile([7], 0.75)).toBe(7);
+    expect(spread([9, 8, 12, 10, 11])).toEqual({ n: 5, min: 8, q1: 9, median: 10, q3: 11, max: 12 });
+    expect(spread([])).toBeUndefined();
+  });
+});
+
+describe("flagging against round-to-round noise", () => {
+  // Rounds are separate processes and vary by 25% or more, so a median 15% up is not a regression
+  // when the rounds overlap.
+  const base = rounds([10, 12, 8, 11, 9]);
+  const row = (head: BenchFile[][]) => compare(base, head).rows[0]!;
+
+  it("does not flag a median over the threshold while the spreads overlap, and says so", () => {
+    const r = row(rounds([11.5, 13, 10.5, 12, 9.5]));
+    expect(r.ratio).toBeCloseTo(1.15);
+    // Head Q1 is 10.5, base Q3 is 11.
+    expect(r.slower).toBe(false);
+    expect(r.withinNoise).toBe(true);
+    expect(renderComment(compare(base, rounds([11.5, 13, 10.5, 12, 9.5])))).toContain("+15.0% (within noise)");
+  });
+
+  it("flags it once the head's fast quarter of rounds is slower than the base's slow quarter", () => {
+    const r = row(rounds([12, 13, 12.5, 14, 13]));
+    // Head Q1 is 12.5, base Q3 is 11.
+    expect(r.slower).toBe(true);
+    expect(r.withinNoise).toBe(false);
+  });
+
+  it("does not flag unchanged code however the rounds scatter", () => {
+    for (const head of [rounds([8, 9, 10, 11, 12]), rounds([12, 11, 10, 9, 8]), rounds([9, 12, 8, 10, 11]), rounds([11, 11, 11, 11, 11])]) {
+      expect(row(head).slower).toBe(false);
+    }
+  });
+
+  it("needs the spreads strictly apart: a head Q1 equal to the base Q3 is not flagged", () => {
+    // Base Q3 is 11; head rounds with Q1 exactly 11 and a median more than 10% over 10.
+    const r = row(rounds([11, 11, 12, 13, 14]));
+    expect(r.ratio).toBeCloseTo(1.2);
+    expect(r.headSpread!.q1).toBe(11);
+    expect(r.slower).toBe(false);
+  });
+
+  it("flags a clear slowdown with a single round on each side, as before", () => {
+    expect(compare(rounds([10]), rounds([13])).rows[0]!.slower).toBe(true);
+    expect(compare(rounds([10]), rounds([10.5])).rows[0]!.slower).toBe(false);
+  });
+
+  it("uses the rounds each row has when engines come from different files", () => {
+    const mixed = (bytecat: number[], turbowarp: number[]) => [
+      ...bytecat.map((t) => run({ arith: { bytecat: t } })),
+      ...turbowarp.map((t) => run({ arith: { turbowarp: t } })),
+    ];
+    const c = compare(mixed([10, 11, 12, 10], [40, 41]), mixed([10, 11, 12, 10], [40, 44]));
+    const byEngine = (e: string) => c.rows.find((r) => r.engine === e)!;
+    expect(byEngine("bytecat").baseSpread!.n).toBe(4);
+    expect(byEngine("turbowarp").baseSpread!.n).toBe(2);
+    expect(renderComment(c)).toContain("Rounds per side (interleaved, each a separate process): bytecat 4, turbowarp 2.");
+  });
+});
+
 describe("renderComment", () => {
   const base = [run({ arith: { bytecat: 10, turbowarp: 40 } })];
 
   it("starts with the marker that lets CI update one comment, and warns about a slowdown", () => {
-    const text = renderComment(compare(base, [run({ arith: { bytecat: 13, turbowarp: 40 } })]), { baseSha: "abcdef0123", headSha: "1234567890", baseRuns: 2, headRuns: 2 });
+    const text = renderComment(compare(base, [run({ arith: { bytecat: 13, turbowarp: 40 } })]), { baseSha: "abcdef0123", headSha: "1234567890" });
     expect(text.startsWith(MARKER)).toBe(true);
-    expect(text).toContain("| arith | bytecat | 10.0 | 13.0 | **+30.0%** :warning: |");
-    expect(text).toContain("| arith | turbowarp | 40.0 | 40.0 | +0.0% |");
-    expect(text).toContain("1 Bytecat median is more than 10% slower than main: `arith`");
+    expect(text).toContain("| arith | bytecat | 10.0 | 13.0 | **+30.0%** :warning: | 10.0\u201310.0 | 13.0\u201313.0 |");
+    expect(text).toContain("| arith | turbowarp | 40.0 | 40.0 | +0.0% | 40.0\u201340.0 | 40.0\u201340.0 |");
+    expect(text).toContain("1 Bytecat median is more than 10% slower than main, beyond the noise between rounds: `arith`");
     expect(text).toContain("`abcdef0`");
     expect(text).toContain("`1234567`");
   });
@@ -94,7 +162,7 @@ describe("renderComment", () => {
     const headline = text.split("\n").slice(0, 6).join("\n");
     expect(headline).toContain(":x: Bytecat gave a wrong log or did not finish: `arith` on head.");
     expect(text).not.toContain("No Bytecat median is more than");
-    expect(text).toContain("| arith | bytecat | 10.0 | FAIL | FAIL on head |");
+    expect(text).toContain("| arith | bytecat | 10.0 | FAIL | FAIL on head | 10.0\u201310.0 | n/a |");
   });
 
   it("names the base when the failure is there, and ignores a failing reference engine", () => {
@@ -103,13 +171,13 @@ describe("renderComment", () => {
     // Only Bytecat failures are in the headline; a TurboWarp one shows in the table.
     const text = renderComment(compare(base, [run({ arith: { bytecat: 10, turbowarp: "fail" } })]));
     expect(text).not.toContain(":x:");
-    expect(text).toContain("| arith | turbowarp | 40.0 | FAIL | FAIL on head |");
+    expect(text).toContain("| arith | turbowarp | 40.0 | FAIL | FAIL on head | 40.0\u201340.0 | n/a |");
   });
 
   it("says so when nothing is slower", () => {
     const text = renderComment(compare(base, [run({ arith: { bytecat: 9, turbowarp: 40 } })]));
-    expect(text).toContain("No Bytecat median is more than 10% slower than main.");
-    expect(text).toContain("| arith | bytecat | 10.0 | 9.0 | -10.0% |");
+    expect(text).toContain("No Bytecat median is more than 10% slower than main beyond the noise between rounds.");
+    expect(text).toContain("| arith | bytecat | 10.0 | 9.0 | -10.0% | 10.0\u201310.0 | 9.0\u20139.0 |");
     expect(text).not.toContain(":warning:");
   });
 

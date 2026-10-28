@@ -69,7 +69,7 @@ jobs:
   bench:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     continue-on-error: true
     permissions:
       contents: read
@@ -102,16 +102,32 @@ jobs:
         working-directory: head
       - run: pnpm install --frozen-lockfile
         working-directory: base
-      # Interleaved (base, head, base, head) so drift in the runner's speed hits both sides. Bytecat
-      # and TurboWarp only: scratch-vm is slow, and TurboWarp shows how much the runner drifted.
+      # Bytecat's benchmarks take 2 to 10 ms and vary by 25% or more from one process to the next
+      # (JIT and GC decisions), however many runs a process times. So Bytecat gets ten rounds per
+      # side, each a fresh process with 10 warmup and 40 timed runs, interleaved (base, head, base,
+      # head, ...) so drift in the runner's speed hits both sides. TurboWarp is the noise reference
+      # and takes 15 s a round, so it gets two, after rounds 5 and 10. scratch-vm is left out: it is
+      # slow and nothing here depends on it. The engines run in separate processes so that one's
+      # garbage does not slow the other. scripts/bench-compare.ts compares the rounds.
       - name: Run benchmarks
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/results"
-          for i in 1 2; do
+          results="$GITHUB_WORKSPACE/results"
+          mkdir -p "$results"
+          round() { # round SIDE ENGINE N [pnpm bench options...]
+            local side=$1 engine=$2 n=$3
+            shift 3
+            (cd "$side" && pnpm bench --engines "$engine" "$@" --json -o "$results/$side-$engine-$n.json" > /dev/null) \
+              || echo "::warning::bench of $engine on $side (round $n) reported a failure"
+          }
+          for i in 1 2 3 4 5 6 7 8 9 10; do
             for side in base head; do
-              (cd "$side" && pnpm bench --engines bytecat,turbowarp --json -o "$GITHUB_WORKSPACE/results/$side-$i.json" > /dev/null) \
-                || echo "::warning::bench on $side (run $i) reported a failure"
+              round "$side" bytecat "$i" --runs 40 --warmup 10
             done
+            if [ "$i" = 5 ] || [ "$i" = 10 ]; then
+              for side in base head; do
+                round "$side" turbowarp "$i"
+              done
+            fi
           done
       - name: Compare
         run: |

@@ -7,6 +7,12 @@ export interface BenchOptions {
   /** Timed runs; the median is reported. Default 5. */
   runs?: number;
   timeoutMs?: number;
+  /**
+   * Per-engine overrides of `runs` and `warmup`, by engine name. A fast engine needs many more
+   * timed runs than a slow one for a steady median (a 2 ms run is mostly noise).
+   */
+  engineRuns?: Record<string, number>;
+  engineWarmup?: Record<string, number>;
 }
 
 export interface EngineStats {
@@ -41,9 +47,11 @@ export async function benchmark(
   engines: Engine[],
   options: BenchOptions = {},
 ): Promise<BenchResult> {
-  const { warmup = 1, runs = 5, timeoutMs = 60_000 } = options;
+  const { timeoutMs = 60_000 } = options;
   const stats: EngineStats[] = [];
   for (const engine of engines) {
+    const warmup = options.engineWarmup?.[engine.name] ?? options.warmup ?? 1;
+    const runs = options.engineRuns?.[engine.name] ?? options.runs ?? 5;
     const times: number[] = [];
     const compiles: number[] = [];
     let error: string | undefined;
