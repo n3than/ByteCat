@@ -8,7 +8,15 @@ export function say(rt: Runtime, t: Target, kind: "say" | "think", text: Value):
   const s = ops.toStr(text);
   t.bubble = s === "" ? null : { kind, text: s };
   if (s !== "") rt.says.push({ target: t.name, kind, text: s });
-  rt.requestRedraw();
+  // As with TurboWarp's renderer: a redraw only when a bubble appears on a visible sprite or one
+  // that is drawn goes away.
+  if (s !== "" && t.visible) {
+    t.bubbleDrawn = true;
+    rt.requestRedraw();
+  } else if (t.bubbleDrawn) {
+    t.bubbleDrawn = false;
+    rt.requestRedraw();
+  }
 }
 
 export function* sayFor(
@@ -32,12 +40,13 @@ export function switchCostume(rt: Runtime, t: Target, value: Value): void {
   else if (typeof value === "number" || (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value)))) {
     t.costume = ops.mod(Math.round(ops.toNum(value)) - 1, t.costumes.length);
   }
-  rt.requestRedraw();
+  // TurboWarp redraws for a costume change only when it shows (the stage is always visible).
+  if (t.visible) rt.requestRedraw();
 }
 
 export function nextCostume(rt: Runtime, t: Target): void {
   t.costume = (t.costume + 1) % t.costumes.length;
-  rt.requestRedraw();
+  if (t.visible) rt.requestRedraw();
 }
 
 export function costumeName(t: Target): string {
@@ -51,7 +60,8 @@ export function setSize(rt: Runtime, t: Target, size: number): void {
 
 export function setVisible(rt: Runtime, t: Target, visible: boolean): void {
   t.visible = visible;
-  rt.requestRedraw();
+  // Like TurboWarp: showing a sprite redraws, hiding one does not.
+  if (visible) rt.requestRedraw();
 }
 
 export function goToFront(rt: Runtime, t: Target): void {
@@ -60,5 +70,5 @@ export function goToFront(rt: Runtime, t: Target): void {
     t.layer = top + 1;
     rt.ordered = null;
   }
-  rt.requestRedraw();
+  // No redraw: TurboWarp's layer changes never request one, so they do not end a frame.
 }

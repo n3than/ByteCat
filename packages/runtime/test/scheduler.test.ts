@@ -195,6 +195,7 @@ describe("requestRedraw", () => {
     expect(ticks).toBe(41);
   });
 
+  // Which blocks redraw, and which do not (hiding, layer changes), is in lib.test.ts.
   it("is reached by the blocks that change what is on screen", () => {
     const { rt } = setup({ turbo: false }, () => []);
     const t = rt.stage;
@@ -202,7 +203,6 @@ describe("requestRedraw", () => {
       () => rt.say(t, "say", "hi"),
       () => rt.switchCostume(t, 1),
       () => rt.setVisible(t, true),
-      () => rt.goToFront(t),
     ];
     for (const call of calls) {
       rt.spin = 9;

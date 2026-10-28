@@ -85,6 +85,76 @@ describe("lib helpers", () => {
     expect(rt.says).toEqual([{ target: "One", kind: "think", text: "42" }]);
   });
 
+  // A redraw request ends the frame outside turbo mode, so these decide frame pacing. They follow
+  // where TurboWarp (with its renderer) calls runtime.requestRedraw().
+  describe("redraw requests, as in TurboWarp", () => {
+    const redraws = (fn: (rt: Runtime, one: ReturnType<typeof make>["one"]) => void, hidden = false) => {
+      const { rt, one } = make();
+      if (hidden) one.visible = false;
+      rt.redraw = false;
+      fn(rt, one);
+      return rt.redraw;
+    };
+
+    it("showing redraws, hiding does not", () => {
+      expect(redraws((rt, one) => setVisible(rt, one, false))).toBe(false);
+      expect(redraws((rt, one) => setVisible(rt, one, true), true)).toBe(true);
+    });
+
+    it("going to the front never redraws", () => {
+      expect(redraws((rt, one) => goToFront(rt, one))).toBe(false);
+    });
+
+    it("a costume change redraws only a visible target, and always the stage", () => {
+      expect(redraws((rt, one) => nextCostume(rt, one))).toBe(true);
+      expect(redraws((rt, one) => nextCostume(rt, one), true)).toBe(false);
+      expect(redraws((rt, one) => switchCostume(rt, one, "b"), true)).toBe(false);
+      expect(redraws((rt) => switchCostume(rt, rt.stage, 1))).toBe(true);
+    });
+
+    it("a bubble redraws when it appears on a visible sprite or a drawn one goes away", () => {
+      expect(redraws((rt, one) => say(rt, one, "say", "hi"))).toBe(true);
+      expect(redraws((rt, one) => say(rt, one, "say", "hi"), true)).toBe(false);
+      expect(redraws((rt, one) => say(rt, one, "say", ""))).toBe(false);
+      const { rt, one } = make();
+      say(rt, one, "say", "hi");
+      rt.redraw = false;
+      setVisible(rt, one, false);
+      say(rt, one, "say", "still hidden");
+      expect(rt.redraw).toBe(true); // the drawn bubble goes away
+      rt.redraw = false;
+      say(rt, one, "say", "");
+      expect(rt.redraw).toBe(false);
+    });
+  });
+
+  it("glide's first step only starts it, like TurboWarp", () => {
+    const { rt, one } = make();
+    rt.redraw = false;
+    const g = glide(rt, one, 1, 100, 0);
+    expect(g.next().value).toBe(rt.WAIT);
+    expect([one.x, rt.redraw]).toEqual([0, false]);
+    rt.frame = 15; // half a second at 30 fps
+    expect(g.next().value).toBe(rt.WAIT);
+    expect(one.x).toBe(50);
+    rt.frame = 30;
+    expect(g.next().done).toBe(true);
+    expect(one.x).toBe(100);
+  });
+
+  it("wait compares elapsed time like TurboWarp", () => {
+    // At 30 fps a 1 second wait started at frame 1 ends at frame 32: (31 * 1000) / 30 - 1000 / 30
+    // is just under 1000, though 31 * 1000 / 30 is not below 1000 / 30 + 1000.
+    const { rt } = make();
+    rt.frame = 1;
+    const w = wait(rt, 1);
+    expect(w.next().value).toBe(rt.WAIT);
+    rt.frame = 31;
+    expect(w.next().value).toBe(rt.WAIT);
+    rt.frame = 32;
+    expect(w.next().done).toBe(true);
+  });
+
   it("sensing", () => {
     const { rt } = make();
     expect(keyPressed(rt, "any")).toBe(false);
