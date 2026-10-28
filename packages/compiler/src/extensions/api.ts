@@ -45,8 +45,9 @@ interface SpecBase {
   readonly hidden?: boolean;
   /**
    * The runtime functions the generated code calls (`move` for `rt.move`, the `itemOf` helper,
-   * ...), by name, from the extension's `runtime` module. The casts (`toNum`, `toStr`, `toBool`)
-   * and the loop yield (`spin`) are always there and not listed.
+   * ...), by name, from the extension's `runtime` module. What the code generator emits itself
+   * (the casts, the loop yield, a list dropped into an input) is in `CODEGEN_USES` and not listed.
+   * `tests/uses.test.ts` checks every example and benchmark program calls nothing else.
    */
   readonly uses?: readonly string[];
 }

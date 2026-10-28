@@ -55,7 +55,7 @@ compile it. The helpers `statement`, `reporter`, `boolean`, `hat`, `menu`, `miss
 | `status` | `compiled` (matches TurboWarp), `partial` (compiles, but differs from TurboWarp in a case real projects reach) or `missing` (reported as an unsupported block). The helpers set it: `partial: "note"` makes a block partial. |
 | `note` | What is partial or missing; required for both. Shown in [blocks.md](blocks.md). |
 | `hidden` | Not in the default palette: Scratch 2 leftovers and TurboWarp-only blocks. |
-| `uses` | The runtime functions the generated code calls, by name (`move` for `rt.move`, `itemOf` for the list helper). The casts and the loop yield are always available and not listed. |
+| `uses` | The runtime functions the generated code calls, by name (`move` for `rt.move`, `itemOf` for the list helper). What the code generator emits itself (the casts, the loop yield, the contents of a list dropped into an input) is in `CODEGEN_USES` (`emit.ts`) and not listed. `tests/uses.test.ts` compiles every example and benchmark and fails if the program calls anything neither declares. |
 
 ### Statements and reporters
 

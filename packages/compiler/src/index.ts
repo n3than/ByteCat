@@ -4,6 +4,7 @@ import { compileProject, type CompileOptions, type CompileResult } from "./codeg
 
 export { compileProject, type CompileOptions, type CompileResult } from "./codegen.js";
 export * from "./extensions/index.js";
+export { CODEGEN_USES } from "./emit.js";
 export { MENU_SPECIALS, type Ex, type FieldRef, type Gen, type MenuEx, type MenuSpecial, type Proc, type ReporterHandler, type StatementHandler } from "./types.js";
 // For extension handlers: literals, typed expressions and the casts that skip what types prove.
 export { anyEx, asAny, asBool, asName, asNum, asStr, boolEx, lit, menuLiteral, numEx, strEx } from "./cast.js";
