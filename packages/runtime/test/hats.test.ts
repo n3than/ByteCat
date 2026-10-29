@@ -2,6 +2,7 @@
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
 import { Runtime, WAIT, type Hat, type ScriptFn } from "../src/index.js";
+import { broadcast } from "../src/lib/event.js";
 
 const project = {
   targets: [{ isStage: true, name: "Stage", variables: {}, lists: {}, costumes: [], currentCostume: 0, layerOrder: 0 }],
@@ -46,9 +47,9 @@ describe("hat restarts", () => {
 
   it("restarts a running broadcast script", () => {
     const { rt, log } = setup((log) => [{ kind: "broadcast", arg: "go", fn: waiting(log, "go", 3) }]);
-    rt.broadcast("go");
+    broadcast(rt, "go");
     rt.tick();
-    rt.broadcast("go");
+    broadcast(rt, "go");
     for (let i = 0; i < 5; i++) rt.tick();
     expect(log).toEqual(["go start", "go start", "go end"]);
   });

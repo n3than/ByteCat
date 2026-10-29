@@ -1,62 +1,112 @@
-// Every runtime function a compiled program calls is declared: by the `uses` of a block the
-// project contains, or in CODEGEN_USES for what the code generator emits itself. The follow-up
-// that makes programs import the functions they use relies on this being complete.
+// A program imports exactly the runtime functions its code calls, and each import is declared: by
+// the `uses` of a block the project contains, or in CODEGEN_USES for what the code generator
+// emits itself. Everything else the code reaches through `rt` is the runtime's state.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { CODEGEN_USES, builtins, compileProject, statement, type Extension, type ExtensionRegistry } from "@bytecat/compiler";
+import {
+  CODEGEN_USES, builtins, compileProject, load, referencedNames, statement, type CompileResult, type Extension, type ExtensionRegistry,
+} from "@bytecat/compiler";
 import { compile as compilePseudo } from "@bytecat/pseudo";
-import { ops } from "@bytecat/runtime";
+import { Runtime } from "@bytecat/runtime";
+import { RUNTIME_MODULES } from "@bytecat/runtime/modules";
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
 
 const root = join(import.meta.dirname, "..");
-const helpers = Object.keys(ops);
 
-/** The runtime functions `code` reaches: `rt.name`, and calls of the value helpers by name. */
-function called(code: string): Set<string> {
-  // A string literal (a log message, a costume name) could look like a call; leave them out.
-  const bare = code.replace(/"(?:[^"\\]|\\.)*"/g, '""');
-  const names = new Set([...bare.matchAll(/\brt\.(\w+)/g)].map((m) => m[1]!));
-  for (const h of helpers) if (new RegExp(`(?<![.\\w])${h}\\(`).test(bare)) names.add(h);
+/** The runtime state generated code may read or write directly. */
+const RUNTIME_STATE = new Set(["stage", "spin", "answer", "mouse"]);
+
+type Modules = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+
+/** Every name the modules export, with the module. */
+function exportsOf(modules: Modules): Map<string, string> {
+  const exported = new Map<string, string>();
+  for (const [from, m] of Object.entries(modules)) for (const name of Object.keys(m)) exported.set(name, from);
+  return exported;
+}
+
+/** The names a block in the project or the code generator declares it may call. */
+function declared(project: ProjectJson, registry: ExtensionRegistry): Set<string> {
+  const names = new Set(CODEGEN_USES);
+  for (const target of project.targets) {
+    for (const b of Object.values(target.blocks)) {
+      if (typeof b === "object" && b !== null && "opcode" in b) for (const u of registry.spec(b.opcode)?.uses ?? []) names.add(u);
+    }
+  }
   return names;
 }
 
-/** What the program for `project` calls that neither a block in it nor the code generator declares. */
-function undeclared(project: ProjectJson, registry: ExtensionRegistry, extensions: Extension[] = []): string[] {
-  const declared = new Set(CODEGEN_USES);
-  for (const target of project.targets) {
-    for (const b of Object.values(target.blocks)) {
-      if (typeof b === "object" && b !== null && "opcode" in b) for (const u of registry.spec(b.opcode)?.uses ?? []) declared.add(u);
-    }
+/**
+ * What is wrong with a compiled program: a runtime function its code calls that it does not
+ * import, an import it does not call or no block declares, and a `rt.` access that is not state.
+ */
+function problems(result: CompileResult, project: ProjectJson, registry: ExtensionRegistry, modules: Modules = RUNTIME_MODULES): string[] {
+  const out: string[] = [];
+  const imported = new Map(result.imports.flatMap(({ from, names }) => names.map((n) => [n, from] as const)));
+  const called = referencedNames(result.code);
+  for (const [name, from] of exportsOf(modules)) {
+    if (called.has(name) && imported.get(name) !== from) out.push(`calls ${name} without importing it from ${from}`);
   }
-  const { code } = compileProject(project, { extensions });
-  return [...called(code)].filter((name) => !declared.has(name)).sort();
+  const ok = declared(project, registry);
+  for (const [name] of imported) {
+    if (!called.has(name)) out.push(`imports ${name} but does not call it`);
+    if (!ok.has(name)) out.push(`imports ${name}, which no block declares`);
+  }
+  // A string literal (a log message) could look like an access; leave them out.
+  const bare = result.code.replace(/"(?:[^"\\]|\\.)*"/g, '""');
+  for (const [, name] of bare.matchAll(/\brt\.(\w+)/g)) if (!RUNTIME_STATE.has(name!)) out.push(`reads rt.${name}`);
+  return out;
 }
 
-describe("declared runtime functions", () => {
+describe("program imports", () => {
   for (const dir of ["examples", "bench"]) {
     for (const file of readdirSync(join(root, dir)).filter((f) => f.endsWith(".sbp")).sort()) {
-      it(`cover every call in ${dir}/${file.replace(/\.sbp$/, "")}`, () => {
+      it(`are exact in ${dir}/${file.replace(/\.sbp$/, "")}`, () => {
         const { project } = compilePseudo(readFileSync(join(root, dir, file), "utf8"), file);
-        expect(undeclared(project.json, builtins)).toEqual([]);
+        expect(problems(compileProject(project.json), project.json, builtins)).toEqual([]);
       });
     }
   }
 
-  it("catch a helper a block calls without declaring it", () => {
+  it("leave out a code generator helper the code does not call", () => {
+    // listContents (a list dropped into an input) is in CODEGEN_USES, but hello calls no such thing.
+    const { project } = compilePseudo(readFileSync(join(root, "examples/hello.sbp"), "utf8"), "hello.sbp");
+    const { code, imports } = compileProject(project.json);
+    expect(code).not.toContain("listContents");
+    expect(imports.flatMap((i) => i.names)).not.toContain("listContents");
+  });
+
+  describe("of a third-party extension", () => {
     const planted = (uses?: string[]): Extension => ({
       id: "plant",
       name: "Plant",
-      blocks: { plant_go: statement(() => ["rt.secret(t);", "mod(1, 2);"], uses ? { uses } : {}) },
+      runtime: "plant-runtime",
+      blocks: { plant_go: statement(() => ["secret(rt, t);"], uses ? { uses } : {}) },
     });
     const blocks = {
       hat: { opcode: "event_whenflagclicked", next: "go", parent: null, inputs: {}, fields: {}, shadow: false, topLevel: true },
       go: { opcode: "plant_go", next: null, parent: "hat", inputs: {}, fields: {}, shadow: false, topLevel: false },
     };
-    const project = { targets: [{ isStage: true, name: "Stage", variables: {}, lists: {}, broadcasts: {}, blocks }] } as unknown as ProjectJson;
-    const without = planted();
-    expect(undeclared(project, builtins.with([without]), [without])).toEqual(["mod", "secret"]);
-    const declared = planted(["secret", "mod"]);
-    expect(undeclared(project, builtins.with([declared]), [declared])).toEqual([]);
+    const stage = { isStage: true, name: "Stage", variables: {}, lists: {}, broadcasts: {}, blocks, costumes: [], currentCostume: 0, layerOrder: 0 };
+    const project = { targets: [stage] } as unknown as ProjectJson;
+    const calls: unknown[] = [];
+    const modules = { ...RUNTIME_MODULES, "plant-runtime": { secret: (_rt: unknown, t: unknown) => calls.push(t) } };
+
+    it("are missing a helper a block calls without declaring it", () => {
+      const ext = planted();
+      const result = compileProject(project, { extensions: [ext] });
+      expect(problems(result, project, builtins.with([ext]), modules)).toEqual(["calls secret without importing it from plant-runtime"]);
+    });
+
+    it("come from its runtime module, which load binds", () => {
+      const ext = planted(["secret"]);
+      const result = compileProject(project, { extensions: [ext] });
+      expect(result.imports).toEqual([{ from: "plant-runtime", names: ["secret"] }]);
+      expect(problems(result, project, builtins.with([ext]), modules)).toEqual([]);
+      const rt = new Runtime(project, load(result, modules), { clock: "virtual" });
+      rt.runUntilDone();
+      expect(calls).toEqual([rt.stage]);
+    });
   });
 });

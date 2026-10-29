@@ -8,8 +8,9 @@ const NO_CLONES = "no clones in the runtime yet";
 export const control: Extension = {
   id: "control",
   name: "Control",
+  runtime: "@bytecat/runtime/control",
   blocks: {
-    control_wait: statement((b, g) => g.y(`yield* rt.wait(${g.num(b, "DURATION")});`), { yields: "wait", uses: ["wait"] }),
+    control_wait: statement((b, g) => g.y(`yield* wait(rt, ${g.num(b, "DURATION")});`), { yields: "wait", uses: ["wait"] }),
     control_repeat: statement(
       (b, g) => {
         const r = g.tmp();
@@ -29,7 +30,7 @@ export const control: Extension = {
     // The condition is checked again after each wait, when other scripts may have changed it.
     control_wait_until: statement(
       (b, g) => {
-        const lines = [g.store(), `while (${notCode(g.input(b, "CONDITION"))}) {`, "  yield rt.WAIT;", `  ${g.load()}`, "}"];
+        const lines = [g.store(), `while (${notCode(g.input(b, "CONDITION"))}) {`, "  yield WAIT;", `  ${g.load()}`, "}"];
         g.markYields();
         return lines;
       },
@@ -42,10 +43,10 @@ export const control: Extension = {
     control_stop: statement(
       (b, g) => {
         const option = g.field(b, "STOP_OPTION");
-        if (option === "all") return [g.store(), "throw rt.STOP_ALL;"];
+        if (option === "all") return [g.store(), "throw STOP_ALL;"];
         // In Scratch 3, "stop this script" inside a custom block returns from that block only.
         if (option === "this script") return [g.store(), "return;"];
-        return ["rt.stopOthers(t, th);"];
+        return ["stopOthers(rt, t, th);"];
       },
       { uses: ["STOP_ALL", "stopOthers"] },
     ),

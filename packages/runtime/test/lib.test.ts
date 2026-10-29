@@ -1,8 +1,8 @@
-// The helpers in src/lib/ called directly, and through the one-line `Runtime` delegates that
-// generated code still uses.
+// The plain functions in src/lib/, which generated code calls directly.
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { Runtime } from "../src/index.js";
+import { Runtime, WAIT } from "../src/index.js";
+import { RUNTIME_MODULES } from "../src/modules.js";
 import { bounce, coord, glide, move, setDirection, setXY } from "../src/lib/motion.js";
 import { costumeName, goToFront, nextCostume, say, setSize, setVisible, switchCostume } from "../src/lib/looks.js";
 import { keyPressed } from "../src/lib/sensing.js";
@@ -60,7 +60,7 @@ describe("lib helpers", () => {
     expect(g.next().done).toBe(true);
     expect([one.x, one.y]).toEqual([5, 6]);
     const w = wait(rt, 0);
-    expect(w.next().value).toBe(rt.WAIT);
+    expect(w.next().value).toBe(WAIT);
     expect(w.next().done).toBe(true);
   });
 
@@ -157,10 +157,10 @@ describe("lib helpers", () => {
     const { rt, one } = make();
     rt.redraw = false;
     const g = glide(rt, one, 1, 100, 0);
-    expect(g.next().value).toBe(rt.WAIT);
+    expect(g.next().value).toBe(WAIT);
     expect([one.x, rt.redraw]).toEqual([0, false]);
     rt.frame = 15; // half a second at 30 fps
-    expect(g.next().value).toBe(rt.WAIT);
+    expect(g.next().value).toBe(WAIT);
     expect(one.x).toBe(50);
     rt.frame = 30;
     expect(g.next().done).toBe(true);
@@ -173,9 +173,9 @@ describe("lib helpers", () => {
     const { rt } = make();
     rt.frame = 1;
     const w = wait(rt, 1);
-    expect(w.next().value).toBe(rt.WAIT);
+    expect(w.next().value).toBe(WAIT);
     rt.frame = 31;
-    expect(w.next().value).toBe(rt.WAIT);
+    expect(w.next().value).toBe(WAIT);
     rt.frame = 32;
     expect(w.next().done).toBe(true);
   });
@@ -188,14 +188,11 @@ describe("lib helpers", () => {
     expect(keyPressed(rt, "any")).toBe(true);
   });
 
-  it("the Runtime delegates give the same results", () => {
-    const { rt, one } = make();
-    rt.move(one, 10);
-    rt.setDirection(one, 0);
-    rt.nextCostume(one);
-    rt.say(one, "say", "hi");
-    expect([one.x, one.direction, rt.costumeName(one), one.bubble?.text]).toEqual([10, 0, "b", "hi"]);
-    expect(rt.coord(1 + 1e-12)).toBe(1);
-    expect(rt.timer()).toBe(0);
+  it("are not on the Runtime: generated code calls them by name, with no method in between", () => {
+    const { rt } = make();
+    for (const [from, m] of Object.entries(RUNTIME_MODULES)) {
+      if (from.endsWith("/ops")) continue;
+      for (const name of Object.keys(m)) expect(name in rt, `${from} ${name}`).toBe(false);
+    }
   });
 });

@@ -3,6 +3,9 @@
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
 import { Runtime, type Hat, type RuntimeOptions, type ScriptFn, type Thread } from "../src/index.js";
+import { stopOthers } from "../src/lib/control.js";
+import { broadcast } from "../src/lib/event.js";
+import { say, setVisible, switchCostume } from "../src/lib/looks.js";
 
 const project = {
   targets: [
@@ -156,7 +159,7 @@ describe("loop yields", () => {
       {
         name: "a",
         fn: loop(rt, 20_000, (i) => {
-          if (i === from) rt.broadcast("go");
+          if (i === from) broadcast(rt, "go");
           if (i >= from) c.events.push(`a${i}`);
         }),
       },
@@ -200,9 +203,9 @@ describe("requestRedraw", () => {
     const { rt } = setup({ turbo: false }, () => []);
     const t = rt.stage;
     const calls: (() => void)[] = [
-      () => rt.say(t, "say", "hi"),
-      () => rt.switchCostume(t, 1),
-      () => rt.setVisible(t, true),
+      () => say(rt, t, "say", "hi"),
+      () => switchCostume(rt, t, 1),
+      () => setVisible(rt, t, true),
     ];
     for (const call of calls) {
       rt.spin = 9;
@@ -221,7 +224,7 @@ describe("spin", () => {
     rt.stopAll();
     expect(rt.spin).toBe(0);
     rt.spin = 7;
-    rt.stopOthers(rt.stage, { done: false } as Thread);
+    stopOthers(rt, rt.stage, { done: false } as Thread);
     expect(rt.spin).toBe(0);
     rt.spin = 7;
     rt.greenFlag();

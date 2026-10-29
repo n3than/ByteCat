@@ -20,6 +20,7 @@ export function playerBundle(): Promise<string> {
   return playerScript;
 }
 
-export async function bundleHtml(project: Project, programCode: string, title = "Bytecat"): Promise<string> {
-  return pageHtml(project, programCode, await playerBundle(), title);
+/** The standalone page for a project; `programScript` as `toScript` (in @bytecat/compiler) writes it. */
+export async function bundleHtml(project: Project, programScript: string, title = "Bytecat"): Promise<string> {
+  return pageHtml(project, programScript, await playerBundle(), title);
 }

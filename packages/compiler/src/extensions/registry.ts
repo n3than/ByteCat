@@ -107,6 +107,7 @@ export function checkExtension(extension: Extension): string[] {
       problems.push(`${opcode} has no restartExistingThreads rule`);
     }
     if (spec.kind === "statement" && spec.yields === "loop" && !spec.substacks?.length) problems.push(`${opcode} is a loop without a substack`);
+    if (spec.uses?.length && extension.runtime === undefined) problems.push(`${opcode} uses runtime functions, but ${extension.id} names no runtime module`);
   }
   return problems;
 }

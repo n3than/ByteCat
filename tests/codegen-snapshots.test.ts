@@ -1,9 +1,10 @@
-// Pins the generated JavaScript for every example and bench project. A refactor must leave these
-// files untouched; an intentional codegen change shows up as a reviewable diff. Update them with
+// Pins the generated JavaScript for every example and bench project, as the ES module
+// `bytecat compile` writes (imports included). A refactor must leave these files untouched; an
+// intentional codegen change shows up as a reviewable diff. Update them with
 // `pnpm exec vitest run tests/codegen-snapshots.test.ts -u`.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { compileProject } from "@bytecat/compiler";
+import { compileProject, toModule } from "@bytecat/compiler";
 import { compile as compilePseudo } from "@bytecat/pseudo";
 import { describe, expect, it } from "vitest";
 
@@ -15,7 +16,7 @@ describe("generated code", () => {
       const name = file.replace(/\.sbp$/, "");
       it(`${dir}/${name}`, async () => {
         const { project } = compilePseudo(readFileSync(join(root, dir, file), "utf8"), file);
-        await expect(compileProject(project.json).code + "\n").toMatchFileSnapshot(`__snapshots__/${dir}-${name}.js`);
+        await expect(toModule(compileProject(project.json))).toMatchFileSnapshot(`__snapshots__/${dir}-${name}.js`);
       });
     }
   }

@@ -103,7 +103,7 @@ describe("web app", () => {
     await until(page, outputLines, expected("hello"));
     expect(await page.textContent("#output-count")).toBe("4");
     await page.click("[data-tab=js]");
-    expect(await page.textContent("#js")).toContain("export default (function (rt)");
+    expect(await page.textContent("#js")).toContain("export default function (rt)");
     await close();
   }, 60_000);
 
@@ -287,7 +287,7 @@ describe("web app", () => {
     expect(html.endsWith("hello.html")).toBe(true);
     const sb3 = readSb3(readFileSync(await download("sb3")));
     expect(sb3.json.targets.map((t) => t.name)).toEqual(example("hello").json.targets.map((t) => t.name));
-    expect(readFileSync(await download("js"), "utf8")).toContain("export default (function (rt)");
+    expect(readFileSync(await download("js"), "utf8")).toContain("export default function (rt)");
 
     // The downloaded page plays the project on its own.
     const standalone = await page.context().newPage();

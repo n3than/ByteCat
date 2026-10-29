@@ -47,6 +47,11 @@ export class TargetCodegen implements Gen {
     private readonly assetNames: ReadonlySet<string> = new Set(),
     /** The extensions whose blocks this target may use. */
     private readonly registry: ExtensionRegistry = builtins,
+    /**
+     * Collects what the program may import: each runtime function a compiled block declares in
+     * `uses`, with its extension's `runtime` module (`programImports`).
+     */
+    private readonly declared: Map<string, string> = new Map(),
   ) {
     this.scope = new Scope(target, stage, prelude);
     this.blocks = target.blocks;
@@ -340,9 +345,27 @@ export class TargetCodegen implements Gen {
     if (loop) this.loopDepth++;
     const lines = handler?.(b, this);
     if (loop) this.loopDepth--;
-    if (lines) return lines;
+    if (lines) {
+      this.declare(b.opcode);
+      return lines;
+    }
     this.warnings.add(b.opcode);
     return [`/* unsupported: ${b.opcode} */`];
+  }
+
+  /** Records the runtime functions a block that compiled may call. */
+  private declare(opcode: string): void {
+    const uses = this.registry.spec(opcode)?.uses;
+    if (!uses) return;
+    // The registry refuses `uses` without a `runtime` module.
+    const from = this.registry.extensionOf(opcode)!.runtime!;
+    for (const name of uses) {
+      const other = this.declared.get(name);
+      if (other !== undefined && other !== from) {
+        throw new Error(`${opcode} calls ${name} from ${from}, but another block calls ${name} from ${other}; a program can import only one`);
+      }
+      this.declared.set(name, from);
+    }
   }
 
   // ---- inputs and reporters ----
@@ -392,7 +415,10 @@ export class TargetCodegen implements Gen {
     const { reporters } = this.registry;
     const handler = Object.hasOwn(reporters, b.opcode) ? reporters[b.opcode] : undefined;
     const ex = handler?.(b, this);
-    if (ex) return ex;
+    if (ex) {
+      this.declare(b.opcode);
+      return ex;
+    }
     this.warnings.add(b.opcode);
     return lit("");
   }

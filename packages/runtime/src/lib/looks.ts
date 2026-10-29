@@ -79,7 +79,7 @@ export function goToFront(rt: Runtime, t: Target): void {
   const top = Math.max(...rt.targets.map((x) => x.layer));
   if (t.layer !== top) {
     t.layer = top + 1;
-    rt.ordered = null;
+    rt.layersChanged();
   }
   // No redraw: TurboWarp's layer changes never request one, so they do not end a frame.
 }

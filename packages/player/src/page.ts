@@ -28,10 +28,13 @@ export function scriptSafe(js: string): string {
   return js.replace(/<\/(script)/gi, "<\\/$1").replace(/<!--/g, "<\\!--");
 }
 
-/** One self-contained HTML page: `playerScript` is the bundled browser player (see `playerBundle`). */
-export function pageHtml(project: Project, programCode: string, playerScript: string, title = "Bytecat"): string {
+/**
+ * One self-contained HTML page: `programScript` is the compiled program as `toScript` (in
+ * @bytecat/compiler) writes it, and `playerScript` the bundled browser player (see `playerBundle`).
+ */
+export function pageHtml(project: Project, programScript: string, playerScript: string, title = "Bytecat"): string {
   const assets = Object.fromEntries(costumeAssets(project).map(([name, data]) => [name, dataUrl(name, data)]));
-  const data = `window.BYTECAT = { project: ${JSON.stringify(project.json)}, assets: ${JSON.stringify(assets)}, program: ${programCode} };`;
+  const data = `window.BYTECAT = { project: ${JSON.stringify(project.json)}, assets: ${JSON.stringify(assets)}, program: ${programScript} };`;
   const escapedTitle = title.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
   return `<!doctype html>
 <html lang="en">

@@ -65,6 +65,7 @@ export function comparison(b: Block, g: Gen, jsOp: string, helper: string): Ex {
 export const operator: Extension = {
   id: "operator",
   name: "Operators",
+  runtime: "@bytecat/runtime/ops",
   blocks: {
     operator_add: reporter((b, g) => {
       const x = g.input(b, "NUM1");

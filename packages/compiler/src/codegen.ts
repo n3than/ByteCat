@@ -1,6 +1,6 @@
 import type { ProjectJson } from "@bytecat/sb3";
 import { TypeEnv } from "./analysis/env.js";
-import { emitProgram } from "./emit.js";
+import { CODEGEN_USES, emitProgram, OPS_MODULE, programImports } from "./emit.js";
 import { builtins, type Extension } from "./extensions/index.js";
 import type { ExtensionRegistry } from "./extensions/registry.js";
 import { TargetCodegen } from "./target.js";
@@ -33,6 +33,7 @@ function compilePass(project: ProjectJson, env: TypeEnv, registry: ExtensionRegi
   const hats: string[] = [];
   const warnings = new Set<string>();
   const prelude: string[] = [];
+  const declared = new Map(CODEGEN_USES.map((name) => [name, OPS_MODULE]));
   const stage = project.targets[0];
   // Every costume, backdrop and sound name in the project (see TargetCodegen.any).
   const assetNames = new Set<string>();
@@ -41,7 +42,7 @@ function compilePass(project: ProjectJson, env: TypeEnv, registry: ExtensionRegi
   }
 
   project.targets.forEach((target, index) => {
-    const gen = new TargetCodegen(target, index, stage, warnings, prelude, env, assetNames, registry);
+    const gen = new TargetCodegen(target, index, stage, warnings, prelude, env, assetNames, registry, declared);
     procedures.push(...gen.procedures());
     hats.push(...gen.hats());
   });
@@ -49,5 +50,6 @@ function compilePass(project: ProjectJson, env: TypeEnv, registry: ExtensionRegi
   // project.json lists the non-core extensions the project uses; one no registry knows means
   // every block of it is unsupported, and the project most likely will not work.
   const unknownExtensions = [...new Set(project.extensions ?? [])].filter((id) => !registry.has(id)).sort();
-  return { code: emitProgram({ prelude, procedures, hats }), warnings: [...warnings].sort(), unknownExtensions };
+  const code = emitProgram({ prelude, procedures, hats });
+  return { code, imports: programImports(code, declared), warnings: [...warnings].sort(), unknownExtensions };
 }
