@@ -171,6 +171,26 @@ describe("trace oracle", () => {
       expect(before.running).toEqual({ actual: true, expected: true });
     });
 
+    it("forgets the last timer once any timer runs, so stop all then leaves it pending", async () => {
+      // The review's repro: S's timer runs at 0.1 s and clears TurboWarp's `_bubbleTimeout`, so
+      // the stop all at 0.2 s does not clear T's 1 s timer, which keeps both engines running.
+      const source = `stage:\n  when flag:\n    wait(0.2)\n    stop("all")\nsprite S:\n  costume c = circle "#ff0000"\n  when flag:\n    say("a", 0.1)\nsprite T:\n  costume c = circle "#00ff00"\n  when flag:\n    wait(0.05)\n    say("b", 1)\n`;
+      const sb3 = sb3Of(source);
+      const engines = [new BytecatLockstep(readSb3(sb3).json), await TurboWarpEngine.load(sb3)] as const;
+      const running: [boolean, boolean][] = [];
+      for (let frame = 1; frame <= 40; frame++) {
+        for (const e of engines) await e.step();
+        running.push([engines[0].running, engines[1].running]);
+      }
+      for (const e of engines) e.dispose();
+      expect(running.map(([a]) => a)).toEqual(running.map(([, b]) => b));
+      // TurboWarp is running after frames 1 to 32 and stops when the timer runs, before frame 33.
+      expect(running.findIndex(([, b]) => !b) + 1).toBe(33);
+      const r = await traceProject(sb3, { frames: 40 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+      expect(r.frames).toBe(33);
+    });
+
     it("keeps the timers stop all leaves, as TurboWarp clears only the last one", async () => {
       const source = `stage:\n  when flag:\n    wait(0.1)\n    stop("all")\nsprite A:\n  costume c = circle "#ff0000"\n  when flag:\n    say("a", 0.5)\nsprite B:\n  costume c = circle "#00ff00"\n  when flag:\n    think("b", 1)\n`;
       const early = await traceProject(sb3Of(source), { frames: 10 });

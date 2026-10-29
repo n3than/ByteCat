@@ -279,6 +279,7 @@ describe("later", () => {
     rt.cancel(dropped);
     rt.stopAll(); // drops only the last say-for timer (`bubbleTimeout`), none here
     expect(rt.running).toBe(true);
+    expect(rt.scriptsRunning).toBe(false);
     rt.tick();
     rt.tick();
     expect(c.events).toEqual(["ran"]);

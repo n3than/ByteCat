@@ -77,8 +77,8 @@ export class Runtime {
   /** Callbacks waiting for `startFrame` (`later`), in the order they were set. */
   private timeouts: Timeout[] = [];
   /**
-   * @internal The last `say for secs` timer, until it runs (`lib/looks.ts`): the one TurboWarp's
-   * stop all clears (`_bubbleTimeout` in its looks blocks).
+   * @internal The last `say for secs` timer set, until any of them runs (`lib/looks.ts`): the one
+   * TurboWarp's stop all clears (`_bubbleTimeout` in its looks blocks).
    */
   bubbleTimeout: Timeout | null = null;
   /** @internal Read and reset by the timer helpers (`lib/sensing.ts`). */
@@ -279,7 +279,15 @@ export class Runtime {
    * timer still clears its bubble after its script stopped, as in TurboWarp.
    */
   get running(): boolean {
-    return this.timeouts.length > 0 || this.threads.some((th) => !th.done);
+    return this.timeouts.length > 0 || this.scriptsRunning;
+  }
+
+  /**
+   * True while a script runs or waits, whatever timers are pending: what TurboWarp's green flag
+   * indicator shows, as it follows the thread list.
+   */
+  get scriptsRunning(): boolean {
+    return this.threads.some((th) => !th.done);
   }
 
   /** Headless helper: green flag, then tick until every script stops or the time limit passes. */
