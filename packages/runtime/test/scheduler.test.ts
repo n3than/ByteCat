@@ -2,7 +2,7 @@
 // the end of a loop iteration: `if (th.warp === 0 && --rt.spin < 0) yield;`.
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it, vi } from "vitest";
-import { passClock, Runtime, WAIT, type Hat, type RuntimeOptions, type ScriptFn, type Thread } from "../src/index.js";
+import { BLOCKED, passClock, Runtime, WAIT, type Hat, type RuntimeOptions, type ScriptFn, type Thread } from "../src/index.js";
 import { stopOthers, wait } from "../src/lib/control.js";
 import { broadcast } from "../src/lib/event.js";
 import { say, setVisible, switchCostume } from "../src/lib/looks.js";
@@ -237,6 +237,55 @@ describe("waits", () => {
     rt.tick();
     expect(c.steps.sleeper).toBe(53);
     rt.stopAll();
+  });
+});
+
+describe("later", () => {
+  it("runs callbacks between frames, in order, and drops the redraws they request", () => {
+    const { rt, c } = setup({}, (rt, c) => [
+      {
+        name: "a",
+        fn: function* () {
+          for (const [ms, name] of [[40, "40 ms"], [0, "0 ms"], [-5, "-5 ms"], [3e9, "3e9 ms"], [1e9, "1e9 ms"]] as const) {
+            rt.later(ms, () => {
+              c.events.push(`${name} at frame ${rt.frame}`);
+              rt.requestRedraw();
+            });
+          }
+          for (let i = 0; i < 3; i++) {
+            c.events.push(`step at frame ${rt.frame}, redraw ${rt.redraw}`);
+            yield BLOCKED;
+          }
+        },
+      },
+    ]);
+    rt.greenFlag();
+    for (let i = 0; i < 3; i++) rt.tick(); // at 0, 33 and 67 ms
+    // Below 1 ms and beyond 2^31 - 1 ms a timer waits 1 ms, as in Node and browsers.
+    expect(c.events).toEqual([
+      "step at frame 0, redraw false",
+      "0 ms at frame 1",
+      "-5 ms at frame 1",
+      "3e9 ms at frame 1",
+      "step at frame 1, redraw false",
+      "40 ms at frame 2",
+      "step at frame 2, redraw false",
+    ]);
+  });
+
+  it("counts pending callbacks as running, and cancel drops one", () => {
+    const { rt, c } = setup({}, () => []);
+    const dropped = rt.later(10, () => c.events.push("dropped"));
+    rt.later(10, () => c.events.push("ran"));
+    expect(rt.running).toBe(true);
+    rt.cancel(dropped);
+    rt.stopAll(); // drops only the last say-for timer (`bubbleTimeout`), none here
+    expect(rt.running).toBe(true);
+    expect(rt.scriptsRunning).toBe(false);
+    rt.tick();
+    rt.tick();
+    expect(c.events).toEqual(["ran"]);
+    expect(rt.running).toBe(false);
   });
 });
 

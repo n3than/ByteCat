@@ -22,6 +22,13 @@ export interface SayEvent {
   text: string;
 }
 
+/** A callback from `Runtime.later`. */
+export interface Timeout {
+  start: number;
+  ms: number;
+  fn: () => void;
+}
+
 /**
  * The state of a running project. Generated code reads and writes its public fields (`stage`,
  * `spin`, `answer`, `mouse`, ...) and passes it to the plain functions in `lib/`, where the
@@ -63,6 +70,13 @@ export class Runtime {
   frame = 0;
   private readonly startTime = performance.now();
   private frameTime = 0;
+  /** Callbacks waiting for `startFrame` (`later`), in the order they were set. */
+  private timeouts: Timeout[] = [];
+  /**
+   * @internal The last `say for secs` timer set, until any of them runs (`lib/looks.ts`): the one
+   * TurboWarp's stop all clears (`_bubbleTimeout` in its looks blocks).
+   */
+  bubbleTimeout: Timeout | null = null;
   /** @internal Read and reset by the timer helpers (`lib/sensing.ts`). */
   timerStart = 0;
   /** Each target's hats, in the order its scripts appear. */
@@ -97,9 +111,38 @@ export class Runtime {
     return performance.now() - this.startTime;
   }
 
-  /** @internal Sets the time `now()` reports for the frame that starts; `tick` calls it. */
+  /**
+   * @internal Sets the time `now()` reports for the frame that starts, then runs the callbacks
+   * from `later` that are due. `tick` calls it before it clears `redraw`, so a redraw that a
+   * callback requests is dropped, as TurboWarp's `_step` drops one requested between frames.
+   */
   startFrame(): void {
     this.frameTime = performance.now() - this.startTime;
+    if (this.timeouts.length > 0) this.runTimeouts();
+  }
+
+  /**
+   * Runs `fn` between frames once `ms` milliseconds of `now()` have passed, the way TurboWarp's
+   * `say for secs` uses `setTimeout`. Like a timer in Node and in browsers, a delay below 1 ms or
+   * above 2^31 - 1 ms waits 1 ms. A pending callback counts as `running`.
+   */
+  later(ms: number, fn: () => void): Timeout {
+    const timeout = { start: this.now(), ms: ms >= 1 && ms <= 2147483647 ? ms : 1, fn };
+    this.timeouts.push(timeout);
+    return timeout;
+  }
+
+  /** Drops a callback from `later` that has not run, like `clearTimeout`. */
+  cancel(timeout: Timeout): void {
+    this.timeouts = this.timeouts.filter((x) => x !== timeout);
+  }
+
+  private runTimeouts(): void {
+    const now = this.now();
+    const due = this.timeouts.filter((x) => now - x.start >= x.ms);
+    if (due.length === 0) return;
+    this.timeouts = this.timeouts.filter((x) => now - x.start < x.ms);
+    for (const x of due) x.fn();
   }
 
   // ---- starting scripts ----
@@ -192,6 +235,10 @@ export class Runtime {
     for (const th of this.threads) th.done = true;
     this.threads = [];
     this.spin = 0;
+    // Like TurboWarp, which clears only the last `say for secs` timeout. The others still run (and
+    // count as running), but they find every bubble gone and their threads stopped.
+    if (this.bubbleTimeout) this.cancel(this.bubbleTimeout);
+    this.bubbleTimeout = null;
     for (const t of this.targets) {
       t.bubble = null;
       t.bubbleDrawn = false;
@@ -214,7 +261,19 @@ export class Runtime {
     tick(this);
   }
 
+  /**
+   * True while a script runs or waits, or a `later` callback has not run yet: a `say for secs`
+   * timer still clears its bubble after its script stopped, as in TurboWarp.
+   */
   get running(): boolean {
+    return this.timeouts.length > 0 || this.scriptsRunning;
+  }
+
+  /**
+   * True while a script runs or waits, whatever timers are pending: what TurboWarp's green flag
+   * indicator shows, as it follows the thread list.
+   */
+  get scriptsRunning(): boolean {
     return this.threads.some((th) => !th.done);
   }
 

@@ -1,0 +1,21 @@
+# `say for secs`, timed like TurboWarp: the script waits on a timer that clears the bubble between
+# frames, so the clear never ends a frame early (the broadcast loop runs on in that frame), and the
+# script goes on in the next frame. tests/trace.test.ts compares the frames; the log only shows the
+# order.
+var n = 0
+
+stage:
+  when receive "go":
+    n += 1
+    log(n)
+
+sprite S:
+  costume c = circle "#ff0000"
+
+  when flag:
+    say("hi", 0.1)
+
+  when flag:
+    repeat 3:
+      wait(0.07)
+      broadcast("go")
