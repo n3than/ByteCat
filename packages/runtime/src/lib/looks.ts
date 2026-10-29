@@ -2,7 +2,7 @@ import * as ops from "../ops.js";
 import type { Value } from "../ops.js";
 import type { Runtime } from "../runtime.js";
 import type { Target } from "../target.js";
-import { wait } from "./control.js";
+import { BLOCKED } from "../thread.js";
 
 export function say(rt: Runtime, t: Target, kind: "say" | "think", text: Value): void {
   const s = ops.toStr(text);
@@ -26,10 +26,17 @@ export function* sayFor(
   text: Value,
   seconds: number,
 ): Generator<unknown, void, unknown> {
+  // TurboWarp's sayforsecs returns a promise (STATUS_PROMISE_WAIT, so BLOCKED here) that a
+  // setTimeout callback resolves between frames, after it clears the bubble unless another say
+  // replaced it. That clear asks for a redraw, but `_step` drops it before the next frame.
   say(rt, t, kind, text);
   const bubble = t.bubble;
-  yield* wait(rt, seconds);
-  if (t.bubble === bubble) say(rt, t, kind, "");
+  let done = false;
+  rt.later(seconds * 1000, () => {
+    if (t.bubble === bubble) say(rt, t, kind, "");
+    done = true;
+  });
+  while (!done) yield BLOCKED;
 }
 
 export function switchCostume(rt: Runtime, t: Target, value: Value): void {

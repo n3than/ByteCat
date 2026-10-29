@@ -67,6 +67,8 @@ export class Runtime {
   frame = 0;
   private readonly startTime = performance.now();
   private frameTime = 0;
+  /** Callbacks waiting for `startFrame` (`later`), in the order they were set. */
+  private timeouts: { start: number; ms: number; fn: () => void }[] = [];
   /** @internal Read and reset by the timer helpers (`lib/sensing.ts`). */
   timerStart = 0;
   /** Each target's hats, in the order its scripts appear. */
@@ -101,9 +103,31 @@ export class Runtime {
     return performance.now() - this.startTime;
   }
 
-  /** @internal Sets the time `now()` reports for the frame that starts; `tick` calls it. */
+  /**
+   * @internal Sets the time `now()` reports for the frame that starts, then runs the callbacks
+   * from `later` that are due. `tick` calls it before it clears `redraw`, so a redraw that a
+   * callback requests is dropped, as TurboWarp's `_step` drops one requested between frames.
+   */
   startFrame(): void {
     this.frameTime = performance.now() - this.startTime;
+    if (this.timeouts.length > 0) this.runTimeouts();
+  }
+
+  /**
+   * Runs `fn` between frames once `ms` milliseconds of `now()` have passed, the way TurboWarp's
+   * `say for secs` uses `setTimeout`. Like a timer in Node and in browsers, a delay below 1 ms or
+   * above 2^31 - 1 ms waits 1 ms. `stopAll` drops the callbacks that have not run.
+   */
+  later(ms: number, fn: () => void): void {
+    this.timeouts.push({ start: this.now(), ms: ms >= 1 && ms <= 2147483647 ? ms : 1, fn });
+  }
+
+  private runTimeouts(): void {
+    const now = this.now();
+    const due = this.timeouts.filter((x) => now - x.start >= x.ms);
+    if (due.length === 0) return;
+    this.timeouts = this.timeouts.filter((x) => now - x.start < x.ms);
+    for (const x of due) x.fn();
   }
 
   // ---- starting scripts ----
@@ -200,6 +224,9 @@ export class Runtime {
     for (const th of this.threads) th.done = true;
     this.threads = [];
     this.spin = 0;
+    // TurboWarp clears only the last `say for secs` timeout; the others still run, but they find
+    // every bubble already gone, and the threads they would resume stopped, so nothing changes.
+    this.timeouts = [];
     for (const t of this.targets) {
       t.bubble = null;
       t.bubbleDrawn = false;
