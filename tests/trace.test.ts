@@ -130,6 +130,85 @@ describe("trace oracle", () => {
     expect(r.expected.fields["Stage.var.n"]).toBe("2");
   });
 
+  describe("say for secs, which TurboWarp ends from a timer between frames", () => {
+    const sprite = (scripts: string) => `var n = 0\nsprite S:\n  costume c = circle "#ff0000"\n${scripts}`;
+    const cases: Record<string, string> = {
+      // The review's repro: the clear in frame 7 must not end that frame early.
+      repro: `var n = 0\nstage:\n  when receive "go":\n    n += 1\n    log(join(n, join(" ", timer())))\nsprite S:\n  costume c = circle "#ff0000"\n  when flag:\n    say("hi", 0.1)\n  when flag:\n    repeat 3:\n      wait(0.07)\n      broadcast("go")\n`,
+      replaced: sprite(`  when flag:\n    say("first", 0.3)\n    log("done")\n  when flag:\n    wait(0.1)\n    say("second")\n    repeat 20:\n      n += 1\n`),
+      // The timer of a stopped script still clears its bubble.
+      "stop others": sprite(`  when flag:\n    say("hi", 0.3)\n    log("never")\n  when flag:\n    wait(0.1)\n    stop("other scripts in sprite")\n    repeat 30:\n      n += 1\n`),
+      "stop all": sprite(`  when flag:\n    say("hi", 0.5)\n    log("never")\n  when flag:\n    wait(0.2)\n    stop("all")\n  when flag:\n    think("hm", 1)\n`),
+      // 3000000 s is past the longest timer delay, which then waits 1 ms, in Node and in browsers.
+      "hidden, zero, negative and too long": sprite(`  when flag:\n    hide()\n    think("hm", 0.2)\n    show()\n    say("x", 0)\n    say("y", -1)\n    say("z", 3000000)\n    log("done")\n  when flag:\n    repeat 40:\n      n += 1\n`),
+      "broadcast and wait": sprite(`  when receive "talk":\n    say("hello", 0.2)\n  when flag:\n    broadcast_wait("talk")\n    log("talked")\n  when flag:\n    repeat 30:\n      n += 1\n`),
+    };
+    for (const [name, source] of Object.entries(cases)) {
+      for (const turbo of [false, true]) {
+        it(`${name}${turbo ? " in turbo mode" : ""}`, async () => {
+          // Run on after the scripts end: a timer can still clear a bubble then.
+          for (const passes of [50, 1]) {
+            const r = await traceProject(sb3Of(source), { frames: 40, passes, turbo, untilDone: false });
+            expect(r.problems, describeTrace(r)).toEqual([]);
+            expect(r.diff, describeTrace(r)).toBeNull();
+            expect(r.frames).toBe(40);
+          }
+        });
+      }
+    }
+
+    it("counts a pending timer as running, so the trace compares the clear after the scripts end", async () => {
+      // Both scripts end by frame 4; the timer clears the bubble at 0.5 s, before frame 16.
+      const source = sprite(`  when flag:\n    say("hi", 0.5)\n  when flag:\n    wait(0.1)\n    stop("other scripts in sprite")\n`);
+      const r = await traceProject(sb3Of(source), { frames: 40 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+      expect(r.frames).toBe(16);
+      expect(r.agreed).toBeUndefined();
+      expect([r.actual.fields["S.bubble"], r.expected.fields["S.bubble"]]).toEqual(["", ""]);
+      expect(r.running).toEqual({ actual: false, expected: false });
+      const before = await traceProject(sb3Of(source), { frames: 15 });
+      expect([before.actual.fields["S.bubble"], before.expected.fields["S.bubble"]]).toEqual(["say: hi", "say: hi"]);
+      expect(before.running).toEqual({ actual: true, expected: true });
+    });
+
+    it("forgets the last timer once any timer runs, so stop all then leaves it pending", async () => {
+      // The review's repro: S's timer runs at 0.1 s and clears TurboWarp's `_bubbleTimeout`, so
+      // the stop all at 0.2 s does not clear T's 1 s timer, which keeps both engines running.
+      const source = `stage:\n  when flag:\n    wait(0.2)\n    stop("all")\nsprite S:\n  costume c = circle "#ff0000"\n  when flag:\n    say("a", 0.1)\nsprite T:\n  costume c = circle "#00ff00"\n  when flag:\n    wait(0.05)\n    say("b", 1)\n`;
+      const sb3 = sb3Of(source);
+      const engines = [new BytecatLockstep(readSb3(sb3).json), await TurboWarpEngine.load(sb3)] as const;
+      const running: [boolean, boolean][] = [];
+      for (let frame = 1; frame <= 40; frame++) {
+        for (const e of engines) await e.step();
+        running.push([engines[0].running, engines[1].running]);
+      }
+      for (const e of engines) e.dispose();
+      expect(running.map(([a]) => a)).toEqual(running.map(([, b]) => b));
+      // TurboWarp is running after frames 1 to 32 and stops when the timer runs, before frame 33.
+      expect(running.findIndex(([, b]) => !b) + 1).toBe(33);
+      const r = await traceProject(sb3, { frames: 40 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+      expect(r.frames).toBe(33);
+    });
+
+    it("keeps the timers stop all leaves, as TurboWarp clears only the last one", async () => {
+      const source = `stage:\n  when flag:\n    wait(0.1)\n    stop("all")\nsprite A:\n  costume c = circle "#ff0000"\n  when flag:\n    say("a", 0.5)\nsprite B:\n  costume c = circle "#00ff00"\n  when flag:\n    think("b", 1)\n`;
+      const early = await traceProject(sb3Of(source), { frames: 10 });
+      expect(early.diff, describeTrace(early)).toBeNull();
+      expect(early.running).toEqual({ actual: true, expected: true });
+      const r = await traceProject(sb3Of(source), { frames: 60 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+      expect(r.running).toEqual({ actual: false, expected: false });
+    });
+
+    it("keeps the review's repro broadcasting in the frame of the clear", async () => {
+      const r = await traceProject(sb3Of(cases.repro!), { frames: 7 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+      expect(r.expected.fields["Stage.var.n"]).toBe("2");
+      expect(r.expected.fields["S.bubble"]).toBe("");
+    });
+  });
+
   it("gives the threads after a stop all their step in that pass", async () => {
     const r = await traceProject(sb3Of(readFileSync(join(root, "examples", "stop_all_pass.sbp"), "utf8")), { frames: 10 });
     expect(r.diff, describeTrace(r)).toBeNull();

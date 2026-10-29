@@ -164,7 +164,7 @@ in its scratch-vm), which ends a frame when no thread is left with status `RUNNI
 Its compiled scripts yield with the status unchanged, waits included, so a thread in `wait` or
 `wait until` keeps the frame going and checks its wait again on the next pass: a `wait until`
 sees what another thread did later in the same pass, and `wait(0)` takes no frame in turbo mode.
-Only a thread that is done, waiting on a promise (`ask`) or yielding for the rest of the frame
+Only a thread that is done, waiting on a promise (`ask`, `say for secs`) or yielding for the rest of the frame
 (`STATUS_YIELD_TICK`) does not count. In Bytecat a `WAIT` yield counts as going on, like a loop
 yield, and the frame ends after a pass in which every step yielded `BLOCKED` (`thread.ts`) or ended
 its thread. A thread that yields `BLOCKED` may be stepped again in the same frame, when other
@@ -172,11 +172,26 @@ threads keep it going, so it must check its condition again without side effects
 wait` yields `WAIT` even where TurboWarp uses `STATUS_YIELD_TICK` (every thread it waits for is
 itself blocked); that only keeps an idle frame going, which nothing can observe.
 
-**Time within a frame.** `rt.now()`, which `wait`, `say for` and the `timer` read, stands still
+**Time within a frame.** `rt.now()`, which `wait` and the `timer` read, stands still
 while a frame runs, like TurboWarp's `currentMSecs`: on the real clock `tick` and the green flag
 set it (`startFrame`), and on the virtual clock it is one frame per tick. So a wait can only end
 at the start of a frame, however long the frame keeps checking it. `glide` reads `rt.liveNow()`
 instead, the real clock at the call, since TurboWarp times a glide with a real-time `Timer`.
+
+**Between frames.** TurboWarp's `say for secs` (`sayforsecs` in `scratch3_looks.js`) returns a
+promise and clears the bubble from a `setTimeout` callback, which runs between frames; the redraw
+that clear requests is dropped, since `_step` resets `redrawRequested` before it steps the threads.
+`rt.later(ms, fn)` does the same: `startFrame` runs the callbacks that are due before `tick`
+clears `redraw`. `sayFor` yields `BLOCKED` until its callback has run, and the callback clears the
+bubble only if no other say replaced it. A stopped script's callback still runs and clears its
+bubble. `stop all` drops only the last say-for callback set (`rt.bubbleTimeout`), as TurboWarp's
+clears only `_bubbleTimeout`; any say-for callback that runs forgets it, as TurboWarp's sets
+`_bubbleTimeout = null`, so a later pending one then survives `stop all`. Like a timer in Node and browsers, a delay below 1 ms or above
+2^31 - 1 ms waits 1 ms. A pending callback counts as `rt.running`, so `runUntilDone` (in the
+runtime and the player) and the trace oracle go on until it has run; the TurboWarp lockstep
+driver counts its pending say-for timers the same way (`withTimerLabel` in `virtual.ts`).
+`rt.scriptsRunning` counts only the threads, like TurboWarp's green flag indicator; the web app's
+status line uses it.
 
 **Sleeping waits.** Busy-waiting until the budget runs out, as TurboWarp does, would make every
 frame with a pending `wait` cost three quarters of a frame of real time, even on the virtual

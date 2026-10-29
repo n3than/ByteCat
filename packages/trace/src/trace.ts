@@ -12,8 +12,9 @@ export interface TraceOptions extends FrameOptions {
   /** Scripted input (`parseInput`). */
   input?: readonly Command[];
   /**
-   * Stop early once neither engine has a script left and the input is used up. Default true.
-   * Snapshots cannot change after that.
+   * Stop early once neither engine is running (no script left, and no `say for secs` timer that
+   * could still clear a bubble) and the input is used up. Default true. Snapshots cannot change
+   * after that.
    */
   untilDone?: boolean;
 }

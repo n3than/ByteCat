@@ -23,10 +23,27 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
+/** The label `withTimerLabel` gives the timers set while it runs. */
+let currentLabel: string | undefined;
+
+/**
+ * Runs `fn`, labelling the virtual timers it sets with `label`, so a driver can count them
+ * (`VirtualTimers.pendingWith`). Real timers are unaffected.
+ */
+export function withTimerLabel<T>(label: string, fn: () => T): T {
+  const previous = currentLabel;
+  currentLabel = label;
+  try {
+    return fn();
+  } finally {
+    currentLabel = previous;
+  }
+}
+
 /** Timers on the virtual clock. A timer fires once `elapsed >= delay`, at a frame boundary. */
 export class VirtualTimers {
   private nextId = 1;
-  private readonly pending = new Map<number, { start: number; delay: number; fn: () => void }>();
+  private readonly pending = new Map<number, { start: number; delay: number; fn: () => void; label?: string }>();
 
   constructor(private readonly now: () => number) {}
 
@@ -35,8 +52,15 @@ export class VirtualTimers {
     let ms = Number(delay);
     if (!(ms >= 1 && ms <= 2147483647)) ms = 1;
     const id = this.nextId++;
-    this.pending.set(id, { start: this.now(), delay: ms, fn: () => fn(...args) });
+    this.pending.set(id, { start: this.now(), delay: ms, fn: () => fn(...args), ...(currentLabel === undefined ? {} : { label: currentLabel }) });
     return id;
+  }
+
+  /** How many timers with this label (`withTimerLabel`) have not fired or been cleared. */
+  pendingWith(label: string): number {
+    let n = 0;
+    for (const t of this.pending.values()) if (t.label === label) n++;
+    return n;
   }
 
   clearTimeout(id: unknown): void {

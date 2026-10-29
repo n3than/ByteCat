@@ -200,7 +200,7 @@ function setStatus(text: string): void {
 function updateStatus(): void {
   if (!loaded) return;
   const sprites = loaded.project.json.targets.length - 1;
-  const running = player?.rt.running ?? false;
+  const running = player?.rt.scriptsRunning ?? false;
   status.classList.toggle("running", running);
   setStatus(
     `${running ? "Running" : "Stopped"} · ${plural(sprites, "sprite")}, ${plural(countBlocks(loaded.project), "block")} · compiled in ${loaded.compileMs.toFixed(0)} ms`,
