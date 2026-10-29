@@ -1,0 +1,7 @@
+# Fencing: `change x by` past the left edge.
+sprite Mover:
+  costume box = square "#ff0000"
+
+  when flag:
+    repeat 10:
+      change_x(-40)

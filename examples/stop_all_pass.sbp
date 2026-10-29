@@ -1,0 +1,15 @@
+# `stop all` empties the thread list, but TurboWarp's sequencer goes on through the list it is
+# stepping: the scripts after the one that stopped get one more step in that pass. The sprite's
+# flag script runs before the stage's, so the stage still counts and logs once.
+var n = 0
+
+stage:
+  when flag:
+    n += 1
+    log(n)
+    forever:
+      n += 1
+
+sprite Stopper:
+  when flag:
+    stop("all")

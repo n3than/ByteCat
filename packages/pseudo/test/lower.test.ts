@@ -74,6 +74,17 @@ describe("lowering", () => {
     expect(call.inputs[fast!]![0]).toBe(2);
   });
 
+  it("fills the touching menu shadow with the target name", () => {
+    const json = project(`sprite A:\n  when flag:\n    if touching("_edge_"):\n      move(1)\n`);
+    const blocks = blocksOf(json);
+    const touching = blocks.find((b) => b.opcode === "sensing_touchingobject")!;
+    const menuId = (touching.inputs.TOUCHINGOBJECTMENU as [number, string])[1];
+    const menu = json.targets[1]!.blocks[menuId]!;
+    expect(menu.opcode).toBe("sensing_touchingobjectmenu");
+    expect(menu.shadow).toBe(true);
+    expect(menu.fields.TOUCHINGOBJECTMENU).toEqual(["_edge_", null]);
+  });
+
   it("registers broadcasts on the stage", () => {
     const json = project(`sprite A:\n  when receive "go":\n    broadcast("stop")\n`);
     expect(Object.values(json.targets[0].broadcasts).sort()).toEqual(["go", "stop"]);

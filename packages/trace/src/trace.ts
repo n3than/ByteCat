@@ -1,12 +1,10 @@
 // The trace oracle: two lockstep engines side by side, the same input before the same frames, and
-// a snapshot comparison after every frame. See docs/testing.md.
-import { readSb3 } from "@bytecat/sb3";
-import { BytecatLockstep } from "./bytecat.js";
+// a snapshot comparison after every frame. See docs/testing.md. Engine-neutral and free of Node
+// imports, so the browser oracle runs the same loop (project.ts sets up the Node engines).
 import { describeDiff, diffSnapshots, type FieldDiff } from "./diff.js";
 import type { FrameOptions, LockstepEngine } from "./engine.js";
 import { schedule, type Command } from "./input.js";
 import type { Snapshot } from "./snapshot.js";
-import { TurboWarpEngine } from "./turbowarp.js";
 
 export interface TraceOptions extends FrameOptions {
   /** Frames to run and compare after the green flag. */
@@ -84,19 +82,6 @@ export async function traceEngines(actual: LockstepEngine, expected: LockstepEng
     if ((options.untilDone ?? true) && frame >= lastFrame && !actual.running && !expected.running) return result(frame, null);
   }
   return result(options.frames, null);
-}
-
-/** Traces an .sb3 on Bytecat (actual) against TurboWarp (expected). */
-export async function traceProject(sb3: Uint8Array, options: TraceOptions): Promise<TraceResult> {
-  // Bytecat reads the project back from the bytes, like the CLI, so both engines see the same data.
-  const bytecat = new BytecatLockstep(readSb3(sb3).json, options);
-  const turbowarp = await TurboWarpEngine.load(sb3, options);
-  try {
-    return await traceEngines(bytecat, turbowarp, options);
-  } finally {
-    bytecat.dispose();
-    turbowarp.dispose();
-  }
 }
 
 /** A readable report: agreement, or the first difference with the fields around it. */

@@ -1,0 +1,7 @@
+# Fencing: `move` keeps a 48 by 48 sprite on the stage, so it stops at x 249 (240 - 15 + 24).
+sprite Mover:
+  costume box = square "#ff0000"
+
+  when flag:
+    repeat 30:
+      move(10)

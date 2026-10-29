@@ -1,0 +1,19 @@
+# Clicks on sprites: the topmost sprite with a pixel under the mouse gets the click, a corner of
+# a circle's box outside the circle goes to what is below, and empty stage to the stage.
+stage:
+  when clicked:
+    log("stage")
+
+sprite Back:
+  costume box = square "#0000ff"
+  position 0, 0
+
+  when clicked:
+    log("back")
+
+sprite Front:
+  costume ball = circle "#ff0000"
+  position 20, 0
+
+  when clicked:
+    log("front")

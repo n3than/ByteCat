@@ -1,11 +1,11 @@
 // The plain functions in src/lib/, which generated code calls directly.
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { Runtime, WAIT } from "../src/index.js";
+import { BLOCKED, Runtime, SLEEP, WAIT } from "../src/index.js";
 import { RUNTIME_MODULES } from "../src/modules.js";
 import { bounce, coord, glide, move, setDirection, setXY } from "../src/lib/motion.js";
 import { costumeName, goToFront, nextCostume, say, setSize, setVisible, switchCostume } from "../src/lib/looks.js";
-import { keyPressed } from "../src/lib/sensing.js";
+import { ask, keyPressed } from "../src/lib/sensing.js";
 import { wait } from "../src/lib/control.js";
 
 const costume = (name: string) => ({ name, md5ext: `${name}.svg`, rotationCenterX: 0, rotationCenterY: 0 });
@@ -162,6 +162,8 @@ describe("lib helpers", () => {
     rt.frame = 15; // half a second at 30 fps
     expect(g.next().value).toBe(WAIT);
     expect(one.x).toBe(50);
+    // Stepped again in the same frame on the virtual clock, it would only set x = 50 again.
+    expect(g.next().value).toBe(SLEEP);
     rt.frame = 30;
     expect(g.next().done).toBe(true);
     expect(one.x).toBe(100);
@@ -175,7 +177,7 @@ describe("lib helpers", () => {
     const w = wait(rt, 1);
     expect(w.next().value).toBe(WAIT);
     rt.frame = 31;
-    expect(w.next().value).toBe(WAIT);
+    expect(w.next().value).toBe(SLEEP);
     rt.frame = 32;
     expect(w.next().done).toBe(true);
   });
@@ -186,6 +188,18 @@ describe("lib helpers", () => {
     rt.keyDown("a");
     expect(keyPressed(rt, "A")).toBe(true);
     expect(keyPressed(rt, "any")).toBe(true);
+  });
+
+  it("ask with a queued answer stays blocked until the next frame, however often it is stepped", () => {
+    const rt = new Runtime(project, () => [], { clock: "virtual", answers: ["yes"] });
+    const one = rt.targets[1]!;
+    const a = ask(rt, one, "name?");
+    expect(a.next().value).toBe(BLOCKED);
+    expect(one.bubble?.text).toBe("name?");
+    expect(a.next().value).toBe(BLOCKED);
+    rt.frame++;
+    expect(a.next().done).toBe(true);
+    expect([rt.answer, one.bubble]).toEqual(["yes", null]);
   });
 
   it("are not on the Runtime: generated code calls them by name, with no method in between", () => {

@@ -1,18 +1,21 @@
 // Starting hats: TurboWarp's restartExistingThreads rule (Hat.restart) and the order of key hats.
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { Runtime, WAIT, type Hat, type ScriptFn } from "../src/index.js";
+import { Runtime, BLOCKED, type Hat, type ScriptFn } from "../src/index.js";
 import { broadcast } from "../src/lib/event.js";
 
 const project = {
   targets: [{ isStage: true, name: "Stage", variables: {}, lists: {}, costumes: [], currentCostume: 0, layerOrder: 0 }],
 } as unknown as ProjectJson;
 
-/** A script that logs when it starts, waits `frames` frames, and logs when it ends. */
+/**
+ * A script that logs when it starts, waits `frames` frames, and logs when it ends. Each `BLOCKED`
+ * takes a frame here, since a pass in which no thread can go on ends the frame.
+ */
 function waiting(log: string[], name: string, frames: number): ScriptFn {
   return function* () {
     log.push(`${name} start`);
-    for (let i = 0; i < frames; i++) yield WAIT;
+    for (let i = 0; i < frames; i++) yield BLOCKED;
     log.push(`${name} end`);
   };
 }

@@ -134,6 +134,13 @@ export const REPORTERS: Record<string, Builtin[]> = {
     returns: "bool",
     doc: "<key (name) pressed?>",
   }],
+  touching: [{
+    opcode: "sensing_touchingobject",
+    slots: [{ kind: "menu", input: "TOUCHINGOBJECTMENU", shadow: "sensing_touchingobjectmenu", field: "TOUCHINGOBJECTMENU", default: "_mouse_" }],
+    returns: "bool",
+    spriteOnly: true,
+    doc: "<touching (sprite name, `_edge_` or `_mouse_`)?>",
+  }],
   days_since_2000: [{ opcode: "sensing_dayssince2000", slots: [], returns: "value", doc: "days since 2000" }],
   username: [{ opcode: "sensing_username", slots: [], returns: "value", doc: "username" }],
 };

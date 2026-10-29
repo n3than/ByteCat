@@ -1,6 +1,6 @@
 import type { Runtime } from "../runtime.js";
 import type { Target } from "../target.js";
-import { WAIT, type Thread } from "../thread.js";
+import { SLEEP, WAIT, type Thread } from "../thread.js";
 
 // What a script yields and throws, for generated code: `yield WAIT;` while it waits on time or
 // another thread, `throw STOP_ALL;` for "stop all".
@@ -12,8 +12,9 @@ export function* wait(rt: Runtime, seconds: number): Generator<unknown, void, un
   const start = rt.now();
   const duration = seconds * 1000;
   rt.requestRedraw();
-  do yield WAIT;
-  while (rt.now() - start < duration);
+  // Always yields once, like TurboWarp; the checks after that are SLEEP (see thread.ts).
+  yield WAIT;
+  while (rt.now() - start < duration) yield SLEEP;
 }
 
 /** "stop other scripts in sprite": ends every thread of `t` except `self`. */
