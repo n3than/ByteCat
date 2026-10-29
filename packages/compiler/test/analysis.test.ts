@@ -221,6 +221,16 @@ describe("analyzeEffects", () => {
     expect(e.get("caller")!.stops).toBe(true);
   });
 
+  it("counts creating and deleting clones as stops, so callers store every local first", () => {
+    const t = withProcs({
+      cloner: { blocks: { start: block("control_create_clone_of") } },
+      deleter: { blocks: { start: block("control_delete_this_clone") } },
+      caller: { blocks: { start: call("cloner") } },
+    });
+    const e = effectsOf(t);
+    expect([e.get("cloner")!.stops, e.get("deleter")!.stops, e.get("caller")!.stops]).toEqual([true, true, true]);
+  });
+
   it("counts a variable reporter block as a read", () => {
     const t = withProcs({
       p: {

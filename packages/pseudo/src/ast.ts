@@ -28,6 +28,7 @@ export type Property =
 export type Hat =
   | { kind: "flag" }
   | { kind: "clicked" }
+  | { kind: "cloned" }
   | { kind: "key"; key: string }
   | { kind: "receive"; message: string };
 

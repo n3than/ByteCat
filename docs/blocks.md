@@ -19,14 +19,14 @@ below but not counted.
 | [Looks](#looks) | `looks` | 13 | 3 | 5 |
 | [Sound](#sound) | `sound` | 0 | 0 | 9 |
 | [Events](#event) | `event` | 7 | 0 | 2 |
-| [Control](#control) | `control` | 8 | 0 | 3 |
+| [Control](#control) | `control` | 11 | 0 | 0 |
 | [Sensing](#sensing) | `sensing` | 10 | 0 | 8 |
 | [Operators](#operator) | `operator` | 18 | 0 | 0 |
 | [Variables and lists](#data) | `data` | 13 | 4 | 0 |
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
 | [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **80** | **15** | **39** |
+| **All** | | **83** | **15** | **36** |
 
 <a id="motion"></a>
 
@@ -144,7 +144,7 @@ below but not counted.
 
 ## Control (`control`)
 
-14 compiled, 0 partial, 3 missing, counting hidden blocks.
+17 compiled, 0 partial, 0 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
@@ -156,9 +156,9 @@ below but not counted.
 | `control_wait_until` | statement, waits | Compiled | yes |  |
 | `control_repeat_until` | loop | Compiled | yes |  |
 | `control_stop` | statement | Compiled | yes |  |
-| `control_start_as_clone` | hat, no restart | Missing | yes | no clones in the runtime yet |
-| `control_create_clone_of` | statement | Missing | yes | no clones in the runtime yet |
-| `control_delete_this_clone` | statement | Missing | yes | no clones in the runtime yet |
+| `control_start_as_clone` | hat, no restart | Compiled | yes |  |
+| `control_create_clone_of` | statement | Compiled | yes |  |
+| `control_delete_this_clone` | statement | Compiled | yes |  |
 | `control_create_clone_of_menu` | menu (`CLONE_OPTION`) | Compiled | yes |  |
 | `control_while` | loop | Compiled | hidden |  |
 | `control_for_each` | loop | Compiled | hidden |  |

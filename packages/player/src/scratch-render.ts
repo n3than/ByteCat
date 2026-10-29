@@ -108,6 +108,7 @@ export class ScratchRenderBackend implements RenderBackend {
 
   sync(): void {
     const { renderer } = this;
+    if (this.rt.cloneCount > 0 || this.drawables.size !== this.rt.targets.length) this.syncClones();
     for (const [t, d] of this.drawables) {
       const skinId = d.skins[t.costume] ?? d.skins[0];
       // RenderedTarget._getRenderedDirectionAndScale.
@@ -134,6 +135,29 @@ export class ScratchRenderBackend implements RenderBackend {
       this.order = order;
     }
     for (const [t, d] of this.drawables) this.syncBubble(t, d);
+  }
+
+  /**
+   * Clones come and go: a new one gets a drawable showing its sprite's skins, and a deleted one's
+   * drawable and bubble are destroyed. The layer order is set after this, in `sync`.
+   */
+  private syncClones(): void {
+    const { renderer } = this;
+    const live = new Set(this.rt.targets);
+    for (const [t, d] of this.drawables) {
+      if (live.has(t)) continue;
+      renderer.destroyDrawable(d.drawable, SPRITE_LAYER);
+      if (d.bubble) {
+        renderer.destroyDrawable(d.bubble.drawable, SPRITE_LAYER);
+        renderer.destroySkin(d.bubble.skin);
+      }
+      this.drawables.delete(t);
+    }
+    for (const t of this.rt.targets) {
+      if (this.drawables.has(t)) continue;
+      const { skins } = this.drawables.get(this.rt.targets[t.index]!)!;
+      this.drawables.set(t, { drawable: renderer.createDrawable(SPRITE_LAYER), skins, bubble: null });
+    }
   }
 
   /** Speech bubbles as TurboWarp's looks blocks draw them (`_renderBubble`, `_positionBubble`). */

@@ -1,9 +1,8 @@
 import { POS_INT, ZERO } from "../analysis/typeset.js";
-import { notCode, numEx, unindent } from "../cast.js";
-import { menu, missing, missingHat, reporter, statement, type Extension } from "./api.js";
+import { asAny, notCode, numEx, unindent } from "../cast.js";
+import { hat, menu, reporter, statement, type Extension } from "./api.js";
 
 const SUBSTACK = ["SUBSTACK"];
-const NO_CLONES = "no clones in the runtime yet";
 
 export const control: Extension = {
   id: "control",
@@ -50,9 +49,23 @@ export const control: Extension = {
       },
       { uses: ["STOP_ALL", "stopOthers"] },
     ),
-    control_start_as_clone: missingHat({ restartExistingThreads: false }, NO_CLONES),
-    control_create_clone_of: missing("statement", NO_CLONES),
-    control_delete_this_clone: missing("statement", NO_CLONES),
+    // The runtime starts it for the new clone only (`createClone`).
+    control_start_as_clone: hat("clone", { restartExistingThreads: false }),
+    // The clone copies the target's variables, so the ones kept in locals are stored first.
+    control_create_clone_of: statement(
+      (b, g) => {
+        const option = g.menu(b, "CLONE_OPTION");
+        if (option.special === "_myself_") return [g.store(), "createClone(rt, t);"];
+        return [g.store(), `createCloneOf(rt, t, ${asAny(option)});`];
+      },
+      { uses: ["createClone", "createCloneOf"] },
+    ),
+    // Nothing for a sprite. A clone is removed with its scripts, and this one ends: a hat script
+    // returns, and a custom block throws RETIRE past its callers, as TurboWarp's `retire` does.
+    // The locals are stored first, since the script never stores them again.
+    control_delete_this_clone: statement((_, g) => [g.store(), `if (deleteClone(rt, t)) ${g.procedure ? "throw RETIRE" : "return"};`], {
+      uses: ["deleteClone", "RETIRE"],
+    }),
     control_create_clone_of_menu: menu("CLONE_OPTION"),
     control_while: statement(
       (b, g) => [`while (${g.bool(b, "CONDITION")}) {`, ...g.substack(b, "SUBSTACK"), ...g.loopYield(), "}"],

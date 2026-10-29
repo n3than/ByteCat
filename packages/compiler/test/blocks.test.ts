@@ -65,6 +65,22 @@ describe("statement handlers", () => {
     expect(stop("other scripts in sprite")).toEqual(["stopOthers(rt, t, th);"]);
   });
 
+  it("create clone stores the locals, which the clone copies, and clones itself without a lookup", () => {
+    const create = (option: Ex) => statements.control_create_clone_of!(block("control_create_clone_of"), stubGen({ CLONE_OPTION: option }));
+    expect(create(lit("_myself_"))).toEqual(["store;", "createClone(rt, t);"]);
+    expect(create(lit("Dog"))).toEqual(["store;", 'createCloneOf(rt, t, "Dog");']);
+    expect(create(anyEx("v"))).toEqual(["store;", "createCloneOf(rt, t, v);"]);
+  });
+
+  it("delete this clone returns from a script and throws RETIRE from a custom block", () => {
+    const del = (g: ReturnType<typeof stubGen>) => statements.control_delete_this_clone!(block("control_delete_this_clone"), g);
+    const g = stubGen();
+    expect(del(g)).toEqual(["store;", "if (deleteClone(rt, t)) return;"]);
+    expect(g.yielded).toBe(false);
+    const inProc = Object.assign(stubGen(), { procedure: { fn: "p0", params: [], warp: true, sync: true } });
+    expect(del(inProc)).toEqual(["store;", "if (deleteClone(rt, t)) throw RETIRE;"]);
+  });
+
   it("the counter blocks are plain operations on the runtime's counter", () => {
     expect(statements.control_incr_counter!(block("control_incr_counter"), stubGen())).toEqual(["rt.counter++;"]);
     expect(statements.control_clear_counter!(block("control_clear_counter"), stubGen())).toEqual(["rt.counter = 0;"]);

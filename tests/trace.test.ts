@@ -71,6 +71,42 @@ describe("trace oracle", () => {
     expect(describeTrace(r)).toContain('first difference at frame 5, Mover.x: bytecat "-49" but turbowarp "-50"');
   });
 
+  describe("clones", () => {
+    // 310 clones asked for at once, then each moves twice, a frame apart.
+    const swarm = `sprite S:\n  costume c = circle "#ff0000"\n  var k = 0\n  define warp spawn():\n    repeat 310:\n      k += 1\n      create_clone("_myself_")\n  when flag:\n    spawn()\n  when cloned:\n    change_x(k)\n    wait(0)\n    change_x(1)\n`;
+    const cloneXs = (fields: Record<string, unknown>) => Object.keys(fields).filter((f) => /^S#\d+\.x$/.test(f));
+
+    it("shows every clone on both engines, up to the 300 limit", async () => {
+      const sb3 = sb3Of(swarm);
+      const engines = [new BytecatLockstep(readSb3(sb3).json), await TurboWarpEngine.load(sb3)];
+      for (const engine of engines) {
+        await engine.step();
+        const { fields } = engine.snapshot(1);
+        expect(cloneXs(fields), engine.name).toHaveLength(300);
+        expect(fields["S#300.x"], engine.name).toBe("300");
+        expect((fields.layers as string[]).slice(-2), engine.name).toEqual(["S#300", "S"]);
+        engine.dispose();
+      }
+      const r = await traceProject(sb3, { frames: 20 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+    });
+
+    it("catches a planted difference in a clone", async () => {
+      const sb3 = sb3Of(swarm);
+      const bytecat = new BytecatLockstep(readSb3(sb3).json);
+      let frame = 0;
+      const planted: LockstepEngine = Object.assign(Object.create(bytecat) as BytecatLockstep, {
+        step() {
+          bytecat.step();
+          if (++frame === 1) bytecat.rt.targets[bytecat.rt.targets.length - 1]!.x += 1;
+        },
+        snapshot: (f: number) => bytecat.snapshot(f),
+      });
+      const r = await traceEngines(planted, await TurboWarpEngine.load(sb3), { frames: 20 });
+      expect(r.diff).toEqual({ frame: 1, field: "S#300.x", actual: "301", expected: "300" });
+    });
+  });
+
   it("paces a drawing loop at one iteration per frame on both engines", async () => {
     const r = await traceProject(sb3Of(moving), { frames: 50 });
     expect(r.diff).toBeNull();

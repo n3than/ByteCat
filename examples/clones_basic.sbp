@@ -1,0 +1,46 @@
+# Clones copy their parent's variables and position when they are made, run their own `when cloned`
+# script, keep their own copy of sprite variables, and hear broadcasts. `delete_clone()` ends the
+# clone's scripts at once and does nothing in the original.
+var made = 0
+
+sprite Cat:
+  costume c = circle "#ff8800"
+  var id = 0
+  list seen = []
+
+  define make_clone():
+    create_clone("_myself_")
+
+  when flag:
+    goto(0, 0)
+    repeat 3:
+      id += 1
+      seen.add(id)
+      change_x(10)
+      create_clone("_myself_")
+    # The clone copies id from a custom block too.
+    repeat 2:
+      id += 1
+      change_x(10)
+      make_clone()
+    id = 99
+    broadcast_wait("hello")
+    log(join("original ", join(id, join(" made ", made))))
+    broadcast_wait("bye")
+    log("after bye")
+    delete_clone()
+    log("the original goes on")
+    stop("all")
+
+  when cloned:
+    made += 1
+    log(join("clone ", join(id, join(" at x ", x_position()))))
+    log(join("clone sees ", seen.length))
+    id = id * 10
+
+  when receive "hello":
+    log(join("hello from ", id))
+
+  when receive "bye":
+    delete_clone()
+    log("only the original logs this")

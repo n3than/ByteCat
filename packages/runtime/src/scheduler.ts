@@ -1,5 +1,5 @@
 import type { Runtime } from "./runtime.js";
-import { BLOCKED, SLEEP, STOP_ALL, type Thread } from "./thread.js";
+import { BLOCKED, RETIRE, SLEEP, STOP_ALL, type Thread } from "./thread.js";
 
 /** At most this many passes run after a thread starts before the scheduler reads the clock. */
 const START_CHECK = 4;
@@ -144,7 +144,8 @@ export function tick(rt: Runtime): void {
 /**
  * Advances one thread to its next yield and returns what it yielded, or `BLOCKED` when the thread
  * ended: in TurboWarp a thread that is done no longer counts as active, so it does not keep the
- * frame going. `stop all` arrives as the `STOP_ALL` exception.
+ * frame going. `stop all` arrives as the `STOP_ALL` exception, and a clone that deleted itself
+ * inside a custom block as `RETIRE`.
  */
 export function step(rt: Runtime, th: Thread): unknown {
   try {
@@ -154,6 +155,7 @@ export function step(rt: Runtime, th: Thread): unknown {
     return BLOCKED;
   } catch (e) {
     th.done = true;
+    if (e === RETIRE) return BLOCKED;
     if (e !== STOP_ALL) throw e;
     return stopAll(rt, th);
   }
@@ -170,8 +172,10 @@ export function step(rt: Runtime, th: Thread): unknown {
  */
 function stopAll(rt: Runtime, th: Thread): unknown {
   const i = rt.threads.indexOf(th);
-  // `tick` only steps listed threads; one stepped from anywhere else has nothing after it.
-  const rest = i < 0 ? [] : rt.threads.slice(i + 1).filter((t) => !t.done);
+  // `tick` only steps listed threads; one stepped from anywhere else has nothing after it. The
+  // threads of clones get no step: TurboWarp's `stopAll` disposes the clones first, which stops
+  // their threads (`stopForTarget`).
+  const rest = i < 0 ? [] : rt.threads.slice(i + 1).filter((t) => !t.done && t.target.isOriginal);
   rt.stopAll();
   let result: unknown = BLOCKED;
   for (const t of rest) {
@@ -182,6 +186,7 @@ function stopAll(rt: Runtime, th: Thread): unknown {
       if (r.value !== SLEEP) result = undefined;
       else if (result === BLOCKED) result = SLEEP;
     } catch (e) {
+      if (e === RETIRE) continue;
       if (e !== STOP_ALL) throw e;
       rt.stopAll();
     }

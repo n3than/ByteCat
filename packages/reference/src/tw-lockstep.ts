@@ -76,6 +76,8 @@ const redrawingMethods: Record<string, (t: TwTarget, args: any[]) => boolean> = 
   setCostume: () => true,
   setRotationStyle: () => true,
   dispose: () => true,
+  // A new clone's drawable (makeClone).
+  updateAllDrawableProperties: () => true,
 };
 
 let patched = false;

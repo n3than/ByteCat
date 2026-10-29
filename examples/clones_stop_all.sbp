@@ -1,0 +1,18 @@
+# `stop all` gives the scripts after the one that stopped one more step in that pass, but not the
+# clones' scripts: TurboWarp disposes the clones first, which stops their threads. So no clone logs
+# "late" or makes a clone after the stop; only the original's script runs, and it skips both.
+sprite A:
+  costume c = circle "#ff8800"
+  var id = 0
+  when flag:
+    repeat 3:
+      id += 1
+      create_clone("_myself_")
+    id = 0
+    broadcast("late")
+    stop("all")
+  when receive "late":
+    if id > 0:
+      create_clone("_myself_")
+      log(join("late ", id))
+    log(join("received by ", id))

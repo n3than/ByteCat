@@ -85,6 +85,18 @@ describe("lowering", () => {
     expect(menu.fields.TOUCHINGOBJECTMENU).toEqual(["_edge_", null]);
   });
 
+  it("lowers the clone hat and blocks, with the clone menu shadow", () => {
+    const json = project(`sprite A:\n  when cloned:\n    create_clone("_myself_")\n    delete_clone()\n`);
+    expect(blocksOf(json).map((b) => b.opcode)).toEqual([
+      "control_start_as_clone", "control_create_clone_of", "control_create_clone_of_menu", "control_delete_this_clone",
+    ]);
+    const create = blocksOf(json).find((b) => b.opcode === "control_create_clone_of")!;
+    const menu = json.targets[1]!.blocks[(create.inputs.CLONE_OPTION as [number, string])[1]]!;
+    expect([menu.shadow, menu.fields.CLONE_OPTION]).toEqual([true, ["_myself_", null]]);
+    expect(errorOf(`stage:\n  when cloned:\n    log(1)\n`)).toMatch(/only available in sprites/);
+    expect(errorOf(`stage:\n  when flag:\n    delete_clone()\n`)).toMatch(/only available in sprites/);
+  });
+
   it("registers broadcasts on the stage", () => {
     const json = project(`sprite A:\n  when receive "go":\n    broadcast("stop")\n`);
     expect(Object.values(json.targets[0].broadcasts).sort()).toEqual(["go", "stop"]);

@@ -1,0 +1,48 @@
+# Clone-heavy run for the trace oracle (tests/trace.test.ts compares it with TurboWarp frame by
+# frame): bursts of clones up to the 300 limit, clones that move, turn and delete themselves,
+# broadcasts that reach every clone, and a stop all that removes the rest.
+var heard = 0
+var made = 0
+
+sprite Spark:
+  costume c = circle "#ff0000"
+  var k = 0
+
+  define warp burst():
+    repeat 45:
+      k += 1
+      create_clone("_myself_")
+
+  when flag:
+    goto(0, 0)
+    repeat 8:
+      burst()
+      broadcast("tick")
+      go_to_front()
+    log(join("made ", made))
+    broadcast_wait("cull")
+    log(join("heard ", heard))
+    wait(0.1)
+    stop("all")
+
+  when cloned:
+    made += 1
+    set_x(k % 40 * 10 - 200)
+    set_y(k % 7 * 20 - 60)
+    repeat 4:
+      change_y(5)
+      turn_right(15)
+    if k % 5 == 0:
+      delete_clone()
+    repeat 3:
+      change_x(-2)
+
+  when receive "tick":
+    heard += 1
+    if k % 11 == 0:
+      delete_clone()
+
+  when receive "cull":
+    if k % 2 == 1:
+      delete_clone()
+    change_size(-10)

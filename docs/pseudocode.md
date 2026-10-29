@@ -81,6 +81,7 @@ Names must be unique across a sprite's locals and all globals.
 | --- | --- |
 | `when flag:` | when green flag clicked |
 | `when clicked:` | when this sprite clicked (or when stage clicked, in `stage:`) |
+| `when cloned:` | when I start as a clone (sprites only) |
 | `when key "space":` | when [space] key pressed |
 | `when receive "go":` | when I receive [go] |
 | `define NAME(a, b):` | custom block (`define NAME %s %s`) |
@@ -199,6 +200,8 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `wait(duration)` | wait (secs) seconds | `control_wait` | any |
 | `wait_until(condition)` | wait until <condition> | `control_wait_until` | any |
 | `stop(stop_option)` | stop ["all" \| "this script" \| "other scripts in sprite"] | `control_stop` | any |
+| `create_clone(clone_option)` | create clone of (`_myself_` or a sprite name) | `control_create_clone_of` | any |
+| `delete_clone()` | delete this clone | `control_delete_this_clone` | sprite |
 | `incr_counter()` | increment counter (hidden) | `control_incr_counter` | any |
 | `clear_counter()` | clear counter (hidden) | `control_clear_counter` | any |
 | `ask(question)` | ask (question) and wait | `sensing_askandwait` | any |
@@ -356,7 +359,7 @@ Unknown builtins suggest the closest name (`mvoe` → `move`).
 
 ## Not supported (yet)
 
-Clones, sounds, pen, extensions, sensing that needs a renderer (`touching`, `distance to`,
+Sounds, pen, extensions, sensing that needs a renderer (`touching`, `distance to`,
 colors), graphic effects, layers beyond `go_to_front()`, `when backdrop switches`, `when timer >`,
 variable and list monitors, comments, and sprite-to-sprite property access (`[x position] of [Cat]`).
 New blocks are added in `packages/pseudo/src/builtins.ts`; see `AGENTS.md`.

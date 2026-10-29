@@ -205,7 +205,8 @@ TurboWarp would run within the frame.
 
 **`stop all`** in a script reaches `step` as the `STOP_ALL` exception. As in TurboWarp, where
 `runtime.stopAll()` replaces the thread list while the sequencer goes on through the old one, the
-threads after the stopping one that were still running get one more step in that pass. They are
+threads after the stopping one that were still running get one more step in that pass, except
+those of clones, which TurboWarp stops when it disposes the clones (`examples/clones_stop_all`). They are
 already marked done, so `broadcast and wait` sees them as finished, and threads they start go into
 the new list and first run in the next pass. So `tick` steps the list it had when the pass began.
 
@@ -243,8 +244,12 @@ the thread order, and `examples/paced_move` (see `turbo off` in
 [pseudocode.md](pseudocode.md#output-and-testing)) the pacing of a loop that draws.
 
 An event starts its hats in TurboWarp's order: targets from the top layer down, the stage last,
-and within a target in the order its scripts appear in `project.json` (`examples/script_order`).
-The runtime caches that list per event and clears the cache when a sprite changes layer. A hat
+clones included, and within a target in the order its scripts appear in `project.json`
+(`examples/script_order`). The runtime indexes each sprite's hats by event and argument, builds
+the list of (target, hat) pairs an event starts the first time it fires, and drops those lists
+when a sprite changes layer or a clone comes or goes; an event no hat listens to is never
+stored. Starting a hat looks through the thread list once for that hat's thread on that target,
+as TurboWarp does. A hat
 that restarts a script puts the new thread in the old one's place in the thread list, so it runs
 on the next pass if that place is already behind. That includes a thread that finished earlier in
 the same pass, which stays listed until the pass ends, as in TurboWarp (`examples/restart_order`).
@@ -254,6 +259,25 @@ hat's extension declares and the compiler passes on as `restart: false` for the 
 start after it has finished goes at the end of the thread list. A key press starts the hats for
 that key and then the "any" key hats, as two separate passes over the hats like TurboWarp
 (`examples/key_restart`, `packages/runtime/test/hats.test.ts`).
+
+Clones follow TurboWarp's `makeClone` (`lib/control.ts`, `packages/runtime/test/clones.test.ts`,
+`examples/clones_*`). A clone is a `Target` made from its parent: a copy of its variables and
+lists, position, direction, size, visibility, costume, rotation style, draggable and graphic
+effects, but no bubble and no threads. It shares its sprite's `index`, costumes and hats, and is
+listed in `rt.targets` after the originals, in the order the clones were made. Layers are
+distinct numbers (`Target.all` renumbers them at load), and a clone goes just behind its parent,
+as `goBehindOther` places it. At most `MAX_CLONES` (300) clones exist at once across all sprites,
+counted as TurboWarp's `_cloneCounter` counts them; the stage cannot be cloned. The new clone's
+"when I start as a clone" scripts start for it alone, and a visible clone requests a redraw, as
+TurboWarp's renderer draws it at once. Clones hear broadcasts, keys and clicks like their
+sprite. `stop all` (and so the green flag) removes every clone. `delete this clone` removes the
+clone and stops its threads, and the script ends: a hat script returns, and a custom block throws
+`RETIRE`, which `step` catches, like TurboWarp's `RETIRE_MAGIC`. Generated code stores the
+variables it keeps in locals before `create clone` (the clone copies them) and before `delete
+this clone`, and the effects analysis counts both blocks like `stop all`, so a call to a custom
+block that may run them stores every local first. The renderers draw clones from `rt.targets`
+like any sprite; the scratch-render backend gives each new clone a drawable with its sprite's
+skins and destroys a deleted one's.
 
 The list helpers in `ops.ts` (`itemOf`, `replaceAt`, `deleteOf`, `insertAt`, `indexOf`) have fast
 paths for the common case of a number index (inlined floor and range check, no `listIndex`), and

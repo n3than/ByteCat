@@ -8,7 +8,11 @@ export interface Effects {
   reads: Set<string>;
   /** Variables it may assign. */
   writes: Set<string>;
-  /** True when it may run `stop all`, which ends every script at once. */
+  /**
+   * True when it may run `stop all` or `delete this clone`, which end scripts that never store
+   * their locals again, or `create clone`, which copies every variable of its target: a caller
+   * stores all its locals before the call.
+   */
   stops: boolean;
 }
 
@@ -16,6 +20,8 @@ export interface Effects {
 const ASSIGNS: ReadonlySet<string> = new Set(["data_setvariableto", "data_changevariableby", "control_for_each"]);
 /** Blocks that read the variable in their VARIABLE field. */
 const READS: ReadonlySet<string> = new Set(["data_variable", "data_changevariableby"]);
+/** Blocks that see every variable or end the script, besides `stop all` (see `Effects.stops`). */
+const STOPS: ReadonlySet<string> = new Set(["control_create_clone_of", "control_delete_this_clone"]);
 
 /**
  * The effects of every procedure of a target, by proccode. A caller that keeps variables in
@@ -40,7 +46,7 @@ export function analyzeEffects(
         if (!b) return;
         if (READS.has(b.opcode)) e.reads.add(variable(b.fields.VARIABLE));
         if (ASSIGNS.has(b.opcode)) e.writes.add(variable(b.fields.VARIABLE));
-        if (b.opcode === "control_stop" && b.fields.STOP_OPTION?.[0] === "all") e.stops = true;
+        if (STOPS.has(b.opcode) || (b.opcode === "control_stop" && b.fields.STOP_OPTION?.[0] === "all")) e.stops = true;
         if (b.opcode === "procedures_call" && b.mutation?.proccode) e.calls.add(b.mutation.proccode);
         for (const input of Object.values(b.inputs)) {
           for (const v of input.slice(1) as InputValue[]) {
