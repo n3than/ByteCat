@@ -32,7 +32,10 @@ export function* sayFor(
   say(rt, t, kind, text);
   const bubble = t.bubble;
   let done = false;
-  rt.later(seconds * 1000, () => {
+  rt.bubbleTimeout = rt.later(seconds * 1000, () => {
+    // Whichever timer it is, as TurboWarp's callback sets `_bubbleTimeout = null`: an earlier
+    // timer that runs makes it forget a later pending one, which stop all then leaves alone.
+    rt.bubbleTimeout = null;
     if (t.bubble === bubble) say(rt, t, kind, "");
     done = true;
   });
