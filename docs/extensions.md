@@ -13,9 +13,10 @@ each block compiles to the JavaScript for its operation, or to a call to a plain
 function when the semantics need one. An extension is therefore a set of **compile-time** rules.
 The registry is consulted while compiling and never exists at run time: there is no dispatch
 table, no block-function lookup and no argument object in the generated program. A block that
-reads `rt.move(t, 10);` in the output was written by the motion extension's handler, and the
-handler declares that it calls `move` (`uses`), so a program can import exactly the runtime
-functions its blocks need and a bundled project ships only those. A third-party extension gets
+reads `move(rt, t, 10);` in the output was written by the motion extension's handler, and the
+handler declares that it calls `move` (`uses`) from `@bytecat/runtime/motion` (`runtime`), so a
+program imports exactly the runtime functions its blocks call and a bundled project ships only
+those. A third-party extension gets
 the same treatment, not a generic compatibility path.
 
 ## An extension
@@ -26,12 +27,12 @@ import { hat, missing, numEx, reporter, statement, type Extension } from "@bytec
 export const counter: Extension = {
   id: "counter", // the opcode prefix, and the id project.json lists under `extensions`
   name: "Counter", // the name docs show
-  runtime: "./counter-runtime.js", // where `uses` names come from (default @bytecat/runtime)
+  runtime: "./counter-runtime.js", // the module a program imports `uses` from
   blocks: {
     counter_whenstarted: hat("flag", { restartExistingThreads: true }),
-    counter_bump: statement((b, g) => [`rt.bump(${g.num(b, "BY")});`], { uses: ["bump"] }),
-    counter_pause: statement((b, g) => g.y(`yield* rt.pause(${g.num(b, "SECS")});`), { yields: "wait", uses: ["pause"] }),
-    counter_value: reporter(() => numEx("rt.counter"), { uses: ["counter"] }),
+    counter_bump: statement((b, g) => [`bump(rt, ${g.num(b, "BY")});`], { uses: ["bump"] }),
+    counter_pause: statement((b, g) => g.y(`yield* pause(rt, ${g.num(b, "SECS")});`), { yields: "wait", uses: ["pause"] }),
+    counter_value: reporter(() => numEx("counterValue(rt)"), { uses: ["counterValue"] }),
     counter_reset: missing("statement", "not written yet"),
   },
 };
@@ -55,7 +56,7 @@ compile it. The helpers `statement`, `reporter`, `boolean`, `hat`, `menu`, `miss
 | `status` | `compiled` (matches TurboWarp), `partial` (compiles, but differs from TurboWarp in a case real projects reach) or `missing` (reported as an unsupported block). The helpers set it: `partial: "note"` makes a block partial. |
 | `note` | What is partial or missing; required for both. Shown in [blocks.md](blocks.md). |
 | `hidden` | Not in the default palette: Scratch 2 leftovers and TurboWarp-only blocks. |
-| `uses` | The runtime functions the generated code calls, by name (`move` for `rt.move`, `itemOf` for the list helper). What the code generator emits itself (the casts, the loop yield, the contents of a list dropped into an input) is in `CODEGEN_USES` (`emit.ts`) and not listed. `tests/uses.test.ts` compiles every example and benchmark and fails if the program calls anything neither declares. |
+| `uses` | The plain runtime functions (and constants such as `WAIT`) the generated code calls, by name, from the extension's `runtime` module: `move` for `move(rt, t, 10)`, `itemOf` for the list helper. A program imports each one its code calls and nothing else (see "Runtime functions" below). What the code generator emits itself (the casts, the contents of a list dropped into an input) is in `CODEGEN_USES` (`emit.ts`) and not listed, and nor is the runtime state the code reads and writes on `rt` (`rt.answer`, `rt.mouse`, `rt.counter`, `rt.spin`, `rt.stage`). `tests/uses.test.ts` compiles every example and benchmark and fails if the program calls a runtime function it does not import, or imports one it does not call or no block declares. |
 
 ### Statements and reporters
 
@@ -169,11 +170,23 @@ app warn about it; each block of it is also reported as unsupported in `warnings
 generic path that runs an extension's own JavaScript: if one is ever added for extensions that
 cannot be compiled, it will be reported as a warning and never used for built-in blocks.
 
-**Runtime functions.** Generated code still reaches every runtime function through `rt`
-(`rt.move(t, 10)`), so until the follow-up that makes generated programs import the functions they
-use directly, a third-party extension's functions must be added to the `Runtime` before the
-project starts (`rt.bump = ...`). Its `runtime` module and the `uses` of its blocks are what that
-follow-up will import from.
+**Runtime functions.** A runtime function is a plain function exported from a module: it takes
+the runtime, and the target when it needs one, as explicit arguments (`move(rt, t, steps)`,
+`coord(n)`), and the generated code calls it by name. The extension's `runtime` is the specifier a
+program imports it with; the built-in ones are `@bytecat/runtime/{control,event,looks,motion,
+sensing}` and `@bytecat/runtime/ops` for the value helpers of `operator` and `data`. An extension
+whose blocks list `uses` must name one, and the registry refuses it otherwise.
+
+`CompileResult.imports` lists, by module, every function a block that compiled declares in `uses`
+(or the code generator in `CODEGEN_USES`) and the code then calls; a name a handler declared but
+did not emit this time is left out. `toModule` writes the program as an ES module with those
+imports, and `load(result, modules)` binds them from the built-in modules plus `modules`, where a
+third-party extension's runtime module comes from:
+
+```ts
+import * as counterRuntime from "./counter-runtime.js";
+const { program } = compile(project, { extensions: [counter], modules: { "./counter-runtime.js": counterRuntime } });
+```
 
 ## What is not part of the API yet
 

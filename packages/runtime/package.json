@@ -4,7 +4,16 @@
   "private": true,
   "type": "module",
   "description": "The scheduler and block helpers that compiled Bytecat programs run on.",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./control": "./src/lib/control.ts",
+    "./event": "./src/lib/event.ts",
+    "./looks": "./src/lib/looks.ts",
+    "./motion": "./src/lib/motion.ts",
+    "./ops": "./src/ops.ts",
+    "./sensing": "./src/lib/sensing.ts",
+    "./modules": "./src/modules.ts"
+  },
   "dependencies": {
     "@bytecat/sb3": "workspace:*"
   }

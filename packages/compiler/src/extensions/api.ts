@@ -18,8 +18,8 @@ export interface Extension {
   /** Name for docs/blocks.md, as the Scratch palette shows it. */
   readonly name: string;
   /**
-   * The module that exports the runtime functions this extension's blocks call (`uses`), so a
-   * program can import only what it needs. Default `@bytecat/runtime`.
+   * The module that exports the runtime functions this extension's blocks call (`uses`), as a
+   * program imports it (`@bytecat/runtime/motion`). Required when a block lists `uses`.
    */
   readonly runtime?: string;
   /** Every opcode the extension knows, compiled or not. */
@@ -44,10 +44,13 @@ interface SpecBase {
   /** Not in the default palette: Scratch 2 leftovers and TurboWarp-only blocks. */
   readonly hidden?: boolean;
   /**
-   * The runtime functions the generated code calls (`move` for `rt.move`, the `itemOf` helper,
-   * ...), by name, from the extension's `runtime` module. What the code generator emits itself
-   * (the casts, the loop yield, a list dropped into an input) is in `CODEGEN_USES` and not listed.
-   * `tests/uses.test.ts` checks every example and benchmark program calls nothing else.
+   * The plain runtime functions (and constants) the generated code calls, by name, from the
+   * extension's `runtime` module: `move` for `move(rt, t, 10)`, the `itemOf` list helper. A
+   * program imports each one its code names, and nothing else. What the code generator emits
+   * itself (the casts, a list dropped into an input) is in `CODEGEN_USES` and not listed, and nor
+   * is the runtime state the code reads and writes on `rt` (`rt.answer`, `rt.mouse`,
+   * `rt.counter`). `tests/uses.test.ts` checks that every example and benchmark program calls
+   * nothing else.
    */
   readonly uses?: readonly string[];
 }

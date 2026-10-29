@@ -35,9 +35,23 @@ export interface Proc {
   sync: boolean;
 }
 
+/** Runtime functions a program imports from one module. */
+export interface RuntimeImport {
+  /** The module specifier, such as `@bytecat/runtime/motion`. */
+  readonly from: string;
+  /** The names it imports, sorted. */
+  readonly names: readonly string[];
+}
+
 export interface CompileResult {
-  /** Source of a `function (rt) { ... }` expression returning the program's hats. */
+  /**
+   * Source of a `function (rt) { ... }` expression returning the program's hats. The runtime
+   * functions it calls are free names that `imports` binds; `toModule`, `toScript` and `load`
+   * put the two together.
+   */
   code: string;
+  /** The runtime functions the code calls, by module; sorted by module. */
+  imports: RuntimeImport[];
   /** Blocks the compiler does not support, by opcode. They compile to no-ops or empty values. */
   warnings: string[];
   /**

@@ -1,12 +1,12 @@
-import { Runtime, ops } from "@bytecat/runtime";
-import type { Block, ProjectJson } from "@bytecat/sb3";
+import { RUNTIME_MODULES } from "@bytecat/runtime/modules";
+import type { Block } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
 import { BOOL, within } from "../src/analysis/typeset.js";
 import { numEx } from "../src/cast.js";
 import {
   BUILTIN_EXTENSIONS, ExtensionRegistry, builtins, checkExtension, hat, missing, reporter, statement, type Extension,
 } from "../src/extensions/index.js";
-import { CODEGEN_USES, compileProject } from "../src/index.js";
+import { CODEGEN_USES, OPS_MODULE, compileProject, referencedNames } from "../src/index.js";
 import { block, project, stubGen, target } from "./helpers.js";
 
 /** A third-party extension, written the way docs/extensions.md describes. */
@@ -16,9 +16,9 @@ const counter: Extension = {
   runtime: "./counter-runtime.js",
   blocks: {
     counter_whenstarted: hat("flag", { restartExistingThreads: true }),
-    counter_bump: statement((b, g) => [`rt.bump(${g.num(b, "BY")});`], { uses: ["bump"] }),
-    counter_pause: statement((b, g) => g.y(`yield* rt.pause(${g.num(b, "SECS")});`), { yields: "wait", uses: ["pause"] }),
-    counter_value: reporter(() => numEx("rt.counter"), { uses: ["counter"] }),
+    counter_bump: statement((b, g) => [`bump(rt, ${g.num(b, "BY")});`], { uses: ["bump"] }),
+    counter_pause: statement((b, g) => g.y(`yield* pause(rt, ${g.num(b, "SECS")});`), { yields: "wait", uses: ["pause"] }),
+    counter_value: reporter(() => numEx("counterValue(rt)"), { uses: ["counterValue"] }),
     counter_reset: missing("statement", "not written yet"),
   },
 };
@@ -48,26 +48,25 @@ describe("the built-in extensions", () => {
     }
   });
 
-  it("name only runtime functions that exist, and every one their code calls", () => {
-    const stage = { isStage: true, name: "Stage", variables: {}, lists: {}, costumes: [], currentCostume: 0, layerOrder: 0 };
-    const rt = new Runtime({ targets: [stage] } as unknown as ProjectJson, () => []) as unknown as Record<string, unknown>;
-    const exists = (name: string) => name in rt || name in ops;
-    // Emitted by the code generator itself, so never listed by a block.
-    const always = new Set(CODEGEN_USES);
-    const helpers = Object.keys(ops);
+  it("name only runtime functions their module exports, and every one their code calls", () => {
+    // Every name any runtime module exports, with its module.
+    const exported = new Map<string, string>();
+    for (const [from, m] of Object.entries(RUNTIME_MODULES)) for (const name of Object.keys(m)) exported.set(name, from);
     for (const e of BUILTIN_EXTENSIONS) {
       for (const [op, spec] of Object.entries(e.blocks)) {
-        for (const name of spec.uses ?? []) expect(exists(name), `${op} uses ${name}`).toBe(true);
+        for (const name of spec.uses ?? []) expect(RUNTIME_MODULES[e.runtime!], `${op} uses ${name} from ${e.runtime}`).toHaveProperty(name);
         const compile = spec.kind === "statement" || spec.kind === "reporter" || spec.kind === "boolean" ? spec.compile : undefined;
         if (!compile) continue;
         const out = compile(block(op), stubGen());
         const code = Array.isArray(out) ? out.join("\n") : out?.c ?? "";
-        const called = [
-          ...[...code.matchAll(/\brt\.(\w+)/g)].map((m) => m[1]!),
-          ...helpers.filter((h) => new RegExp(`(?<![.\\w])${h}\\(`).test(code)),
-        ];
-        for (const name of called) {
-          if (!always.has(name)) expect(spec.uses ?? [], `${op} calls ${name}`).toContain(name);
+        // Runtime functions are plain calls; `rt.` reaches only the runtime's state.
+        expect(code, op).not.toMatch(/\brt\.\w+\(/);
+        for (const name of referencedNames(code)) {
+          const from = exported.get(name);
+          if (from === undefined) continue;
+          if (from === OPS_MODULE && CODEGEN_USES.includes(name)) continue;
+          expect(spec.uses ?? [], `${op} calls ${name}`).toContain(name);
+          expect(from, `${op} calls ${name}`).toBe(e.runtime);
         }
       }
     }
@@ -101,6 +100,10 @@ describe("ExtensionRegistry", () => {
     );
   });
 
+  it("refuses runtime functions without a runtime module", () => {
+    expect(fail([ext({ x_a: statement(() => ["go(rt);"], { uses: ["go"] }) })])).toThrow("x_a uses runtime functions, but x names no runtime module");
+  });
+
   it("looks blocks up by kind", () => {
     expect(builtins.statement("motion_movesteps")?.kind).toBe("statement");
     expect(builtins.reporter("operator_lt")?.kind).toBe("boolean");
@@ -121,9 +124,13 @@ describe("compileProject with a third-party extension", () => {
   });
 
   it("compiles its blocks and hats like built-in ones", () => {
-    const { code, warnings } = compileProject(project(target(blocks())), { extensions: [counter] });
-    expect(code).toContain("rt.bump(2);");
-    expect(code).toContain('rt.say(t, "say", rt.counter);');
+    const { code, imports, warnings } = compileProject(project(target(blocks())), { extensions: [counter] });
+    expect(code).toContain("bump(rt, 2);");
+    expect(code).toContain('say(rt, t, "say", counterValue(rt));');
+    expect(imports).toEqual([
+      { from: "./counter-runtime.js", names: ["bump", "counterValue"] },
+      { from: "@bytecat/runtime/looks", names: ["say"] },
+    ]);
     expect(code.match(/kind: "flag"/g)).toHaveLength(2);
     expect(warnings).toEqual(["counter_reset"]);
   });

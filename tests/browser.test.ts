@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { compileProject } from "@bytecat/compiler";
+import { compileProject, toScript } from "@bytecat/compiler";
 import type { Player } from "@bytecat/player";
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile } from "@bytecat/pseudo";
@@ -88,7 +88,7 @@ describe("browser", () => {
       const { probes, turbo } = parsePixels(join(dir, `${name}.pixels`));
       const { project } = compile(readFileSync(join(dir, file), "utf8"), file);
       const html = join(tmp, `${name}.html`);
-      writeFileSync(html, await bundleHtml(project, compileProject(project.json).code, name));
+      writeFileSync(html, await bundleHtml(project, toScript(compileProject(project.json)), name));
 
       const page = await browser.newPage();
       try {

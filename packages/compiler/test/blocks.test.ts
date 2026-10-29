@@ -27,18 +27,18 @@ describe("block handler tables", () => {
 describe("statement handlers", () => {
   it("motion casts inputs to numbers", () => {
     const g = stubGen({ X: lit("5"), Y: anyEx("v") });
-    expect(statements.motion_gotoxy!(block("motion_gotoxy"), g)).toEqual(["rt.setXY(t, 5, toNum(v));"]);
+    expect(statements.motion_gotoxy!(block("motion_gotoxy"), g)).toEqual(["setXY(rt, t, 5, toNum(v));"]);
   });
 
   it("waiting blocks mark the code as yielding", () => {
     const g = stubGen({ DURATION: lit("1") });
-    expect(statements.control_wait!(block("control_wait"), g)).toEqual(["yield* rt.wait(1);"]);
+    expect(statements.control_wait!(block("control_wait"), g)).toEqual(["yield* wait(rt, 1);"]);
     expect(g.yielded).toBe(true);
   });
 
   it("instant blocks do not", () => {
     const g = stubGen({ MESSAGE: lit("hi") });
-    expect(statements.looks_say!(block("looks_say"), g)).toEqual(['rt.say(t, "say", "hi");']);
+    expect(statements.looks_say!(block("looks_say"), g)).toEqual(['say(rt, t, "say", "hi");']);
     expect(g.yielded).toBe(false);
   });
 
@@ -53,16 +53,16 @@ describe("statement handlers", () => {
   });
 
   it("go to back is unsupported, front is not", () => {
-    expect(statements.looks_gotofrontback!(block("looks_gotofrontback"), stubGen({}, { FRONT_BACK: "front" }))).toEqual(["rt.goToFront(t);"]);
+    expect(statements.looks_gotofrontback!(block("looks_gotofrontback"), stubGen({}, { FRONT_BACK: "front" }))).toEqual(["goToFront(rt, t);"]);
     expect(statements.looks_gotofrontback!(block("looks_gotofrontback"), stubGen({}, { FRONT_BACK: "back" }))).toBeUndefined();
   });
 
   it("stop options", () => {
     const stop = (option: string) => statements.control_stop!(block("control_stop"), stubGen({}, { STOP_OPTION: option }));
     // Leaving the script stores the variables it keeps in locals first.
-    expect(stop("all")).toEqual(["store;", "throw rt.STOP_ALL;"]);
+    expect(stop("all")).toEqual(["store;", "throw STOP_ALL;"]);
     expect(stop("this script")).toEqual(["store;", "return;"]);
-    expect(stop("other scripts in sprite")).toEqual(["rt.stopOthers(t, th);"]);
+    expect(stop("other scripts in sprite")).toEqual(["stopOthers(rt, t, th);"]);
   });
 
   it("the counter blocks are plain operations on the runtime's counter", () => {

@@ -1,29 +1,106 @@
-/**
- * The runtime features the code generator itself emits, outside any block's spec: the program
- * prelude (`rt.ops`, `rt.stage`), the casts every input may get (`toNum`, `toStr`, `toBool`,
- * `cast.ts`), the loop yield (`rt.spin`, `TargetCodegen.loopYield`) and the contents of a list
- * dropped into an input (`listContents`, `TargetCodegen.primitive`). Together with the `uses` of
- * the blocks a project contains, these are every runtime function its program calls
- * (`tests/uses.test.ts`).
- */
-export const CODEGEN_USES: readonly string[] = ["ops", "stage", "toNum", "toStr", "toBool", "spin", "listContents"];
+import type { RuntimeImport } from "./types.js";
+
+/** The runtime module of the value helpers: the casts, comparisons and list helpers. */
+export const OPS_MODULE = "@bytecat/runtime/ops";
 
 /**
- * Assembles the final program text from the pieces each target produced: the prelude (variables
- * the project uses but never declares), procedure functions, and hat scripts.
+ * The runtime functions the code generator itself emits, outside any block's spec, all from
+ * `OPS_MODULE`: the casts every input may get (`toNum`, `toStr`, `toBool`, `cast.ts`) and the
+ * contents of a list dropped into an input (`listContents`, `TargetCodegen.primitive`). A program
+ * imports one only when its code calls it, like the `uses` of its blocks.
+ */
+export const CODEGEN_USES: readonly string[] = ["toNum", "toStr", "toBool", "listContents"];
+
+/**
+ * Assembles the program factory from the pieces each target produced: the prelude (variables
+ * the project uses but never declares), procedure functions and hat scripts. The factory takes
+ * the runtime and returns the hats; the plain functions it calls are free names, bound by the
+ * imports (`programImports`).
  */
 export function emitProgram(parts: { prelude: string[]; procedures: string[]; hats: string[] }): string {
   return [
-    "(function (rt) {",
-    '"use strict";',
-    "const { toNum, toStr, toBool, eq, lt, gt, mod, random, letterOf, contains, mathop,",
-    "  itemOf, deleteOf, insertAt, replaceAt, indexOf, listContains, listContents } = rt.ops;",
-    "const S = rt.stage;",
+    FACTORY_HEAD + "const S = rt.stage;",
     ...parts.prelude,
     ...parts.procedures,
     "return [",
     ...parts.hats.map((h) => h + ","),
     "];",
-    "})",
+    "}",
   ].join("\n");
+}
+
+/** How every program factory starts. `toScript` binds the imports right after it. */
+const FACTORY_HEAD = 'function (rt) {\n"use strict";\n';
+
+/**
+ * The imports of a program: every runtime function it may call (`declared`, name to module) that
+ * its code names. A block's `uses` and `CODEGEN_USES` say what can be called; the code says what
+ * is, so a helper a handler did not emit this time, or a cast no input needed, is not imported.
+ * Sorted by module, then name.
+ */
+export function programImports(code: string, declared: ReadonlyMap<string, string>): RuntimeImport[] {
+  const byModule = new Map<string, string[]>();
+  for (const name of [...referencedNames(code)].sort()) {
+    const from = declared.get(name);
+    if (from === undefined) continue;
+    let names = byModule.get(from);
+    if (!names) byModule.set(from, (names = []));
+    names.push(name);
+  }
+  return [...byModule].sort(([a], [b]) => (a < b ? -1 : 1)).map(([from, names]) => ({ from, names }));
+}
+
+/**
+ * Every name the code refers to as a variable: identifiers outside strings and comments that do
+ * not follow a `.` (a property such as `t.x`). Generated code has no regular expressions and no
+ * template literals with substitutions, so this is exact for it.
+ */
+export function referencedNames(code: string): Set<string> {
+  const names = new Set<string>();
+  let i = 0;
+  while (i < code.length) {
+    const c = code[i]!;
+    if (c === '"' || c === "'" || c === "`") {
+      i++;
+      while (i < code.length && code[i] !== c) i += code[i] === "\\" ? 2 : 1;
+      i++;
+    } else if (c === "/" && code[i + 1] === "*") {
+      const end = code.indexOf("*/", i + 2);
+      i = end < 0 ? code.length : end + 2;
+    } else if (c === "/" && code[i + 1] === "/") {
+      const end = code.indexOf("\n", i);
+      i = end < 0 ? code.length : end;
+    } else if (/[A-Za-z_$]/.test(c)) {
+      const start = i;
+      while (i < code.length && /[\w$]/.test(code[i]!)) i++;
+      let j = start - 1;
+      while (j >= 0 && (code[j] === " " || code[j] === "\n")) j--;
+      if (code[j] !== "." || code.slice(j - 2, j + 1) === "...") names.add(code.slice(start, i));
+    } else if (/[0-9]/.test(c)) {
+      // A number, including `1e3` and `0x1f`: its letters are not names.
+      while (i < code.length && /[\w.]/.test(code[i]!)) i++;
+    } else {
+      i++;
+    }
+  }
+  return names;
+}
+
+/** The program as an ES module that imports the runtime functions it calls. */
+export function toModule(result: { code: string; imports: readonly RuntimeImport[] }): string {
+  const imports = result.imports.map(({ from, names }) => `import { ${names.join(", ")} } from "${from}";\n`).join("");
+  return `// Generated by Bytecat. Do not edit.\n${imports}${imports ? "\n" : ""}export default ${result.code}\n`;
+}
+
+/**
+ * The program as a script expression: a function that takes the runtime modules, keyed by
+ * specifier (`RUNTIME_MODULES` in @bytecat/runtime), and returns the program factory. `load`
+ * and the full player use it where there is nothing to resolve an import. The imports are bound
+ * inside the factory, next to `S`, so the scripts reach them as closely as before they were
+ * imports.
+ */
+export function toScript(result: { code: string; imports: readonly RuntimeImport[] }): string {
+  if (!result.code.startsWith(FACTORY_HEAD)) throw new Error("internal error: the program does not start with the factory head");
+  const bind = result.imports.map(({ from, names }) => `const { ${names.join(", ")} } = modules[${JSON.stringify(from)}];\n`).join("");
+  return `(function (modules) {\nreturn ${FACTORY_HEAD}${bind}${result.code.slice(FACTORY_HEAD.length)};\n})`;
 }

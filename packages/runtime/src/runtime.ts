@@ -1,13 +1,7 @@
 import type { ProjectJson } from "@bytecat/sb3";
-import * as ops from "./ops.js";
 import { Target } from "./target.js";
-import type { Value } from "./ops.js";
-import { STOP_ALL, Thread, WAIT, type Hat, type HatKind, type ProgramFactory } from "./thread.js";
+import { Thread, type Hat, type HatKind, type ProgramFactory } from "./thread.js";
 import { tick } from "./scheduler.js";
-import { wait } from "./lib/control.js";
-import { costumeName, goToFront, nextCostume, say, sayFor, setSize, setVisible, switchCostume } from "./lib/looks.js";
-import { bounce, coord, glide, move, setDirection, setXY } from "./lib/motion.js";
-import { ask, daysSince2000, keyPressed, resetTimer, timer } from "./lib/sensing.js";
 
 export interface RuntimeOptions {
   /** Skip the redraw that normally ends a frame after visible changes. Default false. */
@@ -35,10 +29,12 @@ export interface Timeout {
   fn: () => void;
 }
 
+/**
+ * The state of a running project. Generated code reads and writes its public fields (`stage`,
+ * `spin`, `answer`, `mouse`, ...) and passes it to the plain functions in `lib/`, where the
+ * blocks' behaviour lives. The runtime itself only starts scripts and runs frames.
+ */
 export class Runtime {
-  readonly ops = ops;
-  readonly WAIT = WAIT;
-  readonly STOP_ALL = STOP_ALL;
   readonly targets: Target[];
   readonly stage: Target;
   readonly hats: Hat[];
@@ -85,8 +81,8 @@ export class Runtime {
   timerStart = 0;
   /** Each target's hats, in the order its scripts appear. */
   private readonly hatsByTarget: Hat[][];
-  /** @internal Every hat in start order (see `startHats`), or null after a layer change (`lib/looks.ts`). */
-  ordered: Hat[] | null = null;
+  /** Every hat in start order (see `startHats`), or null after a layer change. */
+  private ordered: Hat[] | null = null;
 
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
     this.options = { turbo: false, fps: 30, clock: "real", ...options };
@@ -183,10 +179,11 @@ export class Runtime {
   }
 
   /**
-   * Starts the hats for `kind` and `arg` in TurboWarp's order: targets from the top layer down
-   * with the stage last, and within a target in the order its scripts appear.
+   * @internal Starts the hats for `kind` and `arg` in TurboWarp's order: targets from the top
+   * layer down with the stage last, and within a target in the order its scripts appear. Called
+   * by `broadcast` (`lib/event.ts`).
    */
-  private startHats(kind: HatKind, arg?: string): Thread[] {
+  startHats(kind: HatKind, arg?: string): Thread[] {
     const started: Thread[] = [];
     for (const hat of this.ordered ?? this.orderHats()) {
       if (hat.kind !== kind || (arg !== undefined && hat.arg !== arg)) continue;
@@ -194,6 +191,11 @@ export class Runtime {
       if (th) started.push(th);
     }
     return started;
+  }
+
+  /** @internal Called by `goToFront` (`lib/looks.ts`) after it changes a layer. */
+  layersChanged(): void {
+    this.ordered = null;
   }
 
   /** Sorts every hat into start order; done again after a layer change. */
@@ -210,16 +212,6 @@ export class Runtime {
     this.startFrame();
     this.timerStart = this.now();
     this.startHats("flag");
-  }
-
-  broadcast(name: Value): Thread[] {
-    return this.startHats("broadcast", ops.toStr(name).toLowerCase());
-  }
-
-  *broadcastAndWait(name: Value): Generator<unknown, void, unknown> {
-    const started = this.broadcast(name);
-    do yield WAIT;
-    while (started.some((th) => !th.done));
   }
 
   /** A key press starts the hats for that key, then the "any" key hats, like TurboWarp. */
@@ -251,11 +243,6 @@ export class Runtime {
       t.bubble = null;
       t.bubbleDrawn = false;
     }
-  }
-
-  stopOthers(t: Target, self: Thread): void {
-    for (const th of this.threads) if (th.target === t && th !== self) th.done = true;
-    this.spin = 0;
   }
 
   // ---- scheduler ----
@@ -298,33 +285,6 @@ export class Runtime {
     while (this.running && performance.now() - start < timeoutMs) this.tick();
     return { finished: !this.running, elapsedMs: performance.now() - start, frames: this.frame - first };
   }
-
-  // ---- block helpers used by generated code ----
-  // One-line delegates to the plain functions in `lib/`; a later change makes generated code
-  // call those directly and removes this group.
-
-  *wait(seconds: number): Generator<unknown, void, unknown> { yield* wait(this, seconds); }
-  timer(): number { return timer(this); }
-  resetTimer(): void { resetTimer(this); }
-  *ask(t: Target, question: Value): Generator<unknown, void, unknown> { yield* ask(this, t, question); }
-  keyPressed(key: Value): boolean { return keyPressed(this, key); }
-  daysSince2000(): number { return daysSince2000(); }
-
-  say(t: Target, kind: "say" | "think", text: Value): void { say(this, t, kind, text); }
-  *sayFor(t: Target, kind: "say" | "think", text: Value, seconds: number): Generator<unknown, void, unknown> { yield* sayFor(this, t, kind, text, seconds); }
-  switchCostume(t: Target, value: Value): void { switchCostume(this, t, value); }
-  nextCostume(t: Target): void { nextCostume(this, t); }
-  costumeName(t: Target): string { return costumeName(t); }
-  setSize(t: Target, size: number): void { setSize(this, t, size); }
-  setVisible(t: Target, visible: boolean): void { setVisible(this, t, visible); }
-  goToFront(t: Target): void { goToFront(this, t); }
-
-  setXY(t: Target, x: number, y: number): void { setXY(this, t, x, y); }
-  move(t: Target, steps: number): void { move(this, t, steps); }
-  setDirection(t: Target, dir: number): void { setDirection(this, t, dir); }
-  *glide(t: Target, seconds: number, x: number, y: number): Generator<unknown, void, unknown> { yield* glide(this, t, seconds, x, y); }
-  bounce(t: Target): void { bounce(this, t); }
-  coord(n: number): number { return coord(n); }
 
   /** Reads the `log` list on the stage, the standard test output. */
   log(): string[] {

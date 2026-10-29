@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { compile as compileToJs, compileProject, toModule, type CompileResult } from "@bytecat/compiler";
+import { compile as compileToJs, compileProject, toModule, toScript, type CompileResult } from "@bytecat/compiler";
 import { benchmark, engineNames, formatTable, getEngine, pickBaseline, type BenchResult } from "@bytecat/bench";
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
@@ -151,14 +151,13 @@ switch (command) {
   case "compile": {
     need(1);
     const result = compileToJs(loadJson(files[0]!));
-    const { code } = result;
     printWarnings(result);
     if (values.out) {
       mkdirSync(dirname(values.out), { recursive: true });
-      writeFileSync(values.out, toModule(code));
+      writeFileSync(values.out, toModule(result));
       console.log(`${files[0]} -> ${values.out}`);
     } else {
-      process.stdout.write(toModule(code));
+      process.stdout.write(toModule(result));
     }
     break;
   }
@@ -171,10 +170,9 @@ switch (command) {
       const out = isDir || !values.out ? join(values.out ?? "out", `${name}.html`) : values.out;
       const project = loadProject(file);
       const result = compileProject(project.json);
-      const { code } = result;
       printWarnings(result);
       mkdirSync(dirname(out), { recursive: true });
-      writeFileSync(out, await bundleHtml(project, code, name));
+      writeFileSync(out, await bundleHtml(project, toScript(result), name));
       console.log(`${file} -> ${out}`);
     }
     break;

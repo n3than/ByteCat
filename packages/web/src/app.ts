@@ -1,5 +1,5 @@
 // Browser entry point of the web app. The build (build.ts) defines __PLAYER_SCRIPT__ and __SAMPLES__.
-import { compileProject, load, toModule } from "@bytecat/compiler";
+import { compileProject, load, toModule, toScript, type RuntimeImport } from "@bytecat/compiler";
 import { costumeAssets, createPlayer, mimeType, pageHtml, type Player } from "@bytecat/player";
 import { compile as compilePseudo, PseudoError } from "@bytecat/pseudo";
 import { readSb3, writeSb3, type Project } from "@bytecat/sb3";
@@ -19,6 +19,7 @@ interface Loaded {
   /** The original file, for .sb3 downloads of an opened project. */
   sb3?: Uint8Array;
   code: string;
+  imports: RuntimeImport[];
   warnings: string[];
   unknownExtensions: string[];
   compileMs: number;
@@ -161,8 +162,8 @@ function plural(n: number, word: string): string {
 function compileLoaded(name: string, project: Project, sb3?: Uint8Array): Loaded | null {
   const start = performance.now();
   try {
-    const { code, warnings, unknownExtensions } = compileProject(project.json);
-    return { name, project, code, warnings, unknownExtensions, compileMs: performance.now() - start, ...(sb3 ? { sb3 } : {}) };
+    const { code, imports, warnings, unknownExtensions } = compileProject(project.json);
+    return { name, project, code, imports, warnings, unknownExtensions, compileMs: performance.now() - start, ...(sb3 ? { sb3 } : {}) };
   } catch (e) {
     showError(`Could not compile ${name}: ${(e as Error).message}`);
     return null;
@@ -218,7 +219,7 @@ async function startPlayer(): Promise<Player | null> {
   blobUrls = [];
   const urls: string[] = [];
   const errors: string[] = [];
-  const { project, code } = loaded!;
+  const { project } = loaded!;
   const assets: Record<string, string> = {};
   for (const [name, data] of costumeAssets(project)) {
     const url = URL.createObjectURL(new Blob([data as BlobPart], { type: mimeType(name) }));
@@ -229,7 +230,7 @@ async function startPlayer(): Promise<Player | null> {
   const created = await createPlayer({
     canvas,
     project: project.json,
-    program: load(code),
+    program: load(loaded!),
     assets,
     onAssetError: (name) => errors.push(name),
   });
@@ -329,7 +330,7 @@ function renderPanels(): void {
   const count = $("warning-count");
   count.hidden = warnings.length === 0;
   count.textContent = String(warnings.length);
-  $("js").textContent = loaded ? toModule(loaded.code) : "";
+  $("js").textContent = loaded ? toModule(loaded) : "";
   renderOutput(true);
 }
 
@@ -364,10 +365,10 @@ function save(filename: string, data: BlobPart, type: string): void {
 function download(kind: string): void {
   if (mode === "editor" && !compileEditor()) return;
   if (!loaded) return;
-  const { name, project, code } = loaded;
-  if (kind === "html") save(`${name}.html`, pageHtml(project, code, __PLAYER_SCRIPT__, name), "text/html");
+  const { name, project } = loaded;
+  if (kind === "html") save(`${name}.html`, pageHtml(project, toScript(loaded), __PLAYER_SCRIPT__, name), "text/html");
   else if (kind === "sb3") save(`${name}.sb3`, (loaded.sb3 ?? writeSb3(project)) as BlobPart, "application/x.scratch.sb3");
-  else if (kind === "js") save(`${name}.js`, toModule(code), "text/javascript");
+  else if (kind === "js") save(`${name}.js`, toModule(loaded), "text/javascript");
 }
 
 function toggleMenu(open = downloadMenu.hidden): void {

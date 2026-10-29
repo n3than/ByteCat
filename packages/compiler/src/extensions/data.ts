@@ -16,6 +16,7 @@ const NO_MONITORS = "compiles to nothing; no monitors are drawn";
 export const data: Extension = {
   id: "data",
   name: "Variables and lists",
+  runtime: "@bytecat/runtime/ops",
   blocks: {
     data_variable: reporter((b, g) => anyEx(g.variable(b.fields.VARIABLE), g.varType(b.fields.VARIABLE))),
     data_setvariableto: statement((b, g) => {

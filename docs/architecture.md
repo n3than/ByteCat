@@ -16,9 +16,9 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 | `packages/sb3` | Types for `project.json`, deterministic ids, generated SVG assets, `.sb3` zip read/write, and a plain TypeScript `md5` so it runs in the browser. No Scratch semantics. | fflate |
 | `packages/pseudo` | Pseudocode compiler: `lexer.ts` (tokens with INDENT/DEDENT) → `parser.ts` (AST in `ast.ts`) → `lower.ts` (Scratch blocks). `lower.ts` is the core: project and target scopes, declarations, and the walk over scripts, statements and expressions with block id and source map handling. `lower/` has one file per family, each exporting plain functions that lower into a `TargetBuilder`: `control.ts` (if, loops, `for` desugaring), `data.ts` (assignment, list statements and list reporters), `procedures.ts` (`define` and calls), `events.ts` (`when` hats), `operators.ts` (arithmetic, comparison, `join`) and `calls.ts` (table-driven calls of builtin functions, `log`, and the "did you mean" hints). The builtin block table is `builtins.ts`. `tests/lower-hashes.test.ts` pins a hash of `project.json` and the source map for every example, bench and 300 fuzz seeds, so a refactor of lowering cannot change a block id. | sb3 |
 | `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). `TurboWarpLockstepCore` (`tw-lockstep.ts`, no Node imports) steps TurboWarp one frame at a time on a virtual clock for the trace oracles, and `TurboWarpLockstep` (`lockstep.ts`) loads it in Node; `tw-browser.ts` is the browser entry the browser oracle bundles; `virtual.ts` holds the seeded random, pinned date and virtual timers, and `tw-ids.ts` makes TurboWarp's ids from a counter. `turbowarpBlocks` lists the opcodes and hat rules of TurboWarp's block modules, for the block inventory test. | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
-| `packages/compiler` | `project.json` → one JavaScript program (`compile`, `toModule`, `load`). Reports unsupported opcodes as warnings. Split into small modules, see [Compiler modules](#compiler-modules). | runtime (types), sb3 |
-| `packages/runtime` | Headless scheduler (virtual or real clock), targets, say bubbles and the Scratch value helpers in `ops.ts` that generated code calls. `runtime.ts` is the `Runtime` class (state, events, hat order); `thread.ts` the `Thread`, `Hat` and `WAIT`; `scheduler.ts` the frame loop (`tick`, `step`); `lib/{motion,looks,sensing,control}.ts` the block helpers as plain functions taking `(rt, target, ...)`. `Runtime` keeps one-line delegate methods for them, which generated code still calls (`rt.move(t, 10)`) until it is switched to call the functions directly. | sb3 |
-| `packages/player` | Browser player: the renderer interface (`backend.ts`, see [Renderer](#renderer)) with a Canvas 2D backend (`renderer.ts`, the default) and a scratch-render backend (`scratch-render.ts`, export `@bytecat/player/scratch-render`; `scratch-esbuild.ts` has the esbuild setup that bundles Scratch's packages), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild, turbowarp-render |
+| `packages/compiler` | `project.json` → one JavaScript program and the runtime functions it imports (`compileProject`, `toModule`, `toScript`, `load`). Reports unsupported opcodes as warnings. Split into small modules, see [Compiler modules](#compiler-modules). | runtime (types), sb3 |
+| `packages/runtime` | Headless scheduler (virtual or real clock), targets, say bubbles and the Scratch value helpers in `ops.ts` that generated code calls. `runtime.ts` is the `Runtime` class (state, events, hat order); `thread.ts` the `Thread`, `Hat` and `WAIT`; `scheduler.ts` the frame loop (`tick`, `step`); `lib/{control,event,looks,motion,sensing}.ts` the block helpers as plain functions taking `(rt, target, ...)`, which generated code imports and calls by name (`move(rt, t, 10)`). Each is a subpath export (`@bytecat/runtime/motion`, `@bytecat/runtime/ops`, ...), and `modules.ts` maps those specifiers to the modules for `load` and the player. | sb3 |
+| `packages/player` | Browser player: the renderer interface (`backend.ts`, see [Renderer](#renderer)) with a Canvas 2D backend (`renderer.ts`, the default) and a scratch-render backend (`scratch-render.ts`, export `@bytecat/player/scratch-render`; `scratch-esbuild.ts` has the esbuild setup that bundles Scratch's packages), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser from the program as `toScript` writes it, which the player binds to the runtime modules; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild, turbowarp-render |
 | `packages/bench` | Benchmark harness: `Engine` implementations (Bytecat, scratch-vm, more via `registerEngine`), `benchmark` (warmup, timed runs, output check) and `formatTable`. See [benchmarks.md](benchmarks.md). | compiler, runtime, reference, sb3 |
 | `packages/web` | The web app (`pnpm web`): one HTML page that opens an `.sb3` or pseudocode, compiles it in the browser, plays it and offers downloads. See [web.md](web.md). | pseudo, sb3, compiler, player, esbuild |
 | `packages/cli` | The `bytecat` command (`pnpm bytecat ...`). Thin glue over the other packages. | all |
@@ -50,7 +50,7 @@ one stage:
 | `analysis/env.ts` | `TypeEnv`: the whole-program types of variables, list items and procedure parameters, which codegen reads and widens until they stop changing. |
 | `analysis/effects.ts` | `analyzeEffects`: which variables each procedure (with everything it calls) may read or assign, and whether it may `stop all`. Callers use it to store and reload only the variables a call can see; codegen checks it against every body it compiles. |
 | `target.ts` | `TargetCodegen`: implements `Gen` for one target, dispatches blocks to the registry's handlers and compiles procedures and hat scripts (each hat's event and argument come from its spec). It throws if the code it generates for a procedure disagrees with the analysis. |
-| `emit.ts` | `emitProgram`: assembles the final `function (rt)` text. |
+| `emit.ts` | `emitProgram` assembles the final `function (rt)` text; `programImports` picks its imports (the declared runtime functions the code names, by `referencedNames`); `toModule` and `toScript` write the program with them as an ES module or as a script that takes the modules. |
 | `codegen.ts` | `compileProject`: the driver over all targets. It takes extra extensions (`options.extensions`) and reports the project.json extension ids no extension declares (`unknownExtensions`). |
 
 To support a new block, replace its `missing(...)` entry in the right `extensions/` file with a
@@ -61,11 +61,35 @@ checks the inventory against TurboWarp's block modules. `tests/codegen-snapshots
 
 ## Generated code
 
-`compile` emits a single `function (rt)` expression. Given a `Runtime` it returns the list of hats
-(event kind, the argument it matches, `restart: false` for a hat that does not restart a running
-script, and the script function). Each script is a generator function: loops end each iteration
-with `if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and a wait (`wait`,
-`wait until`, `glide`, `broadcast and wait`) does `yield rt.WAIT` until it is over. `ask` yields
+`compileProject` emits a single `function (rt)` expression and the runtime functions it imports
+(`imports`). Given a `Runtime` it returns the list of hats (event kind, the argument it matches,
+`restart: false` for a hat that does not restart a running script, and the script function). The
+code calls runtime functions as plain functions by name, with the runtime and target as
+arguments (`move(rt, t, 10)`), and reads the runtime's state directly (`rt.answer`, `rt.mouse`);
+nothing goes through a method on `rt`. `toModule` writes it as the ES module `bytecat compile`
+outputs:
+
+```js
+// Generated by Bytecat. Do not edit.
+import { costumeName, nextCostume, switchCostume } from "@bytecat/runtime/looks";
+import { coord, move, setDirection, setXY } from "@bytecat/runtime/motion";
+
+export default function (rt) {
+"use strict";
+const S = rt.stage;
+return [
+{ target: 1, kind: "flag", fn: function* (t, th) {
+    setXY(rt, t, 0, 0);
+    move(rt, t, 30);
+    S.l["list_4"].push(coord(t.x));
+...
+```
+
+The imports are exactly the runtime functions the code calls (see [extensions.md](extensions.md),
+"Runtime functions"); `tests/uses.test.ts` checks that for every example and benchmark. Each
+script is a generator function: loops end each iteration with
+`if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and a wait (`wait`,
+`wait until`, `glide`, `broadcast and wait`) does `yield WAIT` until it is over. `ask` yields
 `BLOCKED` (see [Scheduler](#scheduler)). A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
 never yields compiles to a plain function, which is much cheaper to call. A direct recursive call in a non-warp procedure yields before the call (`if (th.warp === 0) yield;`), as scratch-vm and TurboWarp do, so such a procedure is a generator; a warp one stays plain. Calls to a plain
