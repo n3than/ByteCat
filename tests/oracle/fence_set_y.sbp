@@ -1,0 +1,6 @@
+# Fencing: `set y to` off the stage.
+sprite Mover:
+  costume box = square "#ff0000"
+
+  when flag:
+    set_y(-250)

@@ -1,0 +1,6 @@
+// The circle (front) covers x -4 to 44; its box's top left corner (-2, 22) is outside the circle,
+// over the square (back).
+click 20 0
+click -2 22
+click -15 0
+click 150 100

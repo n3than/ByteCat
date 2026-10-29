@@ -1,12 +1,13 @@
 # Testing against TurboWarp
 
-Bytecat has three oracles, all with TurboWarp (compiler on) as the ground truth:
+Bytecat has four oracles, all with TurboWarp (compiler on) as the ground truth:
 
 | Oracle | Compares | Judges | Where |
 | --- | --- | --- | --- |
 | Example logs | the stage `log` list at the end of a finite run, in turbo mode | results | `tests/examples.test.ts` (`NAME.expected`) |
 | Fuzzer | the same, for thousands of random programs | compiler optimizations | `pnpm fuzz`, [fuzzing.md](fuzzing.md) |
 | **Trace** | everything visible after **every frame**, with scripted input, at normal pacing | frame timing, input, programs that never end | `pnpm bytecat trace`, `tests/trace.test.ts` |
+| **Browser trace** | the same, against TurboWarp with its renderer, in Chromium | fencing, touching, bounce, size limits, clicks on sprites | `pnpm bytecat trace --browser`, `tests/browser-oracle.test.ts` |
 
 A log cannot judge a game. Games run forever, react to keys and the mouse, and much of what they
 show is never logged. The trace oracle runs Bytecat and TurboWarp in **lockstep**, one frame at a
@@ -109,7 +110,9 @@ So the oracle runs **both schedulers on a virtual cost clock**:
   exactly where the renderer branch would. Bytecat's blocks follow the same rules (see
   [architecture.md](architecture.md#scheduler)). Not emulated yet: the redraws from
   `updateAllDrawableProperties` (clones), sound and pen. Whoever adds those blocks must extend
-  the redraw patch in `packages/reference/src/lockstep.ts`.
+  the redraw patch in `packages/reference/src/tw-lockstep.ts`. The browser oracle (below) needs
+  no emulation, and every example agreeing there at 50 and 1 passes is the check that the
+  emulation requests redraws where the renderer does.
 
 With these, a frame does the same work on both engines and ends at the same pass, whatever the
 machine. `tests/trace.test.ts` checks this on every example and benchmark at 50, 7 and 1 passes
@@ -129,17 +132,69 @@ whole stage coordinates, because that is the only form a player and TurboWarp tu
 
 ## What headless TurboWarp cannot judge
 
-The headless VM has no renderer, so the trace oracle cannot judge anything that depends on one.
-That needs the browser oracle (Phase 0.6), which will run TurboWarp with its renderer next to
-Bytecat's player and produce the same snapshots through the `LockstepEngine` interface
-(`packages/trace/src/engine.ts`):
+The headless VM has no renderer, so the Node trace oracle cannot judge anything that depends on
+one:
 
 - **Fencing.** TurboWarp keeps sprites on the stage through the renderer, so headless it never
   fences.
 - **`touching`, `touching color`, `distance to`** need the renderer's pixels; headless `touching`
   is always false.
-- **`if on edge, bounce`** uses the costume bounds. Bytecat's version treats the sprite as a point.
+- **`if on edge, bounce`** uses the costume bounds.
 - **Size limits.** TurboWarp clamps `set size` by the costume and stage size, using the renderer.
-  Headless it stores any size, while Bytecat applies a 5% floor, so sizes under 5 differ.
+  Headless it stores any size.
 - **Clicks.** Without a pick, a click always hits the stage, on both engines.
-- **Pixels.** What is actually drawn: `.pixels` probes in the browser test.
+
+The browser oracle judges all of these.
+
+## The browser oracle
+
+```sh
+pnpm bytecat trace tests/oracle/fence_move.sbp --browser    # same flags as above
+```
+
+The browser oracle runs the same trace (`traceEngines`, the same snapshots, input and frame
+boundaries) in Chromium through Playwright, with TurboWarp's real renderer:
+
+- `packages/trace/src/browser/oracle.ts` (Node) bundles `page.ts` with esbuild, opens it in
+  headless Chromium and sends it the project. Chromium draws WebGL with SwiftShader, the same on
+  every machine. The page is built once per process, in under a second.
+- In the page, TurboWarp's VM gets TurboWarp's scratch-render on a 480 by 360 canvas, and
+  scratch-storage for its costumes. It is driven by the same lockstep driver as in Node
+  (`TurboWarpLockstepCore` in `packages/reference/src/tw-lockstep.ts`), with the same fake
+  sequencer timer, virtual clock and seeded random, but **no redraw emulation**: the renderer
+  requests redraws itself. The bundle swaps TurboWarp's `util/uid.js` for the same counter as in
+  Node.
+- Bytecat runs in the same page, on the same scheduler setup as in Node (`BytecatLockstep`), with
+  its scratch-render backend (`ScratchRenderBackend`, see
+  [architecture.md](architecture.md#renderer)) on a second canvas. Clicks are hit-tested by the
+  backend, so a click on a sprite reaches that sprite on both engines.
+- Both engines wait until every costume image has loaded before the green flag, as in the editor.
+  scratch-render loads SVG images a task later; a sprite whose image has not loaded sits with its
+  top left corner on its position and cannot be clicked.
+
+`tests/browser-oracle.test.ts` checks four things, in about 15 seconds:
+
+- every example and benchmark agrees for 300 frames at 50 and 1 passes per frame, as in the Node
+  oracle;
+- each program in `tests/oracle/` (one renderer-dependent behaviour each: the seven fencing
+  blocks, bounce, size limits, touching and clicks on sprites) gives the result its entry in the
+  test says. Where Bytecat does not match TurboWarp yet, the entry pins the first difference,
+  and [deviations.md](deviations.md#found-by-the-browser-oracle) lists it. A fix makes the test
+  fail until its entry says `agree`;
+- the click program sends each click to the sprite TurboWarp picks;
+- `ScratchRenderBackend` places every sprite as TurboWarp's renderer does. For several projects
+  (`tests/oracle/backend.sbp` turns, flips, scales, hides and overlaps sprites) it compares the
+  backend's bounds, fenced positions, costume sizes and touching with TurboWarp's, and what a
+  click hits on a 10 pixel grid.
+
+Lists longer than 1000 items are cut in the snapshots the page sends back. The comparison inside
+the page still sees every item.
+
+## What the browser oracle cannot judge
+
+- **Pixels.** The oracle compares state, not what is drawn. `.pixels` probes in
+  `tests/browser.test.ts` check Bytecat's own canvas.
+- **Speech bubble layout.** A bubble is compared by its text, not by where it is drawn.
+- **Sound and pen.** The page has no audio, and Bytecat has neither yet.
+- **The GPU.** SwiftShader renders as a GPU would, but `touching color` on a real GPU can differ
+  by a shade at antialiased edges.

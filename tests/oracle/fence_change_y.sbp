@@ -1,0 +1,7 @@
+# Fencing: `change y by` past the top edge.
+sprite Mover:
+  costume box = square "#ff0000"
+
+  when flag:
+    repeat 10:
+      change_y(40)

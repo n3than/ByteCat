@@ -2,7 +2,8 @@
 // virtual clock, a pass-counting scheduler clock and no lone-thread spin, so a frame does exactly
 // the work TurboWarp's does (docs/testing.md, "Frame boundaries").
 import { compile } from "@bytecat/compiler";
-import { DEFAULT_DATE, flushPromises, mulberry32, withVirtualGlobals, type VirtualGlobals } from "@bytecat/reference";
+import type { RenderBackend } from "@bytecat/player";
+import { DEFAULT_DATE, flushPromises, mulberry32, withVirtualGlobals, type VirtualGlobals } from "@bytecat/reference/virtual";
 import { passClock, Runtime } from "@bytecat/runtime";
 import type { ProjectJson } from "@bytecat/sb3";
 import type { FrameOptions, LockstepEngine } from "./engine.js";
@@ -96,10 +97,16 @@ export class BytecatLockstep implements LockstepEngine {
     this.rt.mouse.y = y;
   }
 
-  /** Headless there is no hit test, so a click hits the stage, like headless TurboWarp. */
+  /**
+   * The renderer that hit-tests clicks (the browser oracle sets one). Without it a click hits the
+   * stage, like headless TurboWarp.
+   */
+  renderer: RenderBackend | null = null;
+
   click(x: number, y: number): void {
     this.mouseMove(x, y);
-    this.rt.click(this.rt.stage);
+    this.renderer?.sync();
+    this.rt.click(this.renderer?.pick(x, y) ?? this.rt.stage);
   }
 
   async answer(text: string): Promise<void> {

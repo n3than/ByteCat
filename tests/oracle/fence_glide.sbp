@@ -1,0 +1,6 @@
+# Fencing: `glide` towards a point off the stage stops at the fence.
+sprite Mover:
+  costume box = square "#ff0000"
+
+  when flag:
+    glide(0.5, 0, 400)

@@ -242,6 +242,7 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `mouse_y()` | mouse y | `sensing_mousey` | any |
 | `mouse_down()` | <mouse down?> (boolean) | `sensing_mousedown` | any |
 | `key_pressed(key_option)` | <key (name) pressed?> (boolean) | `sensing_keypressed` | any |
+| `touching(touchingobjectmenu)` | <touching (sprite name, `_edge_` or `_mouse_`)?> (boolean) | `sensing_touchingobject` | sprite |
 | `days_since_2000()` | days since 2000 | `sensing_dayssince2000` | any |
 | `username()` | username | `sensing_username` | any |
 
@@ -328,7 +329,7 @@ frame 5
 Coordinates for `click` and `mouse` are whole numbers on the stage (X from -240 to 240, Y from
 -180 to 180). The same files drive `pnpm bytecat trace --input` ([testing.md](testing.md)), which
 applies each command at the same frame on Bytecat and TurboWarp. Headless, a click there always
-hits the stage.
+hits the stage; with `--browser` it hits the sprite under the mouse.
 
 The test clicks the green flag, steps one frame, applies each command followed by one frame (`step N`
 runs `N` frames instead), then keeps stepping until every script stops or 10000 frames have passed.
@@ -338,7 +339,8 @@ node-only test suites skip these examples because they would wait for input fore
 
 The headless reference VM has no renderer, so anything that needs one (size limits, touching,
 pen, costume bounds) does not behave like the real editor there. Keep those out of `.expected`
-checks.
+checks, and check them with the browser oracle instead (`tests/oracle/`, see
+[testing.md](testing.md#the-browser-oracle)).
 
 ## Errors
 
