@@ -1,0 +1,20 @@
+clone 1 at x 10
+clone sees 1
+clone 2 at x 20
+clone sees 2
+clone 3 at x 30
+clone sees 3
+clone 4 at x 40
+clone sees 3
+clone 5 at x 50
+clone sees 3
+hello from 99
+hello from 50
+hello from 40
+hello from 30
+hello from 20
+hello from 10
+original 99 made 5
+only the original logs this
+after bye
+the original goes on

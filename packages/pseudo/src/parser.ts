@@ -218,13 +218,14 @@ class Parser {
 
   private when(): ScriptNode {
     const kw = this.next();
-    const t = this.expect("ident", undefined, "flag, clicked, key or receive");
+    const t = this.expect("ident", undefined, "flag, clicked, cloned, key or receive");
     let hat: Hat;
     if (t.value === "flag") hat = { kind: "flag" };
     else if (t.value === "clicked") hat = { kind: "clicked" };
+    else if (t.value === "cloned") hat = { kind: "cloned" };
     else if (t.value === "key") hat = { kind: "key", key: this.expect("string", undefined, 'a key name like "space"').value };
     else if (t.value === "receive") hat = { kind: "receive", message: this.expect("string", undefined, "a message name").value };
-    else throw this.error(`unknown event '${t.value}', expected flag, clicked, key or receive`, t.pos);
+    else throw this.error(`unknown event '${t.value}', expected flag, clicked, cloned, key or receive`, t.pos);
     return { kind: "when", hat, body: this.statements(), pos: kw.pos };
   }
 

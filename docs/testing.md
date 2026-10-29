@@ -45,11 +45,12 @@ A snapshot (`packages/trace/src/snapshot.ts`) is a flat, ordered record of displ
 | `Cat.bubble` | `"say: hi"`, `"think: hm"` or `""` |
 | `Stage.var.NAME`, `Cat.var.NAME` | the value as text, so a number and the string that prints the same are equal |
 | `Stage.list.NAME` | the items as text; a difference names the first differing item and both lengths |
-| `layers` | sprite names from the back layer to the front |
+| `Cat#1.x`, `Cat#2.var.NAME`, ... | the same fields for each clone: `Cat#k` is the k-th clone of `Cat` that still exists, in the order the clones were made (`cloneLabels`) |
+| `layers` | sprite and clone names from the back layer to the front |
 
 Each engine adapter (`bytecatState`, `turbowarpState`) reports raw state as a `StageState`. One
 function, `toSnapshot`, turns that into display fields, so the same code normalizes every engine.
-To compare more (clones, graphic effects, volume, pen, monitors), add the raw value to
+To compare more (graphic effects, volume, pen, monitors), add the raw value to
 `TargetState`, fill it in both adapters and add its field in `toSnapshot`. `snapshot.ts`,
 `diff.ts`, `input.ts` and `reference/src/virtual.ts` have no Node imports, so a browser-side
 driver can produce and compare the same snapshots.
@@ -108,8 +109,9 @@ So the oracle runs **both schedulers on a virtual cost clock**:
   a redraw inside its renderer code paths. Without help, no frame would ever end on a redraw. On
   lockstep VMs, the driver patches `RenderedTarget` and the looks bubbles to request a redraw
   exactly where the renderer branch would. Bytecat's blocks follow the same rules (see
-  [architecture.md](architecture.md#scheduler)). Not emulated yet: the redraws from
-  `updateAllDrawableProperties` (clones), sound and pen. Whoever adds those blocks must extend
+  [architecture.md](architecture.md#scheduler)). A new clone's drawable
+  (`updateAllDrawableProperties`) requests one too. Not emulated yet: the redraws from sound
+  and pen. Whoever adds those blocks must extend
   the redraw patch in `packages/reference/src/tw-lockstep.ts`. The browser oracle (below) needs
   no emulation, and every example agreeing there at 50 and 1 passes is the check that the
   emulation requests redraws where the renderer does.

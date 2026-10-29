@@ -29,14 +29,29 @@ export interface Timeout {
   fn: () => void;
 }
 
+/** The most clones that can exist at once, across all sprites: TurboWarp's default `maxClones`. */
+export const MAX_CLONES = 300;
+
+/** The hats one event starts, each with the target it runs for, in start order (`startHats`). */
+interface StartList {
+  targets: Target[];
+  hats: Hat[];
+}
+
 /**
  * The state of a running project. Generated code reads and writes its public fields (`stage`,
  * `spin`, `answer`, `mouse`, ...) and passes it to the plain functions in `lib/`, where the
  * blocks' behaviour lives. The runtime itself only starts scripts and runs frames.
  */
 export class Runtime {
+  /**
+   * The stage and the sprites in project order (`targets[i]` is `project.targets[i]`), then the
+   * clones in the order they were made, like TurboWarp's `runtime.targets`.
+   */
   readonly targets: Target[];
   readonly stage: Target;
+  /** How many clones exist. `create clone` makes none while there are MAX_CLONES. */
+  cloneCount = 0;
   readonly hats: Hat[];
   threads: Thread[] = [];
   readonly says: SayEvent[] = [];
@@ -79,10 +94,21 @@ export class Runtime {
   bubbleTimeout: Timeout | null = null;
   /** @internal Read and reset by the timer helpers (`lib/sensing.ts`). */
   timerStart = 0;
-  /** Each target's hats, in the order its scripts appear. */
-  private readonly hatsByTarget: Hat[][];
-  /** Every hat in start order (see `startHats`), or null after a layer change. */
-  private ordered: Hat[] | null = null;
+  /** How many targets project.json has; the clones come after them in `targets`. */
+  private readonly originals: number;
+  /**
+   * Each sprite's (and the stage's) hats by event and argument ("" for none), in the order its
+   * scripts appear, by target index. Its clones share them.
+   */
+  private readonly hatIndex: Map<HatKind, Map<string, Hat[]>>[];
+  /**
+   * The start list of each event that has hats, built on first use and dropped when a layer
+   * changes or a clone comes or goes (`layersChanged`). Events no hat listens to are never
+   * stored, so broadcasting made-up names does not fill it.
+   */
+  private startLists = new Map<HatKind, Map<string, StartList>>();
+  /** Every target from the top layer down (the stage last), or null after a change. */
+  private topDown: Target[] | null = null;
 
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
     this.options = { turbo: false, fps: 30, clock: "real", ...options };
@@ -90,9 +116,18 @@ export class Runtime {
     this.schedulerClock = options.schedulerClock ?? (() => performance.now());
     this.targets = Target.all(project);
     this.stage = this.targets[0]!;
+    this.originals = this.targets.length;
     this.hats = program(this);
-    this.hatsByTarget = this.targets.map(() => []);
-    for (const hat of this.hats) this.hatsByTarget[hat.target]!.push(hat);
+    this.hatIndex = this.targets.map(() => new Map());
+    for (const hat of this.hats) {
+      const byArg = this.hatIndex[hat.target]!;
+      let byKind = byArg.get(hat.kind);
+      if (!byKind) byArg.set(hat.kind, (byKind = new Map()));
+      const arg = hat.arg ?? "";
+      const list = byKind.get(arg);
+      if (list) list.push(hat);
+      else byKind.set(arg, [hat]);
+    }
   }
 
   /**
@@ -147,22 +182,24 @@ export class Runtime {
 
   // ---- starting scripts ----
 
-  private start(hat: Hat): Thread | undefined {
+  /** Starts `hat` for `target`, the sprite it belongs to or one of its clones. */
+  private start(hat: Hat, target: Target): Thread | undefined {
+    // The thread this hat last started for this target. A restarting hat has at most one thread
+    // per target in the list, and it is that one.
+    const old = target.hatThreads.get(hat);
     // A hat that does not restart its script (`when key pressed`) is not started again while the
     // script runs. Once it has finished, the new run goes at the end of the list like any new
     // thread, even if the finished one is still listed, as in TurboWarp.
-    if (hat.restart === false) {
-      if (this.threads.some((old) => old.hat === hat && !old.done)) return undefined;
-      return this.push(new Thread(hat, this.targets[hat.target]!));
-    }
-    const th = new Thread(hat, this.targets[hat.target]!);
+    if (hat.restart === false && old !== undefined && !old.done) return undefined;
+    const th = new Thread(hat, target);
+    target.hatThreads.set(hat, th);
     // Re-triggering a hat restarts its script in the same place in the thread list, like
     // TurboWarp, so the new run waits for the next pass if that place is behind. That includes a
     // run that finished earlier in this pass: TurboWarp only forgets a thread when the pass ends,
-    // and so does `tick`. There is at most one thread per restarting hat in the list.
-    const i = this.threads.findIndex((old) => old.hat === hat);
+    // and so does `tick`.
+    const i = hat.restart === false || old === undefined ? -1 : this.threads.indexOf(old);
     if (i >= 0) {
-      this.threads[i]!.done = true;
+      old!.done = true;
       this.threads[i] = th;
       this.spin = 0;
       return th;
@@ -179,32 +216,86 @@ export class Runtime {
   }
 
   /**
-   * @internal Starts the hats for `kind` and `arg` in TurboWarp's order: targets from the top
-   * layer down with the stage last, and within a target in the order its scripts appear. Called
-   * by `broadcast` (`lib/event.ts`).
+   * @internal Starts the hats for `kind` and `arg` (`Hat.arg`, "" for hats without one) in
+   * TurboWarp's order: targets from the top layer down with the stage last, clones included, and
+   * within a target in the order its scripts appear. Called by `broadcast` (`lib/event.ts`).
    */
-  startHats(kind: HatKind, arg?: string): Thread[] {
+  startHats(kind: HatKind, arg = ""): Thread[] {
     const started: Thread[] = [];
-    for (const hat of this.ordered ?? this.orderHats()) {
-      if (hat.kind !== kind || (arg !== undefined && hat.arg !== arg)) continue;
-      const th = this.start(hat);
+    const list = this.startLists.get(kind)?.get(arg) ?? this.startList(kind, arg);
+    if (!list) return started;
+    const { targets, hats } = list;
+    for (let i = 0; i < hats.length; i++) {
+      const th = this.start(hats[i]!, targets[i]!);
       if (th) started.push(th);
     }
     return started;
   }
 
-  /** @internal Called by `goToFront` (`lib/looks.ts`) after it changes a layer. */
-  layersChanged(): void {
-    this.ordered = null;
+  /** Builds and stores the start list for an event, or returns undefined when no hat has it. */
+  private startList(kind: HatKind, arg: string): StartList | undefined {
+    if (!this.hatIndex.some((byKind) => byKind.get(kind)?.has(arg))) return undefined;
+    const list: StartList = { targets: [], hats: [] };
+    for (const t of this.topDown ?? this.layerOrder()) {
+      for (const hat of this.hatIndex[t.index]!.get(kind)?.get(arg) ?? []) {
+        list.targets.push(t);
+        list.hats.push(hat);
+      }
+    }
+    let byArg = this.startLists.get(kind);
+    if (!byArg) this.startLists.set(kind, (byArg = new Map()));
+    byArg.set(arg, list);
+    return list;
   }
 
-  /** Sorts every hat into start order; done again after a layer change. */
-  private orderHats(): Hat[] {
-    const order = this.targets.map((_, i) => i);
-    // Ties keep TurboWarp's order too: the later target in project.json runs first.
-    order.sort((a, b) => this.targets[b]!.layer - this.targets[a]!.layer || b - a);
-    this.ordered = order.flatMap((i) => this.hatsByTarget[i]!);
-    return this.ordered;
+  /** Every target from the top layer down; layers are distinct (see `Target.all`). */
+  private layerOrder(): Target[] {
+    this.topDown = [...this.targets].sort((a, b) => b.layer - a.layer);
+    return this.topDown;
+  }
+
+  /** Starts `target`'s own hats for `kind` (a clone's `clone` hats, a sprite's `click` hats). */
+  private startOwn(target: Target, kind: HatKind): void {
+    for (const hat of this.hatIndex[target.index]!.get(kind)?.get("") ?? []) this.start(hat, target);
+  }
+
+  /**
+   * @internal Called after a layer changes (`goToFront` in `lib/looks.ts`) and when a clone is
+   * added or removed.
+   */
+  layersChanged(): void {
+    this.topDown = null;
+    if (this.startLists.size > 0) this.startLists = new Map();
+  }
+
+  // ---- clones ----
+
+  /**
+   * @internal Adds a clone that `createClone` (`lib/control.ts`) made of `parent`: just behind
+   * it, as TurboWarp's `goBehindOther` places it, and starts its "when I start as a clone" hats.
+   */
+  addClone(clone: Target, parent: Target): void {
+    this.cloneCount++;
+    for (const t of this.targets) if (t.layer >= parent.layer) t.layer++;
+    clone.layer = parent.layer - 1;
+    this.targets.push(clone);
+    this.layersChanged();
+    // TurboWarp's renderer draws a visible clone at once (`updateAllDrawableProperties`).
+    if (clone.visible) this.requestRedraw();
+    this.startOwn(clone, "clone");
+  }
+
+  /** @internal Removes a clone and stops its scripts (`deleteClone` in `lib/control.ts`). */
+  removeClone(clone: Target): void {
+    const i = this.targets.indexOf(clone);
+    if (i < this.originals) return;
+    this.targets.splice(i, 1);
+    this.cloneCount--;
+    for (const th of this.threads) if (th.target === clone) th.done = true;
+    this.spin = 0;
+    // TurboWarp's renderer redraws when a visible clone, or a bubble it shows, goes away.
+    if (clone.visible || clone.bubbleDrawn) this.requestRedraw();
+    this.layersChanged();
   }
 
   greenFlag(): void {
@@ -226,9 +317,7 @@ export class Runtime {
   }
 
   click(target: Target): void {
-    for (const hat of this.hatsByTarget[this.targets.indexOf(target)] ?? []) {
-      if (hat.kind === "click") this.start(hat);
-    }
+    this.startOwn(target, "click");
   }
 
   stopAll(): void {
@@ -242,6 +331,13 @@ export class Runtime {
     for (const t of this.targets) {
       t.bubble = null;
       t.bubbleDrawn = false;
+    }
+    // Every clone goes, as in TurboWarp, whose renderer redraws if one was visible.
+    if (this.targets.length > this.originals) {
+      if (this.targets.some((t, i) => i >= this.originals && t.visible)) this.requestRedraw();
+      this.targets.length = this.originals;
+      this.cloneCount = 0;
+      this.layersChanged();
     }
   }
 

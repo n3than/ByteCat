@@ -7,14 +7,15 @@ import { DEFAULT_DATE, flushPromises, mulberry32, withVirtualGlobals, type Virtu
 import { passClock, Runtime } from "@bytecat/runtime";
 import type { ProjectJson } from "@bytecat/sb3";
 import type { FrameOptions, LockstepEngine } from "./engine.js";
-import { toSnapshot, type Snapshot, type StageState } from "./snapshot.js";
+import { cloneLabels, toSnapshot, type Snapshot, type StageState } from "./snapshot.js";
 
 /** The raw visible state of a Bytecat runtime. */
 export function bytecatState(rt: Runtime): StageState {
-  const targets = rt.targets.map((t, i) => {
-    const json = rt.project.targets[i]!;
+  const label = cloneLabels(rt.targets, (t) => t.name, (t) => t.isOriginal);
+  const targets = rt.targets.map((t) => {
+    const json = rt.project.targets[t.index]!;
     return {
-      name: t.name,
+      name: label.get(t)!,
       isStage: t.isStage,
       variables: Object.entries(json.variables).map(([id, [name]]) => [name, t.v[id]] as [string, unknown]),
       lists: Object.entries(json.lists).map(([id, [name]]) => [name, t.l[id] ?? []] as [string, unknown[]]),
@@ -33,12 +34,11 @@ export function bytecatState(rt: Runtime): StageState {
           }),
     };
   });
-  // Back to front. Ties keep project order, the reverse of the order hats start in (orderHats).
+  // Back to front; no two targets share a layer (Target.all).
   const layers = rt.targets
-    .map((t, i) => ({ t, i }))
-    .filter(({ t }) => !t.isStage)
-    .sort((a, b) => a.t.layer - b.t.layer || a.i - b.i)
-    .map(({ t }) => t.name);
+    .filter((t) => !t.isStage)
+    .sort((a, b) => a.layer - b.layer)
+    .map((t) => label.get(t)!);
   return { targets, layers };
 }
 

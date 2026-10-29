@@ -1,5 +1,5 @@
 import type { Runtime } from "./runtime.js";
-import { BLOCKED, SLEEP, STOP_ALL, type Thread } from "./thread.js";
+import { BLOCKED, RETIRE, SLEEP, STOP_ALL, type Thread } from "./thread.js";
 
 /** At most this many passes run after a thread starts before the scheduler reads the clock. */
 const START_CHECK = 4;
@@ -144,7 +144,8 @@ export function tick(rt: Runtime): void {
 /**
  * Advances one thread to its next yield and returns what it yielded, or `BLOCKED` when the thread
  * ended: in TurboWarp a thread that is done no longer counts as active, so it does not keep the
- * frame going. `stop all` arrives as the `STOP_ALL` exception.
+ * frame going. `stop all` arrives as the `STOP_ALL` exception, and a clone that deleted itself
+ * inside a custom block as `RETIRE`.
  */
 export function step(rt: Runtime, th: Thread): unknown {
   try {
@@ -154,6 +155,7 @@ export function step(rt: Runtime, th: Thread): unknown {
     return BLOCKED;
   } catch (e) {
     th.done = true;
+    if (e === RETIRE) return BLOCKED;
     if (e !== STOP_ALL) throw e;
     return stopAll(rt, th);
   }
@@ -182,6 +184,7 @@ function stopAll(rt: Runtime, th: Thread): unknown {
       if (r.value !== SLEEP) result = undefined;
       else if (result === BLOCKED) result = SLEEP;
     } catch (e) {
+      if (e === RETIRE) continue;
       if (e !== STOP_ALL) throw e;
       rt.stopAll();
     }

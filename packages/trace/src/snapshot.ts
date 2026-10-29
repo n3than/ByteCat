@@ -36,10 +36,31 @@ export interface TargetState {
 }
 
 export interface StageState {
-  /** The stage first, then the sprites (original sprites only for now). */
+  /** The stage first, then the sprites, then the clones (labelled by `cloneLabels`). */
   targets: TargetState[];
   /** Sprite names from the back layer to the front. */
   layers: string[];
+}
+
+/**
+ * The name each target is shown under: an original's own name, and for a clone its sprite's name
+ * and its place among that sprite's clones, in the order the engine lists them (`Cat#1`, `Cat#2`).
+ * Both engines list targets in the order they were made, so the same clone gets the same label.
+ */
+export function cloneLabels<T>(targets: readonly T[], name: (t: T) => string, isOriginal: (t: T) => boolean): Map<T, string> {
+  const labels = new Map<T, string>();
+  const counts = new Map<string, number>();
+  for (const t of targets) {
+    const n = name(t);
+    if (isOriginal(t)) {
+      labels.set(t, n);
+      continue;
+    }
+    const k = (counts.get(n) ?? 0) + 1;
+    counts.set(n, k);
+    labels.set(t, `${n}#${k}`);
+  }
+  return labels;
 }
 
 /** A value as Scratch shows it in a monitor or a `say` of the reporter: numbers and text alike. */

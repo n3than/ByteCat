@@ -84,6 +84,12 @@ export const STATEMENTS: Record<string, Builtin[]> = {
     slots: [{ kind: "field", field: "STOP_OPTION", values: ["all", "this script", "other scripts in sprite"] }],
     doc: 'stop ["all" | "this script" | "other scripts in sprite"]',
   }],
+  create_clone: [{
+    opcode: "control_create_clone_of",
+    slots: [{ kind: "menu", input: "CLONE_OPTION", shadow: "control_create_clone_of_menu", field: "CLONE_OPTION", default: "_myself_" }],
+    doc: "create clone of (`_myself_` or a sprite name)",
+  }],
+  delete_clone: [{ opcode: "control_delete_this_clone", slots: [], spriteOnly: true, doc: "delete this clone" }],
 
   incr_counter: [{ opcode: "control_incr_counter", slots: [], doc: "increment counter (hidden)" }],
   clear_counter: [{ opcode: "control_clear_counter", slots: [], doc: "clear counter (hidden)" }],

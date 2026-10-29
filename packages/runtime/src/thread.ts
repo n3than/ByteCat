@@ -7,10 +7,12 @@ import type { Runtime } from "./runtime.js";
  */
 export type ScriptFn = (t: Target, th: Thread) => Generator<unknown, void, unknown>;
 
-export type HatKind = "flag" | "broadcast" | "key" | "click";
+/** What starts a hat script. `clone`: "when I start as a clone", which runs only for the new clone. */
+export type HatKind = "flag" | "broadcast" | "key" | "click" | "clone";
 
 export interface Hat {
-  target: number; // index into project.targets
+  /** Index into project.targets. The script runs for that sprite and for each of its clones. */
+  target: number;
   kind: HatKind;
   /** Broadcast name (lowercase) or key name. */
   arg?: string;
@@ -51,6 +53,11 @@ export const BLOCKED = 2;
  */
 export const SLEEP = 3;
 export const STOP_ALL = Symbol("stop all");
+/**
+ * Thrown by a custom block whose clone deleted itself (`delete this clone`), to end the thread
+ * from inside nested calls, like TurboWarp's RETIRE_MAGIC. A hat script just returns.
+ */
+export const RETIRE = Symbol("retire");
 
 export class Thread {
   done = false;
