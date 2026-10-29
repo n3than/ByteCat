@@ -121,6 +121,15 @@ describe("trace oracle", () => {
     expect(r.expected.fields["Stage.var.n"]).toBe("1");
   });
 
+  it("goes on after a pass where a thread ended while the others sleep", async () => {
+    // In frame 2 the key script restarts the "go" script in its place, behind it, and ends.
+    // The sleeping wait keeps TurboWarp's frame going, so the restarted script runs in frame 2.
+    const source = `var n = 0\nstage:\n  when receive "go":\n    n += 1\n    wait(10)\n  when flag:\n    broadcast("go")\n  when key "space":\n    broadcast("go")\n`;
+    const r = await traceProject(sb3Of(source), { frames: 2, input: parseInput("press space\n") });
+    expect(r.diff, describeTrace(r)).toBeNull();
+    expect(r.expected.fields["Stage.var.n"]).toBe("2");
+  });
+
   it("gives the threads after a stop all their step in that pass", async () => {
     const r = await traceProject(sb3Of(readFileSync(join(root, "examples", "stop_all_pass.sbp"), "utf8")), { frames: 10 });
     expect(r.diff, describeTrace(r)).toBeNull();

@@ -1,5 +1,5 @@
 import type { Runtime } from "./runtime.js";
-import { BLOCKED, STOP_ALL, type Thread } from "./thread.js";
+import { BLOCKED, SLEEP, STOP_ALL, type Thread } from "./thread.js";
 
 /** At most this many passes run after a thread starts before the scheduler reads the clock. */
 const START_CHECK = 4;
@@ -60,7 +60,9 @@ export function passClock(passes: number, fps = 30): { read: () => number; reset
  * until most of the frame budget is used, a redraw is requested (outside turbo mode), or no thread
  * can go on: a pass in which every step yielded `BLOCKED` or ended its thread. A thread that
  * yields `WAIT` can go on, since TurboWarp's compiled waits keep their thread running: the frame
- * goes on and the wait is checked again on the next pass, so it sees what other threads did.
+ * goes on and the wait is checked again on the next pass, so it sees what other threads did. A
+ * pass in which every step yielded `SLEEP` or `BLOCKED` also ends the frame, since no later pass
+ * could change anything (see `SLEEP` in thread.ts).
  *
  * A loop outside warp mode yields at the end of every iteration, which costs a trip through
  * this scheduler. That is pointless for a thread running alone, since the next pass would step
@@ -72,6 +74,7 @@ export function tick(rt: Runtime): void {
   const budget = (1000 / rt.options.fps) * 0.75;
   const clock = rt.schedulerClock;
   const frameStart = clock();
+  rt.startFrame();
   let lastCheck = frameStart;
   // Reading the clock costs about as much as a pass of one short thread, so it is read every
   // `stride` passes: doubling (up to MAX_STRIDE) while a stride takes under 0.25 ms, and back to 1
@@ -86,7 +89,9 @@ export function tick(rt: Runtime): void {
   let untilCheck = 1;
   rt.redraw = false;
   for (;;) {
+    // Whether a step yielded `undefined` or `WAIT`, and whether one yielded `SLEEP`.
     let progressed = false;
+    let sleeping = false;
     let finished = false;
     // Threads started during this pass run in the same pass, as in Scratch. A `stop all` gives
     // `rt` a new list, and this pass still goes through the old one (see `stopAll`).
@@ -99,7 +104,11 @@ export function tick(rt: Runtime): void {
         continue;
       }
       rt.spin = threads.length === 1 ? spinLimit : 0;
-      if (step(rt, th) !== BLOCKED) progressed = true;
+      const r = step(rt, th);
+      if (r !== BLOCKED) {
+        if (r === SLEEP) sleeping = true;
+        else progressed = true;
+      }
       if (th.done) finished = true;
     }
     // A new thread can make passes much heavier, so read the clock within a few passes of one
@@ -108,7 +117,10 @@ export function tick(rt: Runtime): void {
     if (rt.threads.length !== count && untilCheck > START_CHECK) untilCheck = START_CHECK;
     if (finished || rt.threads.length !== count) spinLimit = 1;
     if (finished) rt.threads = rt.threads.filter((th) => !th.done);
-    if (!progressed || rt.threads.length === 0) break;
+    // TurboWarp would go on after a pass of SLEEP alone, but nothing could change. A thread that
+    // ended (`finished`) may have done work, such as restarting a script behind it, so then it
+    // goes on, as TurboWarp does while a thread sleeps.
+    if (!(progressed || (sleeping && finished)) || rt.threads.length === 0) break;
     if (rt.redraw && !rt.options.turbo) break;
     if (--untilCheck === 0) {
       const now = clock();
@@ -152,8 +164,9 @@ export function step(rt: Runtime, th: Thread): unknown {
  * replaces the thread list with an empty one, but `stepThreads` goes on through the list it was
  * stepping, so each thread after `th` that was still running gets one more step in this pass.
  * Those threads are no longer listed (`done` here), so `broadcast and wait` sees them as finished,
- * and the threads they start join the new list and first run in the next pass. Returns `BLOCKED`
- * unless one of them can go on, as `step` does for a single thread.
+ * and the threads they start join the new list and first run in the next pass. Returns what
+ * `tick` should count for them: `undefined` if one of them yielded `undefined` or `WAIT`, else
+ * `SLEEP` if one yielded that, else `BLOCKED`.
  */
 function stopAll(rt: Runtime, th: Thread): unknown {
   const i = rt.threads.indexOf(th);
@@ -165,7 +178,9 @@ function stopAll(rt: Runtime, th: Thread): unknown {
     rt.spin = 0;
     try {
       const r = t.gen.next();
-      if (!r.done && r.value !== BLOCKED) result = undefined;
+      if (r.done || r.value === BLOCKED) continue;
+      if (r.value !== SLEEP) result = undefined;
+      else if (result === BLOCKED) result = SLEEP;
     } catch (e) {
       if (e !== STOP_ALL) throw e;
       rt.stopAll();

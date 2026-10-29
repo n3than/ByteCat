@@ -2,7 +2,7 @@
 // generated code still uses.
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { BLOCKED, Runtime } from "../src/index.js";
+import { BLOCKED, Runtime, SLEEP } from "../src/index.js";
 import { bounce, coord, glide, move, setDirection, setXY } from "../src/lib/motion.js";
 import { costumeName, goToFront, nextCostume, say, setSize, setVisible, switchCostume } from "../src/lib/looks.js";
 import { ask, keyPressed } from "../src/lib/sensing.js";
@@ -162,6 +162,8 @@ describe("lib helpers", () => {
     rt.frame = 15; // half a second at 30 fps
     expect(g.next().value).toBe(rt.WAIT);
     expect(one.x).toBe(50);
+    // Stepped again in the same frame on the virtual clock, it would only set x = 50 again.
+    expect(g.next().value).toBe(SLEEP);
     rt.frame = 30;
     expect(g.next().done).toBe(true);
     expect(one.x).toBe(100);
@@ -175,7 +177,7 @@ describe("lib helpers", () => {
     const w = wait(rt, 1);
     expect(w.next().value).toBe(rt.WAIT);
     rt.frame = 31;
-    expect(w.next().value).toBe(rt.WAIT);
+    expect(w.next().value).toBe(SLEEP);
     rt.frame = 32;
     expect(w.next().done).toBe(true);
   });

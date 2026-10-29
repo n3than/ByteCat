@@ -1,7 +1,7 @@
 import * as ops from "../ops.js";
 import type { Runtime } from "../runtime.js";
 import type { Target } from "../target.js";
-import { WAIT } from "../thread.js";
+import { SLEEP, WAIT } from "../thread.js";
 
 export function setXY(rt: Runtime, t: Target, x: number, y: number): void {
   t.x = x;
@@ -21,7 +21,7 @@ export function setDirection(rt: Runtime, t: Target, dir: number): void {
 }
 
 export function* glide(rt: Runtime, t: Target, seconds: number, x: number, y: number): Generator<unknown, void, unknown> {
-  const start = rt.now();
+  const start = rt.liveNow();
   const duration = seconds * 1000;
   const x0 = t.x;
   const y0 = t.y;
@@ -29,10 +29,14 @@ export function* glide(rt: Runtime, t: Target, seconds: number, x: number, y: nu
     // Like TurboWarp, the first step only starts the glide: no move, so no redraw yet.
     yield WAIT;
     for (;;) {
-      const frac = (rt.now() - start) / duration;
+      const now = rt.liveNow();
+      const frac = (now - start) / duration;
       if (frac >= 1) break;
       setXY(rt, t, x0 + (x - x0) * frac, y0 + (y - y0) * frac);
       yield WAIT;
+      // The virtual clock stands still within a frame, so until the next frame each step would
+      // only set the same position again.
+      if (rt.options.clock === "virtual") while (rt.liveNow() === now) yield SLEEP;
     }
   }
   setXY(rt, t, x, y);

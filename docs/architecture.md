@@ -148,6 +148,22 @@ threads keep it going, so it must check its condition again without side effects
 wait` yields `WAIT` even where TurboWarp uses `STATUS_YIELD_TICK` (every thread it waits for is
 itself blocked); that only keeps an idle frame going, which nothing can observe.
 
+**Time within a frame.** `rt.now()`, which `wait`, `say for` and the `timer` read, stands still
+while a frame runs, like TurboWarp's `currentMSecs`: on the real clock `tick` and the green flag
+set it (`startFrame`), and on the virtual clock it is one frame per tick. So a wait can only end
+at the start of a frame, however long the frame keeps checking it. `glide` reads `rt.liveNow()`
+instead, the real clock at the call, since TurboWarp times a glide with a real-time `Timer`.
+
+**Sleeping waits.** Busy-waiting until the budget runs out, as TurboWarp does, would make every
+frame with a pending `wait` cost three quarters of a frame of real time, even on the virtual
+clock. A timed wait therefore yields `WAIT` once and then `SLEEP` each time it checks its time
+and is not over (`glide` does the same on the virtual clock, once it has moved for the frame).
+Since time stands still, a `SLEEP` step cannot end its wait in this frame and has no side
+effects. So after a pass in which every step yielded `SLEEP` or `BLOCKED` the frame ends:
+repeating that pass could change nothing. A pass in which a thread also ended does not end the
+frame, since the ended thread may have done work, such as restarting a script behind it, that
+TurboWarp would run within the frame.
+
 **`stop all`** in a script reaches `step` as the `STOP_ALL` exception. As in TurboWarp, where
 `runtime.stopAll()` replaces the thread list while the sequencer goes on through the old one, the
 threads after the stopping one that were still running get one more step in that pass. They are

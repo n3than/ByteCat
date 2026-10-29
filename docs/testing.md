@@ -82,6 +82,11 @@ A frame in either engine ends when one of these happens:
   waits keep their thread running, so both engines re-check them on the next pass;
 - about 75% of the frame has passed on the wall clock.
 
+Bytecat also ends a frame after a pass in which every thread only re-checked a timed wait that
+cannot be over before the next frame (`SLEEP`, see [architecture.md](architecture.md#scheduler)).
+TurboWarp goes on re-checking such waits until the budget runs out, but those passes change
+nothing, so the snapshots agree.
+
 The last rule makes the work done in a frame depend on the machine. Bytecat also lets a thread
 that runs alone finish up to 32 loop iterations per step (`spin`), where TurboWarp finishes one.
 So the oracle runs **both schedulers on a virtual cost clock**:
