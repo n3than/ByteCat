@@ -205,7 +205,8 @@ TurboWarp would run within the frame.
 
 **`stop all`** in a script reaches `step` as the `STOP_ALL` exception. As in TurboWarp, where
 `runtime.stopAll()` replaces the thread list while the sequencer goes on through the old one, the
-threads after the stopping one that were still running get one more step in that pass. They are
+threads after the stopping one that were still running get one more step in that pass, except
+those of clones, which TurboWarp stops when it disposes the clones (`examples/clones_stop_all`). They are
 already marked done, so `broadcast and wait` sees them as finished, and threads they start go into
 the new list and first run in the next pass. So `tick` steps the list it had when the pass began.
 
@@ -247,8 +248,8 @@ clones included, and within a target in the order its scripts appear in `project
 (`examples/script_order`). The runtime indexes each sprite's hats by event and argument, builds
 the list of (target, hat) pairs an event starts the first time it fires, and drops those lists
 when a sprite changes layer or a clone comes or goes; an event no hat listens to is never
-stored. Each target remembers the thread each of its hats last started, so a restart finds the
-old thread without searching the list for the hat and target. A hat
+stored. Starting a hat looks through the thread list once for that hat's thread on that target,
+as TurboWarp does. A hat
 that restarts a script puts the new thread in the old one's place in the thread list, so it runs
 on the next pass if that place is already behind. That includes a thread that finished earlier in
 the same pass, which stays listed until the pass ends, as in TurboWarp (`examples/restart_order`).

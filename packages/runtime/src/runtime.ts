@@ -36,8 +36,6 @@ export const MAX_CLONES = 300;
 interface StartList {
   targets: Target[];
   hats: Hat[];
-  /** Each hat's place among its target's hats (`Target.hatThreads`). */
-  slots: number[];
 }
 
 /**
@@ -116,8 +114,6 @@ export class Runtime {
   private lastKind: HatKind | null = null;
   private lastArg = "";
   private lastList: StartList | undefined;
-  /** Each hat's place among its target's hats, in script order. */
-  private readonly slots = new Map<Hat, number>();
   /** Every target from the top layer down (the stage last), or null after a change. */
   private topDown: Target[] | null = null;
 
@@ -130,9 +126,7 @@ export class Runtime {
     this.originals = this.targets.length;
     this.hats = program(this);
     this.hatIndex = this.targets.map(() => new Map());
-    const counts = this.targets.map(() => 0);
     for (const hat of this.hats) {
-      this.slots.set(hat, counts[hat.target]!++);
       const byArg = this.hatIndex[hat.target]!;
       let byKind = byArg.get(hat.kind);
       if (!byKind) byArg.set(hat.kind, (byKind = new Map()));
@@ -196,29 +190,37 @@ export class Runtime {
   // ---- starting scripts ----
 
   /**
-   * Starts `hat` for `target`, the sprite it belongs to or one of its clones. `slot` is the hat's
-   * place among its target's hats.
+   * Starts `hat` for `target`, the sprite it belongs to or one of its clones. Like TurboWarp's
+   * `startHats`, it looks through the thread list for the hat's thread on that target, once per
+   * start. Remembering each target's threads instead (a field on the target) cost pingpong 4% more
+   * instructions than the search: every start stored a new thread into an old object and kept the
+   * finished one alive.
    */
-  private start(hat: Hat, target: Target, slot: number): Thread | undefined {
-    // The thread this hat last started for this target. A restarting hat has at most one thread
-    // per target in the list, and it is that one.
-    const old = target.hatThreads[slot];
+  private start(hat: Hat, target: Target): Thread | undefined {
+    const threads = this.threads;
     // A hat that does not restart its script (`when key pressed`) is not started again while the
     // script runs. Once it has finished, the new run goes at the end of the list like any new
     // thread, even if the finished one is still listed, as in TurboWarp.
-    if (hat.restart === false && old !== undefined && !old.done) return undefined;
+    if (hat.restart === false) {
+      for (let i = 0; i < threads.length; i++) {
+        const old = threads[i]!;
+        if (old.hat === hat && old.target === target && !old.done) return undefined;
+      }
+      return this.push(new Thread(hat, target));
+    }
     const th = new Thread(hat, target);
-    target.hatThreads[slot] = th;
     // Re-triggering a hat restarts its script in the same place in the thread list, like
     // TurboWarp, so the new run waits for the next pass if that place is behind. That includes a
     // run that finished earlier in this pass: TurboWarp only forgets a thread when the pass ends,
-    // and so does `tick`.
-    const i = hat.restart === false || old === undefined ? -1 : this.threads.indexOf(old);
-    if (i >= 0) {
-      old!.done = true;
-      this.threads[i] = th;
-      this.spin = 0;
-      return th;
+    // and so does `tick`. There is at most one thread per restarting hat and target in the list.
+    for (let i = 0; i < threads.length; i++) {
+      const old = threads[i]!;
+      if (old.hat === hat && old.target === target) {
+        old.done = true;
+        threads[i] = th;
+        this.spin = 0;
+        return th;
+      }
     }
     return this.push(th);
   }
@@ -245,9 +247,9 @@ export class Runtime {
     }
     const list = this.lastList;
     if (!list) return started;
-    const { targets, hats, slots } = list;
+    const { targets, hats } = list;
     for (let i = 0; i < hats.length; i++) {
-      const th = this.start(hats[i]!, targets[i]!, slots[i]!);
+      const th = this.start(hats[i]!, targets[i]!);
       if (th) started.push(th);
     }
     return started;
@@ -256,12 +258,11 @@ export class Runtime {
   /** Builds and stores the start list for an event, or returns undefined when no hat has it. */
   private startList(kind: HatKind, arg: string): StartList | undefined {
     if (!this.hatIndex.some((byKind) => byKind.get(kind)?.has(arg))) return undefined;
-    const list: StartList = { targets: [], hats: [], slots: [] };
+    const list: StartList = { targets: [], hats: [] };
     for (const t of this.topDown ?? this.layerOrder()) {
       for (const hat of this.hatIndex[t.index]!.get(kind)?.get(arg) ?? []) {
         list.targets.push(t);
         list.hats.push(hat);
-        list.slots.push(this.slots.get(hat)!);
       }
     }
     let byArg = this.startLists.get(kind);
@@ -278,7 +279,7 @@ export class Runtime {
 
   /** Starts `target`'s own hats for `kind` (a clone's `clone` hats, a sprite's `click` hats). */
   private startOwn(target: Target, kind: HatKind): void {
-    for (const hat of this.hatIndex[target.index]!.get(kind)?.get("") ?? []) this.start(hat, target, this.slots.get(hat)!);
+    for (const hat of this.hatIndex[target.index]!.get(kind)?.get("") ?? []) this.start(hat, target);
   }
 
   /**
@@ -311,6 +312,8 @@ export class Runtime {
   /** @internal Removes a clone and stops its scripts (`deleteClone` in `lib/control.ts`). */
   removeClone(clone: Target): void {
     const i = this.targets.indexOf(clone);
+    // A clone removed already (by stop all, or by another thread of its own) is no longer
+    // listed: indexOf gives -1, below `originals`, so nothing happens, as it would for an original.
     if (i < this.originals) return;
     this.targets.splice(i, 1);
     this.cloneCount--;

@@ -172,8 +172,10 @@ export function step(rt: Runtime, th: Thread): unknown {
  */
 function stopAll(rt: Runtime, th: Thread): unknown {
   const i = rt.threads.indexOf(th);
-  // `tick` only steps listed threads; one stepped from anywhere else has nothing after it.
-  const rest = i < 0 ? [] : rt.threads.slice(i + 1).filter((t) => !t.done);
+  // `tick` only steps listed threads; one stepped from anywhere else has nothing after it. The
+  // threads of clones get no step: TurboWarp's `stopAll` disposes the clones first, which stops
+  // their threads (`stopForTarget`).
+  const rest = i < 0 ? [] : rt.threads.slice(i + 1).filter((t) => !t.done && t.target.isOriginal);
   rt.stopAll();
   let result: unknown = BLOCKED;
   for (const t of rest) {
