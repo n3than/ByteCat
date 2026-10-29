@@ -1,0 +1,47 @@
+# Sprites in every pose the renderer backend must place like TurboWarp: turned, flipped by the
+# left-right rotation style, unturned by "don't rotate", scaled up and down, overlapping, on an
+# edge, and hidden. The browser oracle compares the backend's geometry with TurboWarp's after the
+# green flag has set them up.
+sprite Turned:
+  costume tri = triangle "#ffaa00"
+  position -150, 100
+  direction 45
+
+sprite Flipped:
+  costume tri = triangle "#00aaff"
+  position -50, 100
+
+  when flag:
+    rotation_style("left-right")
+    point(-90)
+
+sprite Upright:
+  costume tri = triangle "#aa00ff"
+  position 50, 100
+
+  when flag:
+    rotation_style("don't rotate")
+    point(180)
+
+sprite Big:
+  costume box = square "#00cc00"
+  position -120, -60
+  size 150
+
+sprite Small:
+  costume ball = circle "#ff0000"
+  position -95, -45
+  size 50
+
+sprite Edge:
+  costume ball = circle "#0000ff"
+  position 230, -170
+
+sprite Ghost:
+  costume box = square "#888888"
+  position 100, -60
+  hidden
+
+sprite Over:
+  costume ball = circle "#ff00ff"
+  position 120, -60

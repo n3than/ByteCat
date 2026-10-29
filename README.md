@@ -25,6 +25,7 @@ pnpm bytecat bundle examples/render.sbp  # write out/render.html: a standalone p
 pnpm web                               # write out/web/index.html: the web app (open .sb3 or pseudocode, run, download)
 pnpm bench                             # time every bench/*.sbp on Bytecat, scratch-vm and TurboWarp, see docs/benchmarks.md
 pnpm bytecat trace examples/paced_move.sbp  # run on Bytecat and TurboWarp in lockstep and compare every frame, see docs/testing.md
+pnpm bytecat trace tests/oracle/bounce.sbp --browser  # the same in Chromium, with TurboWarp's renderer
 pnpm bytecat build examples/primes.sbp # write examples/primes.sb3, open it in TurboWarp or Scratch
 ```
 

@@ -31,10 +31,20 @@ declare module "scratch-vm" {
   export default VirtualMachine;
 }
 
-// TurboWarp's fork, installed from GitHub under an alias. Same API, plus the compiler options.
+// TurboWarp's fork, installed from GitHub under an alias. Same API, plus the compiler options and
+// what a page with a renderer attaches.
 declare module "turbowarp-vm" {
   import VirtualMachine from "scratch-vm";
   export default class TurboWarpVM extends VirtualMachine {
     setCompilerOptions(options: { enabled?: boolean; warpTimer?: boolean }): void;
+    attachRenderer(renderer: unknown): void;
+    attachStorage(storage: unknown): void;
+    attachV2BitmapAdapter(adapter: unknown): void;
   }
+}
+
+// Single modules of TurboWarp's source, for the browser bundle (tw-browser.ts).
+declare module "turbowarp-vm/src/*" {
+  const module: any;
+  export default module;
 }

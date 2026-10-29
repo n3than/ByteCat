@@ -5,7 +5,10 @@
   "type": "module",
   "description": "Runs .sb3 projects headlessly in the official scratch-vm or TurboWarp's compiling fork, as the ground truth for Bytecat's output.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./browser": "./src/tw-browser.ts",
+    "./lockstep": "./src/tw-lockstep.ts",
+    "./virtual": "./src/virtual.ts"
   },
   "dependencies": {
     "scratch-vm": "^5.0.300",

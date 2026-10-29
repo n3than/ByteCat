@@ -4,11 +4,18 @@
   "private": true,
   "type": "module",
   "description": "The trace oracle: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time, and compares what is visible after every frame.",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser/oracle.ts"
+  },
   "dependencies": {
     "@bytecat/compiler": "workspace:*",
+    "@bytecat/player": "workspace:*",
     "@bytecat/reference": "workspace:*",
     "@bytecat/runtime": "workspace:*",
-    "@bytecat/sb3": "workspace:*"
+    "@bytecat/sb3": "workspace:*",
+    "esbuild": "^0.28.2",
+    "playwright": "1.63.0",
+    "scratch-storage": "2.3.1"
   }
 }
