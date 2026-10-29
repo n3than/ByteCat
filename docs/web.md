@@ -20,9 +20,11 @@ pnpm bytecat web -o site/index.html
   Bytecat does not support (the compiler skips it) and every costume image the browser could not
   decode (it is not drawn). *JavaScript* shows the generated module. A pseudocode error appears
   under the editor with its line marked in the gutter; click it to jump to the spot.
-- **Take it with you.** **Download** saves the standalone player (`.html`, the same page
+- **Take it with you.** **Download** saves the standalone player (`.html`, a page like the one
   `bytecat bundle` writes), the `.sb3` (the original file for an opened project), or the
-  JavaScript module.
+  JavaScript module. The downloaded page carries the full player, with every runtime module,
+  since there is no bundler in the browser to leave out the ones the project does not use;
+  `bytecat bundle` ships only those.
 
 The editor's text is kept in the browser's local storage, so a reload does not lose work.
 
@@ -30,8 +32,8 @@ The editor's text is kept in the browser's local storage, so a reload does not l
 
 `build.ts` (Node) bundles `src/app.ts` with esbuild and inlines it with `app.html` and `app.css`.
 Two constants are defined at build time: `__SAMPLES__` (the sample sources) and
-`__PLAYER_SCRIPT__` (the bundled `@bytecat/player` page script, which the app embeds in downloaded
-standalone pages through `pageHtml`). The app runs the same packages as the CLI: `@bytecat/pseudo`
+`__PLAYER_SCRIPT__` (the full `@bytecat/player` page script, `playerBundle`, which the app embeds
+in downloaded standalone pages through `pageHtml`, with the program as `toScript` writes it). The app runs the same packages as the CLI: `@bytecat/pseudo`
 and `@bytecat/sb3` to read the source, `@bytecat/compiler` to compile it, and `@bytecat/player` to
 play it. Nothing in that path needs Node, which is why `md5` in `@bytecat/sb3` is plain TypeScript.
 

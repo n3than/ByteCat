@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { compile as compileToJs, compileProject, toModule, toScript, type CompileResult } from "@bytecat/compiler";
+import { compile as compileToJs, compileProject, toModule, type CompileResult } from "@bytecat/compiler";
 import { benchmark, engineNames, formatTable, getEngine, pickBaseline, type BenchResult } from "@bytecat/bench";
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
@@ -172,7 +172,7 @@ switch (command) {
       const result = compileProject(project.json);
       printWarnings(result);
       mkdirSync(dirname(out), { recursive: true });
-      writeFileSync(out, await bundleHtml(project, toScript(result), name));
+      writeFileSync(out, await bundleHtml(project, toModule(result), name));
       console.log(`${file} -> ${out}`);
     }
     break;
