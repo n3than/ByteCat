@@ -89,8 +89,8 @@ So the oracle runs **both schedulers on a virtual cost clock**:
   timer once before each pass; the lockstep driver replaces that timer with one that runs out
   after `passes` reads. Bytecat's real scheduler (`tick`) runs with `passClock`, a scheduler clock
   that advances 0.25 ms per read. That makes `tick` read it after every pass, and the read after
-  the last allowed pass is past the budget. The 0.25 ms step caps `passes` at 101 at 30 fps
-  (51 at 60).
+  the last allowed pass is past the budget. The 0.25 ms step caps `passes` at 100 at 30 fps
+  (50 at 60).
 - **One loop iteration per step.** The Bytecat driver pins its runtime's `spin` to 0 (an accessor
   on that one instance, so the scheduler itself has no lockstep option), so a lone thread yields
   at the end of every loop iteration, as in TurboWarp. `spin` exists only to save scheduler work. A
@@ -100,7 +100,9 @@ So the oracle runs **both schedulers on a virtual cost clock**:
   a redraw inside its renderer code paths. Without help, no frame would ever end on a redraw. On
   lockstep VMs, the driver patches `RenderedTarget` and the looks bubbles to request a redraw
   exactly where the renderer branch would. Bytecat's blocks follow the same rules (see
-  [architecture.md](architecture.md#scheduler)).
+  [architecture.md](architecture.md#scheduler)). Not emulated yet: the redraws from
+  `updateAllDrawableProperties` (clones), sound and pen. Whoever adds those blocks must extend
+  the redraw patch in `packages/reference/src/lockstep.ts`.
 
 With these, a frame does the same work on both engines and ends at the same pass, whatever the
 machine. `tests/trace.test.ts` checks this on every example and benchmark at 50, 7 and 1 passes

@@ -36,7 +36,7 @@ export function frameBudget(fps: number): number {
  * on a redraw or when every thread is blocked), whatever the machine. Each read moves it on by
  * HEAVY_INTERVAL, so `tick` keeps reading it after every pass, and the read after the last allowed
  * pass is past any budget. Call `reset()` before each tick. Every earlier read must stay inside
- * the budget, so `passes` is at most frameBudget(fps) / 0.25 + 1 (101 at 30 fps).
+ * the budget, so `passes` is at most ceil(frameBudget(fps) / 0.25) (100 at 30 fps, 50 at 60).
  */
 export function passClock(passes: number, fps = 30): { read: () => number; reset: () => void } {
   if (!(Number.isInteger(passes) && passes >= 1 && (passes - 1) * HEAVY_INTERVAL < frameBudget(fps))) {
