@@ -15,14 +15,14 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 | --- | --- | --- |
 | `packages/sb3` | Types for `project.json`, deterministic ids, generated SVG assets, `.sb3` zip read/write, and a plain TypeScript `md5` so it runs in the browser. No Scratch semantics. | fflate |
 | `packages/pseudo` | Pseudocode compiler: `lexer.ts` (tokens with INDENT/DEDENT) → `parser.ts` (AST in `ast.ts`) → `lower.ts` (Scratch blocks). `lower.ts` is the core: project and target scopes, declarations, and the walk over scripts, statements and expressions with block id and source map handling. `lower/` has one file per family, each exporting plain functions that lower into a `TargetBuilder`: `control.ts` (if, loops, `for` desugaring), `data.ts` (assignment, list statements and list reporters), `procedures.ts` (`define` and calls), `events.ts` (`when` hats), `operators.ts` (arithmetic, comparison, `join`) and `calls.ts` (table-driven calls of builtin functions, `log`, and the "did you mean" hints). The builtin block table is `builtins.ts`. `tests/lower-hashes.test.ts` pins a hash of `project.json` and the source map for every example, bench and 300 fuzz seeds, so a refactor of lowering cannot change a block id. | sb3 |
-| `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). `TurboWarpLockstep` (`lockstep.ts`) steps TurboWarp one frame at a time on a virtual clock for the trace oracle; `virtual.ts` holds the seeded random, pinned date and virtual timers, and `tw-ids.ts` makes TurboWarp's ids from a counter. `turbowarpBlocks` lists the opcodes and hat rules of TurboWarp's block modules, for the block inventory test. | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
+| `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). `TurboWarpLockstepCore` (`tw-lockstep.ts`, no Node imports) steps TurboWarp one frame at a time on a virtual clock for the trace oracles, and `TurboWarpLockstep` (`lockstep.ts`) loads it in Node; `tw-browser.ts` is the browser entry the browser oracle bundles; `virtual.ts` holds the seeded random, pinned date and virtual timers, and `tw-ids.ts` makes TurboWarp's ids from a counter. `turbowarpBlocks` lists the opcodes and hat rules of TurboWarp's block modules, for the block inventory test. | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
 | `packages/compiler` | `project.json` → one JavaScript program (`compile`, `toModule`, `load`). Reports unsupported opcodes as warnings. Split into small modules, see [Compiler modules](#compiler-modules). | runtime (types), sb3 |
 | `packages/runtime` | Headless scheduler (virtual or real clock), targets, say bubbles and the Scratch value helpers in `ops.ts` that generated code calls. `runtime.ts` is the `Runtime` class (state, events, hat order); `thread.ts` the `Thread`, `Hat` and `WAIT`; `scheduler.ts` the frame loop (`tick`, `step`); `lib/{motion,looks,sensing,control}.ts` the block helpers as plain functions taking `(rt, target, ...)`. `Runtime` keeps one-line delegate methods for them, which generated code still calls (`rt.move(t, 10)`) until it is switched to call the functions directly. | sb3 |
-| `packages/player` | Browser player: canvas renderer (`renderer.ts`), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild |
+| `packages/player` | Browser player: the renderer interface (`backend.ts`, see [Renderer](#renderer)) with a Canvas 2D backend (`renderer.ts`, the default) and a scratch-render backend (`scratch-render.ts`, export `@bytecat/player/scratch-render`; `scratch-esbuild.ts` has the esbuild setup that bundles Scratch's packages), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser; `bundle.ts` (Node) adds the player script, built with esbuild. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild, turbowarp-render |
 | `packages/bench` | Benchmark harness: `Engine` implementations (Bytecat, scratch-vm, more via `registerEngine`), `benchmark` (warmup, timed runs, output check) and `formatTable`. See [benchmarks.md](benchmarks.md). | compiler, runtime, reference, sb3 |
 | `packages/web` | The web app (`pnpm web`): one HTML page that opens an `.sb3` or pseudocode, compiles it in the browser, plays it and offers downloads. See [web.md](web.md). | pseudo, sb3, compiler, player, esbuild |
 | `packages/cli` | The `bytecat` command (`pnpm bytecat ...`). Thin glue over the other packages. | all |
-| `packages/trace` | The trace oracle: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time on a virtual clock, and compares a snapshot of everything visible after every frame (`pnpm bytecat trace`, see [testing.md](testing.md)). The TurboWarp side is `TurboWarpLockstep` in `packages/reference`. | compiler, runtime, reference, sb3 |
+| `packages/trace` | The trace oracle: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time on a virtual clock, and compares a snapshot of everything visible after every frame (`pnpm bytecat trace`, see [testing.md](testing.md)). The TurboWarp side is `TurboWarpLockstep` in `packages/reference`. `browser/` is the browser oracle: `oracle.ts` (Node) bundles `page.ts` and drives it in Chromium, where TurboWarp runs with its renderer (`pnpm bytecat trace --browser`). | compiler, runtime, reference, player, sb3, playwright |
 | `tests/fuzz/` | The differential fuzzer: random pseudocode programs run on Bytecat and TurboWarp and compared (`pnpm fuzz`, see [fuzzing.md](fuzzing.md)). | pseudo, compiler, runtime, reference |
 | `tests/` | Cross-package tests: every example end to end (scratch-vm, TurboWarp, Bytecat runtime, and in Chromium with `.pixels` probes and `.input` scripts, see `browser.test.ts`), the block inventory against TurboWarp (`inventory.test.ts`), and docs staying in sync. | |
 | `examples/` | Test projects (`NAME.sbp`), their expected `log` output (`NAME.expected`), and optionally pixel probes (`NAME.pixels`) and scripted input (`NAME.input`). | |
@@ -187,6 +187,28 @@ first or last. Strings and booleans take the general `listIndex` path. `ops.test
 helper to a copy of the slow implementation for every kind of index, so the results must stay
 identical.
 
+## Renderer
+
+Scratch answers several block questions from its renderer: which sprite a click hits, how far a
+sprite can leave the stage (fencing), whether it touches another sprite, the edge, the mouse or a
+color, where `if on edge, bounce` turns, and how large `set size` may make it. Bytecat answers them
+the same way (decision A): through a renderer interface, `RenderBackend` in
+`packages/player/src/backend.ts`, with TurboWarp's scratch-render behind it. Nothing outside the
+backend touches scratch-render, so another renderer means another implementation of the
+interface.
+
+| Backend | Where | Queries | Used by |
+| --- | --- | --- | --- |
+| `ScratchRenderBackend` | `scratch-render.ts` | TurboWarp's own: exact pixels, the same bounds, fence, picks and costume sizes | the browser oracle; the player with `backend: ScratchRenderBackend.create` |
+| `Renderer` (Canvas 2D) | `renderer.ts` | pick by costume pixel; bounds, fence and touching by the costume's box; no `touching color` | the player by default (keeps the standalone page small: scratch-render adds about 1.6 MB of minified script) |
+
+A backend is synced from the runtime (`sync`) before it draws and before a query, so the
+runtime stays independent of it. Today the player uses it to draw and to hit-test clicks. The
+blocks that need the other queries (fencing, touching, bounce, size limits) do not call it yet;
+they are listed in [deviations.md](deviations.md#found-by-the-browser-oracle) and are Phase 2
+work. `tests/browser-oracle.test.ts` checks that `ScratchRenderBackend` places every sprite as
+TurboWarp's renderer does (bounds, fence, costume size, touching and picks).
+
 ## Differential fuzzing
 
 `tests/fuzz/` generates random small programs (`generate.ts`), runs each on the Bytecat runtime and
@@ -201,7 +223,9 @@ real scheduler and TurboWarp's sequencer both run on a virtual clock with a budg
 frame, `pick random` is seeded, and the date is pinned. After every frame a snapshot of each engine
 (variables, lists, and each sprite's position, direction, costume, size, visibility, bubble and
 layer) is compared. `tests/trace.test.ts` traces every example and benchmark. The design, the
-snapshot format and what headless TurboWarp cannot judge are in [testing.md](testing.md).
+snapshot format and what headless TurboWarp cannot judge are in [testing.md](testing.md). The
+browser oracle runs the same trace in Chromium against TurboWarp with its renderer
+(`tests/browser-oracle.test.ts`).
 
 ## Design rules
 

@@ -1,0 +1,22 @@
+# `touching`: another sprite, the edge and the mouse pointer.
+var hit = "no"
+var edge = "no"
+var mouse = "no"
+
+sprite Wall:
+  costume box = square "#0000ff"
+  position 100, 0
+
+sprite Ball:
+  costume ball = circle "#ff0000"
+  position -100, 0
+
+  when flag:
+    repeat 40:
+      move(10)
+      if touching("Wall"):
+        hit = "yes"
+      if touching("_edge_"):
+        edge = "yes"
+      if touching("_mouse_"):
+        mouse = "yes"

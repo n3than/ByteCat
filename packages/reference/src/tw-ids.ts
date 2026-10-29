@@ -25,6 +25,14 @@ if (!require.cache[path]) {
   require.cache[path] = m;
 }
 
+/**
+ * For browser bundles: the file of TurboWarp's `util/uid.js` and a counter to bundle in its place
+ * (see `scratchPlugin` in @bytecat/player).
+ */
+export function turbowarpUidReplacement(): Record<string, string> {
+  return { [path]: "let next = 0;\nmodule.exports = () => `bc-uid-${++next}`;\n" };
+}
+
 /** True when TurboWarp got the counter (it loaded after this file). Checked by a test. */
 export function turbowarpUsesCounterIds(): boolean {
   return require(path) === counterUid;

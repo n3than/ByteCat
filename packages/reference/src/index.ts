@@ -4,9 +4,10 @@ import { silenced } from "./quiet.js";
 import ScratchVM from "scratch-vm";
 import TurboWarpVM from "turbowarp-vm";
 
-export { DEFAULT_DATE, TurboWarpLockstep, type LockstepOptions } from "./lockstep.js";
-export { flushPromises, mulberry32, VirtualTimers, withVirtualGlobals, type VirtualGlobals } from "./virtual.js";
-export { turbowarpUsesCounterIds } from "./tw-ids.js";
+export { TurboWarpLockstep } from "./lockstep.js";
+export { patchTurboWarp, TurboWarpLockstepCore, type LockstepOptions, type TurboWarpModules } from "./tw-lockstep.js";
+export { DEFAULT_DATE, flushPromises, mulberry32, VirtualTimers, withVirtualGlobals, type VirtualGlobals } from "./virtual.js";
+export { turbowarpUidReplacement, turbowarpUsesCounterIds } from "./tw-ids.js";
 
 /**
  * Which VM runs the project. `turbowarp` is TurboWarp's fork with its JavaScript compiler enabled,

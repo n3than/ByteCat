@@ -116,9 +116,24 @@ importers:
       '@bytecat/sb3':
         specifier: workspace:*
         version: link:../sb3
+      '@turbowarp/scratch-svg-renderer':
+        specifier: 1.1.0
+        version: 1.1.0(scratch-render-fonts@1.0.252)
+      buffer:
+        specifier: 6.0.3
+        version: 6.0.3
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      events:
+        specifier: 3.3.0
+        version: 3.3.0
+      turbowarp-render:
+        specifier: github:TurboWarp/scratch-render#430b44fbff2040198ce526b05bae4f59f4e530ce
+        version: scratch-render@git+https://git@github.com:TurboWarp/scratch-render.git#430b44fbff2040198ce526b05bae4f59f4e530ce(webpack@4.47.0)
+      url:
+        specifier: 0.11.4
+        version: 0.11.4
 
   packages/pseudo:
     dependencies:
@@ -152,6 +167,9 @@ importers:
       '@bytecat/compiler':
         specifier: workspace:*
         version: link:../compiler
+      '@bytecat/player':
+        specifier: workspace:*
+        version: link:../player
       '@bytecat/reference':
         specifier: workspace:*
         version: link:../reference
@@ -161,6 +179,15 @@ importers:
       '@bytecat/sb3':
         specifier: workspace:*
         version: link:../sb3
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      playwright:
+        specifier: 1.63.0
+        version: 1.63.0
+      scratch-storage:
+        specifier: 2.3.1
+        version: 2.3.1(webpack@4.47.0)
 
   packages/web:
     dependencies:
@@ -198,6 +225,10 @@ packages:
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
+
+  '@babel/runtime@7.21.0':
+    resolution: {integrity: sha512-xwII0//EObnq89Ji5AKYQaRYiW/nZ3llSv29d49IuxPhKbtJoLP+9QUUZ4nVragQVtaVGeZrpB+ZtG/Pdy/POw==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/runtime@7.29.10':
     resolution: {integrity: sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA==}
@@ -542,6 +573,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@turbowarp/ancient-hull.js@0.2.13':
+    resolution: {integrity: sha512-lpVDr18qRjOLWcPtw9H+nlFhY7hbdgQlLU1b6nJfEn2pMYRnOEtzFXZbprG5JgmUCIzGx/H9WPajbkjRdvUC+Q==}
+
   '@turbowarp/json@0.1.2':
     resolution: {integrity: sha512-9nWywp+0SH7ROVzQPQQO9gMWBikahsqyMWp1Ku8VV0q+q6bnx6dS0aNPTjqTtF2GHAY55hcREsqKzaoUdWBSwg==}
 
@@ -774,6 +808,9 @@ packages:
   base64-js@1.2.1:
     resolution: {integrity: sha512-dwVUVIXsBZXwTuwnXI9RK8sBmgq09NDHzyR9SAph9eqk76gKK2JSQmZARC2zRC81JC2QTtxD0ARU5qTS25gIGw==}
 
+  base64-js@1.3.0:
+    resolution: {integrity: sha512-ccav/yGvoa80BQDljCxsmmQ3Xvx60/UpBIij5QN21W3wBi/hhIC9OoO+KLpu9IJTS9j4DRVJ3aDDF9cMSoa2lw==}
+
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
@@ -987,6 +1024,9 @@ packages:
 
   create-hmac@1.1.7:
     resolution: {integrity: sha512-MJG9liiZ+ogc4TzUwuvbER1JRdgvUFSB5+VR/g5h82fGaIRWMWddtKBHi7/sVhfjQZ6SehlyhvQYrcYkaUIpLg==}
+
+  cross-fetch@3.1.5:
+    resolution: {integrity: sha512-lvb1SBsI0Z7GDwmuid+mU3kWVBwTVUbe7S0H52yaaAdQOXq2YktTCZdlAcNKFzE6QtRz0snpw9bNiPeOIkkQvw==}
 
   cross-fetch@4.1.0:
     resolution: {integrity: sha512-uKm5PU+MHTootlWEY+mZ4vvXoCn4fLQxT9dSc1sXVMSFkINTJVN8cAQROpwcKm8bJ/c7rgZVIBWzH5T78sNZZw==}
@@ -1462,6 +1502,9 @@ packages:
   iferr@0.1.5:
     resolution: {integrity: sha512-DUNFN5j7Tln0D+TxzloUjKB+CtVu6myn0JEFak6dG18mNt9YkQ6lzGCdafwofISZ1lLF3xRHJ98VKy9ynkcFaA==}
 
+  ify-loader@1.0.4:
+    resolution: {integrity: sha512-fzWOWwsTZH3c2GPNJy1dndN5lk+oyXGPbg9YrHv/UwC/SmlxNEUAst6evF1H9ySGbezgBA42YGLSr1WzAwgx9w==}
+
   ify-loader@1.1.0:
     resolution: {integrity: sha512-EiyC45FRIs+z4g98+jBzuYCfoM6TKG9p7Ek5YZUeM7rucNucaMZIseRj/5Q3I4ypkZXyC2wnU1RcYrVmshe2xw==}
 
@@ -1780,6 +1823,15 @@ packages:
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
 
+  node-fetch@2.6.7:
+    resolution: {integrity: sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==}
+    engines: {node: 4.x || >=6.0.0}
+    peerDependencies:
+      encoding: ^0.1.0
+    peerDependenciesMeta:
+      encoding:
+        optional: true
+
   node-fetch@2.7.0:
     resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
     engines: {node: 4.x || >=6.0.0}
@@ -2029,6 +2081,9 @@ packages:
     resolution: {integrity: sha512-hOS089on8RduqdbhvQ5Z37A0ESjsqz6qnRcffsMU3495FuTdqSm+7bhJ29JvIOsBDEEnan5DPu9t3To9VRlMzA==}
     engines: {node: '>=8.10.0'}
 
+  regenerator-runtime@0.13.11:
+    resolution: {integrity: sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==}
+
   regex-not@1.0.2:
     resolution: {integrity: sha512-J6SDjUgDxQj5NusnOtdFxDwN/+HWykR8GELwctJ7mdqhcyy1xEc4SRFHUXvxTp661YaVKAjfRLZ9cCqS6tn32A==}
     engines: {node: '>=0.10.0'}
@@ -2119,11 +2174,21 @@ packages:
     peerDependencies:
       scratch-render-fonts: 1.0.252
 
+  scratch-render@git+https://git@github.com:TurboWarp/scratch-render.git#430b44fbff2040198ce526b05bae4f59f4e530ce:
+    resolution: {commit: 430b44fbff2040198ce526b05bae4f59f4e530ce, repo: git@github.com:TurboWarp/scratch-render.git, type: git}
+    version: 0.1.0
+
   scratch-sb1-converter@0.2.7:
     resolution: {integrity: sha512-MF1NzmRLbgCiq7wiSTuk2C9rQC8uM5Wj7SaYsn1SEMWNK9rtK0uc3LSm8FnEt14QS/1Icx2YgMsUPKR0HaPDdQ==}
 
   scratch-sb1-converter@2.0.281:
     resolution: {integrity: sha512-KRXfs2OLJ5ekiUlskvQsa/7vhdU+dQYJpU4wdLzkeLtqrQ21De38IGPbQFL9Bws/22vh1FR3TeSvw5TlaFkYyQ==}
+
+  scratch-storage@1.3.6:
+    resolution: {integrity: sha512-L/7z7SB7cGANsgjyiE+qZNaPEqFHK1yPbNomizkgN3WHGcKRogLvmheR57kOxHNpQzodUTbG+pVVH6fR2ZY1Sg==}
+
+  scratch-storage@2.3.1:
+    resolution: {integrity: sha512-kBxJLFGQsimP35YHig+8op5V9+FLfO7mXbhSLj4712dyHTXvyMKYY8GAf7KT283kQrUpDApehJU4Jx5PXSjLXQ==}
 
   scratch-storage@4.1.27:
     resolution: {integrity: sha512-pkn/tGbk6XkMhChZzX6PsG+l/LF+hNXJasPn9bz2uEA0tNSB3spESlf1bww1VIouV+kuQcN+oZiHSzXDTzZbpw==}
@@ -2408,6 +2473,9 @@ packages:
   twgl.js@4.24.0:
     resolution: {integrity: sha512-JGVTxuV9dqaBmajXyvuZIlhCHrTbIaoNjQvtdoLHyK74OtbmNwZUj6rfdp+pz9htitI/tVxiVQ2nuw+KmD29vg==}
 
+  twgl.js@4.4.0:
+    resolution: {integrity: sha512-W+uFP2DyK2dNhE38PcpituNi8CBm+YO5gY6o/IWEILT7NNDTT1wo3YcMmydwiCfUbnT7tz+EcjV7KlZLgE1PlQ==}
+
   type-check@0.3.2:
     resolution: {integrity: sha512-ZCmOJdvOWDBYJlzAoFkC+Q0+bUyEOS1ltgp1MGU03fqHG+dbi9tBFU2Rd9QKiDZFAYrhPh2JUf7rZRIuHRKtOg==}
     engines: {node: '>= 0.8.0'}
@@ -2632,6 +2700,12 @@ packages:
     peerDependencies:
       webpack: ^2.0.0 || ^3.0.0 || ^4.0.0
 
+  worker-loader@2.0.0:
+    resolution: {integrity: sha512-tnvNp4K3KQOpfRnD20m8xltE3eWh89Ye+5oj7wXEEHKac1P4oZ6p9oTj8/8ExqoSBnk9nu5Pr4nKfQ1hn2APJw==}
+    engines: {node: '>= 6.9.0 || >= 8.9.0'}
+    peerDependencies:
+      webpack: ^3.0.0 || ^4.0.0-alpha.0 || ^4.0.0
+
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
@@ -2675,6 +2749,10 @@ snapshots:
   '@asamuzakjp/generational-cache@1.0.1': {}
 
   '@asamuzakjp/nwsapi@2.3.9': {}
+
+  '@babel/runtime@7.21.0':
+    dependencies:
+      regenerator-runtime: 0.13.11
 
   '@babel/runtime@7.29.10': {}
 
@@ -2865,6 +2943,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.65.0':
     optional: true
+
+  '@turbowarp/ancient-hull.js@0.2.13': {}
 
   '@turbowarp/json@0.1.2': {}
 
@@ -3135,6 +3215,8 @@ snapshots:
   base64-js@0.0.8: {}
 
   base64-js@1.2.1: {}
+
+  base64-js@1.3.0: {}
 
   base64-js@1.5.1: {}
 
@@ -3451,6 +3533,12 @@ snapshots:
       ripemd160: 2.0.3
       safe-buffer: 5.2.1
       sha.js: 2.4.12
+
+  cross-fetch@3.1.5:
+    dependencies:
+      node-fetch: 2.6.7
+    transitivePeerDependencies:
+      - encoding
 
   cross-fetch@4.1.0:
     dependencies:
@@ -4027,6 +4115,16 @@ snapshots:
 
   iferr@0.1.5: {}
 
+  ify-loader@1.0.4:
+    dependencies:
+      bl: 1.2.3
+      findup: 0.1.5
+      from2-array: 0.0.4
+      map-limit: 0.0.1
+      multipipe: 0.3.1
+      read-package-json: 2.1.2
+      resolve: 1.22.13
+
   ify-loader@1.1.0:
     dependencies:
       bl: 1.2.3
@@ -4397,6 +4495,10 @@ snapshots:
 
   neo-async@2.6.2: {}
 
+  node-fetch@2.6.7:
+    dependencies:
+      whatwg-url: 5.0.0
+
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
@@ -4681,6 +4783,8 @@ snapshots:
       picomatch: 2.3.2
     optional: true
 
+  regenerator-runtime@0.13.11: {}
+
   regex-not@1.0.2:
     dependencies:
       extend-shallow: 3.0.2
@@ -4814,6 +4918,21 @@ snapshots:
       - canvas
       - supports-color
 
+  scratch-render@git+https://git@github.com:TurboWarp/scratch-render.git#430b44fbff2040198ce526b05bae4f59f4e530ce(webpack@4.47.0):
+    dependencies:
+      '@turbowarp/ancient-hull.js': 0.2.13
+      '@turbowarp/nanolog': 0.2.0
+      '@turbowarp/scratch-svg-renderer': 1.1.0(scratch-render-fonts@1.0.252)
+      grapheme-breaker: 0.3.2
+      ify-loader: 1.0.4
+      linebreak: 0.3.0
+      raw-loader: 0.5.1
+      scratch-storage: 1.3.6(webpack@4.47.0)
+      twgl.js: 4.4.0
+    transitivePeerDependencies:
+      - scratch-render-fonts
+      - webpack
+
   scratch-sb1-converter@0.2.7:
     dependencies:
       js-md5: 0.7.3
@@ -4825,6 +4944,31 @@ snapshots:
       js-md5: 0.7.3
       minilog: 3.1.0
       text-encoding: 0.7.0
+
+  scratch-storage@1.3.6(webpack@4.47.0):
+    dependencies:
+      arraybuffer-loader: 1.0.8
+      base64-js: 1.3.0
+      fastestsmallesttextencoderdecoder: 1.0.22
+      js-md5: 0.7.3
+      minilog: 3.1.0
+      worker-loader: 2.0.0(webpack@4.47.0)
+    transitivePeerDependencies:
+      - webpack
+
+  scratch-storage@2.3.1(webpack@4.47.0):
+    dependencies:
+      '@babel/runtime': 7.21.0
+      arraybuffer-loader: 1.0.8
+      base64-js: 1.3.0
+      cross-fetch: 3.1.5
+      fastestsmallesttextencoderdecoder: 1.0.22
+      js-md5: 0.7.3
+      minilog: 3.1.0
+      worker-loader: 2.0.0(webpack@4.47.0)
+    transitivePeerDependencies:
+      - encoding
+      - webpack
 
   scratch-storage@4.1.27:
     dependencies:
@@ -5234,6 +5378,8 @@ snapshots:
 
   twgl.js@4.24.0: {}
 
+  twgl.js@4.4.0: {}
+
   type-check@0.3.2:
     dependencies:
       prelude-ls: 1.1.2
@@ -5487,6 +5633,12 @@ snapshots:
       errno: 0.1.8
 
   worker-loader@1.1.1(webpack@4.47.0):
+    dependencies:
+      loader-utils: 1.4.2
+      schema-utils: 0.4.7
+      webpack: 4.47.0
+
+  worker-loader@2.0.0(webpack@4.47.0):
     dependencies:
       loader-utils: 1.4.2
       schema-utils: 0.4.7

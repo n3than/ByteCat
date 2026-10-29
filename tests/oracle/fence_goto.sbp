@@ -1,0 +1,6 @@
+# Fencing: `go to x: y:` far off the stage keeps 15 pixels of the sprite on it.
+sprite Mover:
+  costume box = square "#ff0000"
+
+  when flag:
+    goto(1000, -1000)

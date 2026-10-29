@@ -1,0 +1,10 @@
+# `if on edge, bounce` turns the sprite once its costume touches the edge (x 216 for a 48 pixel
+# square), not once its center does.
+sprite Ball:
+  costume ball = circle "#00aa00"
+  position 150, 0
+
+  when flag:
+    repeat 20:
+      move(10)
+      bounce()
