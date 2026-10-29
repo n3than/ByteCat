@@ -64,8 +64,9 @@ checks the inventory against TurboWarp's block modules. `tests/codegen-snapshots
 `compile` emits a single `function (rt)` expression. Given a `Runtime` it returns the list of hats
 (event kind, the argument it matches, `restart: false` for a hat that does not restart a running
 script, and the script function). Each script is a generator function: loops end each iteration
-with `if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and any blocked state
-(`wait`, `wait until`, `ask`) does `yield rt.WAIT`. A custom block that can yield (a waiting block, a loop outside warp,
+with `if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and a wait (`wait`,
+`wait until`, `glide`, `broadcast and wait`) does `yield rt.WAIT` until it is over. `ask` yields
+`BLOCKED` (see [Scheduler](#scheduler)). A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
 never yields compiles to a plain function, which is much cheaper to call. A direct recursive call in a non-warp procedure yields before the call (`if (th.warp === 0) yield;`), as scratch-vm and TurboWarp do, so such a procedure is a generator; a warp one stays plain. Calls to a plain
 function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
@@ -130,9 +131,28 @@ literal is passed as a number.
 ## Scheduler
 
 `tick(rt)` in `packages/runtime/src/scheduler.ts` (`Runtime.tick()` calls it) runs one frame, with `step(rt, thread)` advancing a thread. It steps every thread in turn, repeating within a frame until most
-of the frame budget is used, a redraw is requested outside turbo mode, or every thread is blocked;
+of the frame budget is used, a redraw is requested outside turbo mode, or no thread can go on;
 it reads the clock every few hundred microseconds rather than after every pass, and within a few
 passes of a thread starting, since a new thread can make passes much heavier.
+
+**When a frame ends early.** This follows TurboWarp's `stepThreads` (`src/engine/sequencer.js`
+in its scratch-vm), which ends a frame when no thread is left with status `RUNNING` after a pass.
+Its compiled scripts yield with the status unchanged, waits included, so a thread in `wait` or
+`wait until` keeps the frame going and checks its wait again on the next pass: a `wait until`
+sees what another thread did later in the same pass, and `wait(0)` takes no frame in turbo mode.
+Only a thread that is done, waiting on a promise (`ask`) or yielding for the rest of the frame
+(`STATUS_YIELD_TICK`) does not count. In Bytecat a `WAIT` yield counts as going on, like a loop
+yield, and the frame ends after a pass in which every step yielded `BLOCKED` (`thread.ts`) or ended
+its thread. A thread that yields `BLOCKED` may be stepped again in the same frame, when other
+threads keep it going, so it must check its condition again without side effects. `broadcast and
+wait` yields `WAIT` even where TurboWarp uses `STATUS_YIELD_TICK` (every thread it waits for is
+itself blocked); that only keeps an idle frame going, which nothing can observe.
+
+**`stop all`** in a script reaches `step` as the `STOP_ALL` exception. As in TurboWarp, where
+`runtime.stopAll()` replaces the thread list while the sequencer goes on through the old one, the
+threads after the stopping one that were still running get one more step in that pass. They are
+already marked done, so `broadcast and wait` sees them as finished, and threads they start go into
+the new list and first run in the next pass. So `tick` steps the list it had when the pass began.
 
 **Loop yields.** A loop yield hands control back to the scheduler, which for a thread that is
 alone would step the same thread again straight away. So `rt.spin` counts how many more loop

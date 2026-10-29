@@ -1,5 +1,5 @@
 import type { Runtime } from "./runtime.js";
-import { STOP_ALL, WAIT, type Thread } from "./thread.js";
+import { BLOCKED, STOP_ALL, type Thread } from "./thread.js";
 
 /** At most this many passes run after a thread starts before the scheduler reads the clock. */
 const START_CHECK = 4;
@@ -33,7 +33,7 @@ export function frameBudget(fps: number): number {
 /**
  * A scheduler clock for lockstep runs (the trace oracle, docs/testing.md). With it, and with the
  * runtime's `spin` pinned to 0, a frame ends after exactly `passes` passes over the threads (sooner
- * on a redraw or when every thread is blocked), whatever the machine. Each read moves it on by
+ * on a redraw or when no thread can go on), whatever the machine. Each read moves it on by
  * HEAVY_INTERVAL, so `tick` keeps reading it after every pass, and the read after the last allowed
  * pass is past any budget. Call `reset()` before each tick. Every earlier read must stay inside
  * the budget, so `passes` is at most ceil(frameBudget(fps) / 0.25) (100 at 30 fps, 50 at 60).
@@ -56,8 +56,11 @@ export function passClock(passes: number, fps = 30): { read: () => number; reset
 }
 
 /**
- * Runs one frame. Like Scratch, it keeps cycling through threads until most of the frame budget
- * is used, a redraw is requested (outside turbo mode), or every thread is blocked.
+ * Runs one frame. Like TurboWarp's sequencer (`stepThreads`), it keeps cycling through threads
+ * until most of the frame budget is used, a redraw is requested (outside turbo mode), or no thread
+ * can go on: a pass in which every step yielded `BLOCKED` or ended its thread. A thread that
+ * yields `WAIT` can go on, since TurboWarp's compiled waits keep their thread running: the frame
+ * goes on and the wait is checked again on the next pass, so it sees what other threads did.
  *
  * A loop outside warp mode yields at the end of every iteration, which costs a trip through
  * this scheduler. That is pointless for a thread running alone, since the next pass would step
@@ -85,16 +88,18 @@ export function tick(rt: Runtime): void {
   for (;;) {
     let progressed = false;
     let finished = false;
-    const count = rt.threads.length;
-    // Threads started during this pass run in the same pass, as in Scratch.
-    for (let i = 0; i < rt.threads.length; i++) {
-      const th = rt.threads[i]!;
+    // Threads started during this pass run in the same pass, as in Scratch. A `stop all` gives
+    // `rt` a new list, and this pass still goes through the old one (see `stopAll`).
+    const threads = rt.threads;
+    const count = threads.length;
+    for (let i = 0; i < threads.length; i++) {
+      const th = threads[i]!;
       if (th.done) {
         finished = true;
         continue;
       }
-      rt.spin = rt.threads.length === 1 ? spinLimit : 0;
-      if (step(rt, th) !== WAIT) progressed = true;
+      rt.spin = threads.length === 1 ? spinLimit : 0;
+      if (step(rt, th) !== BLOCKED) progressed = true;
       if (th.done) finished = true;
     }
     // A new thread can make passes much heavier, so read the clock within a few passes of one
@@ -124,16 +129,47 @@ export function tick(rt: Runtime): void {
   rt.frame++;
 }
 
-/** Advances one thread to its next yield. `stop all` arrives as the `STOP_ALL` exception. */
+/**
+ * Advances one thread to its next yield and returns what it yielded, or `BLOCKED` when the thread
+ * ended: in TurboWarp a thread that is done no longer counts as active, so it does not keep the
+ * frame going. `stop all` arrives as the `STOP_ALL` exception.
+ */
 export function step(rt: Runtime, th: Thread): unknown {
   try {
     const r = th.gen.next();
-    if (r.done) th.done = true;
-    return r.value;
+    if (!r.done) return r.value;
+    th.done = true;
+    return BLOCKED;
   } catch (e) {
     th.done = true;
-    if (e === STOP_ALL) rt.stopAll();
-    else throw e;
-    return undefined;
+    if (e !== STOP_ALL) throw e;
+    return stopAll(rt, th);
   }
+}
+
+/**
+ * `stop all` from thread `th`, as TurboWarp does it. Its `runtime.stopAll()` stops `th` and
+ * replaces the thread list with an empty one, but `stepThreads` goes on through the list it was
+ * stepping, so each thread after `th` that was still running gets one more step in this pass.
+ * Those threads are no longer listed (`done` here), so `broadcast and wait` sees them as finished,
+ * and the threads they start join the new list and first run in the next pass. Returns `BLOCKED`
+ * unless one of them can go on, as `step` does for a single thread.
+ */
+function stopAll(rt: Runtime, th: Thread): unknown {
+  const i = rt.threads.indexOf(th);
+  // `tick` only steps listed threads; one stepped from anywhere else has nothing after it.
+  const rest = i < 0 ? [] : rt.threads.slice(i + 1).filter((t) => !t.done);
+  rt.stopAll();
+  let result: unknown = BLOCKED;
+  for (const t of rest) {
+    rt.spin = 0;
+    try {
+      const r = t.gen.next();
+      if (!r.done && r.value !== BLOCKED) result = undefined;
+    } catch (e) {
+      if (e !== STOP_ALL) throw e;
+      rt.stopAll();
+    }
+  }
+  return result;
 }

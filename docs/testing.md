@@ -77,7 +77,9 @@ While a frame runs, every input that depends on the machine is swapped out
 A frame in either engine ends when one of these happens:
 
 - a redraw is requested (outside turbo mode);
-- every thread is blocked;
+- no thread can go on: every step in a pass ended its thread or blocked it until a later frame
+  (`ask`; Bytecat's `BLOCKED`). A thread in `wait` or `wait until` can go on: TurboWarp's compiled
+  waits keep their thread running, so both engines re-check them on the next pass;
 - about 75% of the frame has passed on the wall clock.
 
 The last rule makes the work done in a frame depend on the machine. Bytecat also lets a thread
@@ -108,12 +110,8 @@ With these, a frame does the same work on both engines and ends at the same pass
 machine. `tests/trace.test.ts` checks this on every example and benchmark at 50, 7 and 1 passes
 per frame. The small budgets move frame boundaries into the middle of loops.
 
-What still differs is a real scheduler difference, and the oracle reports it. One is known.
-Bytecat ends a frame as soon as every step in a pass returns WAIT. TurboWarp's compiled waits
-busy-wait, so it goes on re-checking them until the budget runs out. A thread that sets a variable
-and then waits can therefore unblock a `wait until` in another thread within the same frame on
-TurboWarp, but only in the next frame on Bytecat. The same rule decides whether `wait(0)` takes a
-frame in turbo mode. See [deviations.md](deviations.md#found-by-the-trace-oracle).
+What still differs is a real difference, and the oracle reports it. The known ones are listed in
+[deviations.md](deviations.md#found-by-the-trace-oracle).
 
 ## Scripted input
 

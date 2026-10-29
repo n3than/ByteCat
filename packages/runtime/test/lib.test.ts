@@ -2,10 +2,10 @@
 // generated code still uses.
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { Runtime } from "../src/index.js";
+import { BLOCKED, Runtime } from "../src/index.js";
 import { bounce, coord, glide, move, setDirection, setXY } from "../src/lib/motion.js";
 import { costumeName, goToFront, nextCostume, say, setSize, setVisible, switchCostume } from "../src/lib/looks.js";
-import { keyPressed } from "../src/lib/sensing.js";
+import { ask, keyPressed } from "../src/lib/sensing.js";
 import { wait } from "../src/lib/control.js";
 
 const costume = (name: string) => ({ name, md5ext: `${name}.svg`, rotationCenterX: 0, rotationCenterY: 0 });
@@ -186,6 +186,18 @@ describe("lib helpers", () => {
     rt.keyDown("a");
     expect(keyPressed(rt, "A")).toBe(true);
     expect(keyPressed(rt, "any")).toBe(true);
+  });
+
+  it("ask with a queued answer stays blocked until the next frame, however often it is stepped", () => {
+    const rt = new Runtime(project, () => [], { clock: "virtual", answers: ["yes"] });
+    const one = rt.targets[1]!;
+    const a = ask(rt, one, "name?");
+    expect(a.next().value).toBe(BLOCKED);
+    expect(one.bubble?.text).toBe("name?");
+    expect(a.next().value).toBe(BLOCKED);
+    rt.frame++;
+    expect(a.next().done).toBe(true);
+    expect([rt.answer, one.bubble]).toEqual(["yes", null]);
   });
 
   it("the Runtime delegates give the same results", () => {
