@@ -110,6 +110,7 @@ but variables are shared between calls, so keep per-call state on a list used as
 | `repeat until cond:` | repeat until <cond> |
 | `while cond:` | repeat until <not cond> |
 | `forever:` | forever |
+| `all_at_once:` | all at once (hidden Scratch 2 block: runs its body as plain code) |
 | `for i = a to b:` | counting loop, see [Desugaring](#desugaring) |
 | `name(args)` | a builtin statement (table below) or a call to a `define`d procedure |
 | `log(expr)` | add (expr) to the global list `log`; see [Output](#output-and-testing) |
@@ -198,6 +199,8 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `wait(duration)` | wait (secs) seconds | `control_wait` | any |
 | `wait_until(condition)` | wait until <condition> | `control_wait_until` | any |
 | `stop(stop_option)` | stop ["all" \| "this script" \| "other scripts in sprite"] | `control_stop` | any |
+| `incr_counter()` | increment counter (hidden) | `control_incr_counter` | any |
+| `clear_counter()` | clear counter (hidden) | `control_clear_counter` | any |
 | `ask(question)` | ask (question) and wait | `sensing_askandwait` | any |
 | `reset_timer()` | reset timer | `sensing_resettimer` | any |
 
@@ -232,6 +235,7 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `backdrop_number()` | backdrop [number] | `looks_backdropnumbername` | any |
 | `backdrop_name()` | backdrop [name] | `looks_backdropnumbername` | any |
 | `size()` | size | `looks_size` | sprite |
+| `counter()` | counter (hidden) | `control_get_counter` | any |
 | `timer()` | timer | `sensing_timer` | any |
 | `answer()` | answer | `sensing_answer` | any |
 | `mouse_x()` | mouse x | `sensing_mousex` | any |

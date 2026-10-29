@@ -47,6 +47,12 @@ export class Runtime {
    */
   spin = 0;
   answer = "";
+  /**
+   * The hidden counter blocks' value (`control_incr_counter`, `control_clear_counter`,
+   * `control_get_counter`): one per runtime, shared by every target. Like TurboWarp's
+   * `ext_scratch3_control._counter`, the green flag and stop do not reset it.
+   */
+  counter = 0;
   mouse = { x: 0, y: 0, down: false };
   readonly keys = new Set<string>();
   onAsk: ((question: string) => Promise<string>) | null = null;

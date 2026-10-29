@@ -144,7 +144,7 @@ below but not counted.
 
 ## Control (`control`)
 
-10 compiled, 0 partial, 7 missing, counting hidden blocks.
+14 compiled, 0 partial, 3 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
@@ -162,10 +162,10 @@ below but not counted.
 | `control_create_clone_of_menu` | menu (`CLONE_OPTION`) | Compiled | yes |  |
 | `control_while` | loop | Compiled | hidden |  |
 | `control_for_each` | loop | Compiled | hidden |  |
-| `control_get_counter` | reporter | Missing | hidden | TurboWarp's hidden counter blocks |
-| `control_incr_counter` | statement | Missing | hidden | TurboWarp's hidden counter blocks |
-| `control_clear_counter` | statement | Missing | hidden | TurboWarp's hidden counter blocks |
-| `control_all_at_once` | statement | Missing | hidden | runs its substack like a plain block in Scratch 3 |
+| `control_get_counter` | reporter | Compiled | hidden |  |
+| `control_incr_counter` | statement | Compiled | hidden |  |
+| `control_clear_counter` | statement | Compiled | hidden |  |
+| `control_all_at_once` | statement, nests | Compiled | hidden |  |
 
 <a id="sensing"></a>
 
