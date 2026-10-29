@@ -98,6 +98,45 @@ describe("trace oracle", () => {
     expect(Number(log[2]) - 9497).toBeCloseTo(Number(log[1]) / 86400, 9);
   });
 
+  it("checks waits again within the frame, like TurboWarp's compiled waits", async () => {
+    const r = await traceProject(sb3Of(readFileSync(join(root, "examples", "wait_recheck.sbp"), "utf8")), { frames: 10 });
+    expect(r.diff, describeTrace(r)).toBeNull();
+    expect(r.frames).toBe(1);
+    expect(r.expected.fields["Stage.list.log"]).toEqual(["a", "b"]);
+  });
+
+  it("passes wait(0) within the frame in turbo mode", async () => {
+    const source = `var n = 0\nstage:\n  when flag:\n    repeat 10:\n      wait(0)\n      n += 1\n`;
+    const r = await traceProject(sb3Of(source), { frames: 1, turbo: true });
+    expect(r.diff, describeTrace(r)).toBeNull();
+    expect(r.expected.fields["Stage.var.n"]).toBe("10");
+  });
+
+  it("ends a frame when the only threads left to go on have ended", async () => {
+    // "again" restarts the "go" script in its place, behind it, and ends; the asking thread does
+    // not keep the frame going either, so the restarted script first runs in frame 2.
+    const source = `var n = 0\nstage:\n  when flag:\n    broadcast("go")\n    broadcast("again")\n  when receive "go":\n    n += 1\n    ask("q")\n  when receive "again":\n    broadcast("go")\n`;
+    const r = await traceProject(sb3Of(source), { frames: 1 });
+    expect(r.diff, describeTrace(r)).toBeNull();
+    expect(r.expected.fields["Stage.var.n"]).toBe("1");
+  });
+
+  it("goes on after a pass where a thread ended while the others sleep", async () => {
+    // In frame 2 the key script restarts the "go" script in its place, behind it, and ends.
+    // The sleeping wait keeps TurboWarp's frame going, so the restarted script runs in frame 2.
+    const source = `var n = 0\nstage:\n  when receive "go":\n    n += 1\n    wait(10)\n  when flag:\n    broadcast("go")\n  when key "space":\n    broadcast("go")\n`;
+    const r = await traceProject(sb3Of(source), { frames: 2, input: parseInput("press space\n") });
+    expect(r.diff, describeTrace(r)).toBeNull();
+    expect(r.expected.fields["Stage.var.n"]).toBe("2");
+  });
+
+  it("gives the threads after a stop all their step in that pass", async () => {
+    const r = await traceProject(sb3Of(readFileSync(join(root, "examples", "stop_all_pass.sbp"), "utf8")), { frames: 10 });
+    expect(r.diff, describeTrace(r)).toBeNull();
+    expect(r.expected.fields["Stage.var.n"]).toBe("2");
+    expect(r.expected.fields["Stage.list.log"]).toEqual(["1"]);
+  });
+
   it("delivers keys, clicks, mouse moves and answers at frame boundaries", async () => {
     const source = readFileSync(join(root, "examples", "input.sbp"), "utf8");
     const input = parseInput(readFileSync(join(root, "examples", "input.input"), "utf8"));

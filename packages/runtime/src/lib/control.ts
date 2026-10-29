@@ -1,5 +1,5 @@
 import type { Runtime } from "../runtime.js";
-import { WAIT } from "../thread.js";
+import { SLEEP, WAIT } from "../thread.js";
 
 export function* wait(rt: Runtime, seconds: number): Generator<unknown, void, unknown> {
   // Elapsed time against the duration, as TurboWarp compares it. `now < start + duration` rounds
@@ -7,6 +7,7 @@ export function* wait(rt: Runtime, seconds: number): Generator<unknown, void, un
   const start = rt.now();
   const duration = seconds * 1000;
   rt.requestRedraw();
-  do yield WAIT;
-  while (rt.now() - start < duration);
+  // Always yields once, like TurboWarp; the checks after that are SLEEP (see thread.ts).
+  yield WAIT;
+  while (rt.now() - start < duration) yield SLEEP;
 }

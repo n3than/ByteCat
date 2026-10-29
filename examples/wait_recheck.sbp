@@ -1,0 +1,16 @@
+# A frame goes on while any thread is waiting, as in TurboWarp: its compiled waits keep the thread
+# running, so the scheduler checks them again on the next pass. The first script sees x = 1, which
+# the second sets after the first has started waiting, in the same frame. tests/trace.test.ts
+# checks the frames; the log only shows the order.
+var x = 0
+
+stage:
+  when flag:
+    wait_until(x = 1)
+    log("a")
+    x = 2
+
+  when flag:
+    x = 1
+    wait_until(x = 2)
+    log("b")
