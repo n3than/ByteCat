@@ -32,10 +32,12 @@ export function* sayFor(
   say(rt, t, kind, text);
   const bubble = t.bubble;
   let done = false;
-  rt.later(seconds * 1000, () => {
+  const timeout = rt.later(seconds * 1000, () => {
+    if (rt.bubbleTimeout === timeout) rt.bubbleTimeout = null;
     if (t.bubble === bubble) say(rt, t, kind, "");
     done = true;
   });
+  rt.bubbleTimeout = timeout;
   while (!done) yield BLOCKED;
 }
 

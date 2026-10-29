@@ -271,13 +271,18 @@ describe("later", () => {
     ]);
   });
 
-  it("drops what has not run yet on stop all", () => {
+  it("counts pending callbacks as running, and cancel drops one", () => {
     const { rt, c } = setup({}, () => []);
+    const dropped = rt.later(10, () => c.events.push("dropped"));
     rt.later(10, () => c.events.push("ran"));
-    rt.stopAll();
+    expect(rt.running).toBe(true);
+    rt.cancel(dropped);
+    rt.stopAll(); // drops only the last say-for timer (`bubbleTimeout`), none here
+    expect(rt.running).toBe(true);
     rt.tick();
     rt.tick();
-    expect(c.events).toEqual([]);
+    expect(c.events).toEqual(["ran"]);
+    expect(rt.running).toBe(false);
   });
 });
 

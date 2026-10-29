@@ -159,9 +159,12 @@ promise and clears the bubble from a `setTimeout` callback, which runs between f
 that clear requests is dropped, since `_step` resets `redrawRequested` before it steps the threads.
 `rt.later(ms, fn)` does the same: `startFrame` runs the callbacks that are due before `tick`
 clears `redraw`. `sayFor` yields `BLOCKED` until its callback has run, and the callback clears the
-bubble only if no other say replaced it. A stopped script's callback still runs (only `stop all`
-drops them, which TurboWarp's leftover timers cannot tell apart, since every bubble is gone by
-then). Like a timer in Node and browsers, a delay below 1 ms or above 2^31 - 1 ms waits 1 ms.
+bubble only if no other say replaced it. A stopped script's callback still runs and clears its
+bubble. `stop all` drops only the last say-for callback (`rt.bubbleTimeout`), as TurboWarp's
+clears only `_bubbleTimeout`. Like a timer in Node and browsers, a delay below 1 ms or above
+2^31 - 1 ms waits 1 ms. A pending callback counts as `rt.running`, so `runUntilDone` (in the
+runtime and the player) and the trace oracle go on until it has run; the TurboWarp lockstep
+driver counts its pending say-for timers the same way (`withTimerLabel` in `virtual.ts`).
 
 **Sleeping waits.** Busy-waiting until the budget runs out, as TurboWarp does, would make every
 frame with a pending `wait` cost three quarters of a frame of real time, even on the virtual

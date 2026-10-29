@@ -157,6 +157,30 @@ describe("trace oracle", () => {
       }
     }
 
+    it("counts a pending timer as running, so the trace compares the clear after the scripts end", async () => {
+      // Both scripts end by frame 4; the timer clears the bubble at 0.5 s, before frame 16.
+      const source = sprite(`  when flag:\n    say("hi", 0.5)\n  when flag:\n    wait(0.1)\n    stop("other scripts in sprite")\n`);
+      const r = await traceProject(sb3Of(source), { frames: 40 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+      expect(r.frames).toBe(16);
+      expect(r.agreed).toBeUndefined();
+      expect([r.actual.fields["S.bubble"], r.expected.fields["S.bubble"]]).toEqual(["", ""]);
+      expect(r.running).toEqual({ actual: false, expected: false });
+      const before = await traceProject(sb3Of(source), { frames: 15 });
+      expect([before.actual.fields["S.bubble"], before.expected.fields["S.bubble"]]).toEqual(["say: hi", "say: hi"]);
+      expect(before.running).toEqual({ actual: true, expected: true });
+    });
+
+    it("keeps the timers stop all leaves, as TurboWarp clears only the last one", async () => {
+      const source = `stage:\n  when flag:\n    wait(0.1)\n    stop("all")\nsprite A:\n  costume c = circle "#ff0000"\n  when flag:\n    say("a", 0.5)\nsprite B:\n  costume c = circle "#00ff00"\n  when flag:\n    think("b", 1)\n`;
+      const early = await traceProject(sb3Of(source), { frames: 10 });
+      expect(early.diff, describeTrace(early)).toBeNull();
+      expect(early.running).toEqual({ actual: true, expected: true });
+      const r = await traceProject(sb3Of(source), { frames: 60 });
+      expect(r.diff, describeTrace(r)).toBeNull();
+      expect(r.running).toEqual({ actual: false, expected: false });
+    });
+
     it("keeps the review's repro broadcasting in the frame of the clear", async () => {
       const r = await traceProject(sb3Of(cases.repro!), { frames: 7 });
       expect(r.diff, describeTrace(r)).toBeNull();

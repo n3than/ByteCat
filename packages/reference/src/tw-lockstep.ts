@@ -17,7 +17,10 @@
 // TurboWarp's modules in. lockstep.ts loads them in Node; the browser oracle bundles them
 // (packages/trace/src/browser).
 import type TurboWarpVM from "turbowarp-vm";
-import { DEFAULT_DATE, flushPromises, VirtualTimers, withVirtualGlobals } from "./virtual.js";
+import { DEFAULT_DATE, flushPromises, VirtualTimers, withTimerLabel, withVirtualGlobals } from "./virtual.js";
+
+/** The label of the timers TurboWarp's `say for secs` and `think for secs` set (`running`). */
+const BUBBLE_TIMER = "bubble";
 
 export interface LockstepOptions {
   /** Frames per second. Default 30. */
@@ -114,6 +117,15 @@ export function patchTurboWarp({ Timer, RenderedTarget, Looks }: TurboWarpModule
   // Bubbles: with a renderer, showing a bubble on a visible target positions it (a redraw), and
   // removing one that is drawn destroys its drawable (a redraw). `bytecatBubbleShown` stands in
   // for the drawable.
+  // The timer of a `say for secs` or `think for secs` clears the bubble even after its script
+  // stopped, so the driver counts it as running. TurboWarp may set other timers; only these count.
+  for (const name of ["sayforsecs", "thinkforsecs"]) {
+    const original = Looks.prototype[name];
+    Looks.prototype[name] = function (this: unknown, ...args: unknown[]) {
+      return withTimerLabel(BUBBLE_TIMER, () => original.apply(this, args));
+    };
+  }
+
   const render = Looks.prototype._renderBubble;
   const exit = Looks.prototype._onTargetWillExit;
   Looks.prototype._onTargetWillExit = function (this: TwRuntime, target: TwTarget) {
@@ -225,9 +237,12 @@ export class TurboWarpLockstepCore {
     this.frame++;
   }
 
-  /** True while any thread is running or waiting. */
+  /**
+   * True while any thread is running or waiting, or a `say for secs` timer has not fired: it still
+   * clears its bubble after its script stopped.
+   */
   get running(): boolean {
-    return this.runtime.threads.length > 0;
+    return this.runtime.threads.length > 0 || this.timers.pendingWith(BUBBLE_TIMER) > 0;
   }
 
   keyDown(key: string): void {

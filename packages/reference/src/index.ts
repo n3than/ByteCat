@@ -6,7 +6,7 @@ import TurboWarpVM from "turbowarp-vm";
 
 export { TurboWarpLockstep } from "./lockstep.js";
 export { patchTurboWarp, TurboWarpLockstepCore, type LockstepOptions, type TurboWarpModules } from "./tw-lockstep.js";
-export { DEFAULT_DATE, flushPromises, mulberry32, VirtualTimers, withVirtualGlobals, type VirtualGlobals } from "./virtual.js";
+export { DEFAULT_DATE, flushPromises, mulberry32, VirtualTimers, withTimerLabel, withVirtualGlobals, type VirtualGlobals } from "./virtual.js";
 export { turbowarpUidReplacement, turbowarpUsesCounterIds } from "./tw-ids.js";
 
 /**
