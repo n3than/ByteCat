@@ -1,4 +1,5 @@
 import type { Runtime, Target } from "@bytecat/runtime";
+import { fenceFromBox, type Bounds, type RenderBackend } from "./backend.js";
 
 export const STAGE_WIDTH = 480;
 export const STAGE_HEIGHT = 360;
@@ -9,8 +10,12 @@ export interface Costume {
   alpha: Uint8ClampedArray;
 }
 
-/** Draws the stage, sprites and speech bubbles onto a 2D canvas in Scratch's coordinate system. */
-export class Renderer {
+/**
+ * Draws the stage, sprites and speech bubbles onto a 2D canvas in Scratch's coordinate system. A
+ * `RenderBackend` without pixel-exact collision: `bounds` and `touching` use the costume's box, and
+ * `touchingColor` is always false. ScratchRenderBackend (scratch-render.ts) is exact.
+ */
+export class Renderer implements RenderBackend {
   private readonly ctx: CanvasRenderingContext2D;
   readonly scale: number;
 
@@ -25,6 +30,9 @@ export class Renderer {
     canvas.height = STAGE_HEIGHT * scale;
     this.ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   }
+
+  /** Nothing to copy: `draw` and the queries read the runtime directly. */
+  sync(): void {}
 
   draw(): void {
     const { ctx } = this;
@@ -68,7 +76,7 @@ export class Renderer {
   }
 
   /** Axis-aligned bounds of a sprite on the stage, in canvas (top-left origin) coordinates. */
-  bounds(t: Target): { left: number; top: number; right: number; bottom: number } | null {
+  private canvasBounds(t: Target): { left: number; top: number; right: number; bottom: number } | null {
     const info = t.costumes[t.costume];
     const costume = info && this.costumes.get(info.md5ext);
     if (!costume) return null;
@@ -101,9 +109,54 @@ export class Renderer {
     return null;
   }
 
+  pick(x: number, y: number): Target | null {
+    return this.hit(STAGE_WIDTH / 2 + x, STAGE_HEIGHT / 2 - y);
+  }
+
+  /** The costume's box on the stage (no pixel test). */
+  bounds(t: Target): Bounds | null {
+    const b = this.canvasBounds(t);
+    return b && { left: b.left - STAGE_WIDTH / 2, right: b.right - STAGE_WIDTH / 2, top: STAGE_HEIGHT / 2 - b.top, bottom: STAGE_HEIGHT / 2 - b.bottom };
+  }
+
+  fence(t: Target, x: number, y: number): [number, number] {
+    return fenceFromBox(this.bounds(t), t, x, y);
+  }
+
+  touching(t: Target, others: readonly Target[]): boolean {
+    const a = t.visible ? this.bounds(t) : null;
+    if (!a) return false;
+    return others.some((o) => {
+      const b = o.visible ? this.bounds(o) : null;
+      return !!b && a.left < b.right && b.left < a.right && a.bottom < b.top && b.bottom < a.top;
+    });
+  }
+
+  touchingPoint(t: Target, x: number, y: number): boolean {
+    const b = t.visible ? this.bounds(t) : null;
+    return !!b && x >= b.left && x <= b.right && y >= b.bottom && y <= b.top;
+  }
+
+  touchingColor(): boolean {
+    return false;
+  }
+
+  costumeSize(t: Target): [number, number] {
+    const info = t.costumes[t.costume];
+    const costume = info && this.costumes.get(info.md5ext);
+    return info && costume ? [costume.image.width / info.bitmapResolution, costume.image.height / info.bitmapResolution] : [0, 0];
+  }
+
+  pixel(x: number, y: number): [number, number, number, number] {
+    const d = this.ctx.getImageData(Math.floor((STAGE_WIDTH / 2 + x) * this.scale), Math.floor((STAGE_HEIGHT / 2 - y) * this.scale), 1, 1).data;
+    return [d[0]!, d[1]!, d[2]!, d[3]!];
+  }
+
+  dispose(): void {}
+
   private drawBubble(t: Target): void {
     const bubble = t.bubble!;
-    const b = this.bounds(t);
+    const b = this.canvasBounds(t);
     if (!b) return;
     const { ctx } = this;
     ctx.save();

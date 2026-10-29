@@ -15,14 +15,14 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 | --- | --- | --- |
 | `packages/sb3` | Types for `project.json`, deterministic ids, generated SVG assets, `.sb3` zip read/write, and a plain TypeScript `md5` so it runs in the browser. No Scratch semantics. | fflate |
 | `packages/pseudo` | Pseudocode compiler: `lexer.ts` (tokens with INDENT/DEDENT) → `parser.ts` (AST in `ast.ts`) → `lower.ts` (Scratch blocks). `lower.ts` is the core: project and target scopes, declarations, and the walk over scripts, statements and expressions with block id and source map handling. `lower/` has one file per family, each exporting plain functions that lower into a `TargetBuilder`: `control.ts` (if, loops, `for` desugaring), `data.ts` (assignment, list statements and list reporters), `procedures.ts` (`define` and calls), `events.ts` (`when` hats), `operators.ts` (arithmetic, comparison, `join`) and `calls.ts` (table-driven calls of builtin functions, `log`, and the "did you mean" hints). The builtin block table is `builtins.ts`. `tests/lower-hashes.test.ts` pins a hash of `project.json` and the source map for every example, bench and 300 fuzz seeds, so a refactor of lowering cannot change a block id. | sb3 |
-| `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). `TurboWarpLockstep` (`lockstep.ts`) steps TurboWarp one frame at a time on a virtual clock for the trace oracle; `virtual.ts` holds the seeded random, pinned date and virtual timers, and `tw-ids.ts` makes TurboWarp's ids from a counter. `turbowarpBlocks` lists the opcodes and hat rules of TurboWarp's block modules, for the block inventory test. | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
+| `packages/reference` | Runs an `.sb3` headlessly in the official scratch-vm or in TurboWarp's fork (compiler on, `engine: "turbowarp"`) and returns the `log` list, say bubbles, final variables, and for TurboWarp the scripts it could not compile and the number of threads it ran compiled (`tests/turbowarp.test.ts` checks that both signals work). `TurboWarpLockstepCore` (`tw-lockstep.ts`, no Node imports) steps TurboWarp one frame at a time on a virtual clock for the trace oracles, and `TurboWarpLockstep` (`lockstep.ts`) loads it in Node; `tw-browser.ts` is the browser entry the browser oracle bundles; `virtual.ts` holds the seeded random, pinned date and virtual timers, and `tw-ids.ts` makes TurboWarp's ids from a counter. `turbowarpBlocks` lists the opcodes and hat rules of TurboWarp's block modules, for the block inventory test. | scratch-vm, TurboWarp/scratch-vm (from GitHub, aliased `turbowarp-vm`) |
 | `packages/compiler` | `project.json` → one JavaScript program and the runtime functions it imports (`compileProject`, `toModule`, `toScript`, `load`). Reports unsupported opcodes as warnings. Split into small modules, see [Compiler modules](#compiler-modules). | runtime (types), sb3 |
 | `packages/runtime` | Headless scheduler (virtual or real clock), targets, say bubbles and the Scratch value helpers in `ops.ts` that generated code calls. `runtime.ts` is the `Runtime` class (state, events, hat order); `thread.ts` the `Thread`, `Hat` and `WAIT`; `scheduler.ts` the frame loop (`tick`, `step`); `lib/{control,event,looks,motion,sensing}.ts` the block helpers as plain functions taking `(rt, target, ...)`, which generated code imports and calls by name (`move(rt, t, 10)`). Each is a subpath export (`@bytecat/runtime/motion`, `@bytecat/runtime/ops`, ...), and `modules.ts` maps those specifiers to the modules for `load` and the player. | sb3 |
-| `packages/player` | Browser player: canvas renderer (`renderer.ts`), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser. `bundle.ts` (Node) builds its script with esbuild: `programBundle` bundles the player (`start.ts`) with the program as `toModule` writes it, so esbuild resolves the program's imports and ships only the runtime modules, and the functions in them, that it reaches (`bytecat bundle`; `tests/bundle.test.ts` checks a project without motion carries no motion code). `playerBundle` is the full player (`main.ts`), with every runtime module, for pages built where no bundler runs: it runs the program the page holds as `toScript` writes it. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild |
+| `packages/player` | Browser player: the renderer interface (`backend.ts`, see [Renderer](#renderer)) with a Canvas 2D backend (`renderer.ts`, the default) and a scratch-render backend (`scratch-render.ts`, export `@bytecat/player/scratch-render`; `scratch-esbuild.ts` has the esbuild setup that bundles Scratch's packages), keyboard and mouse input, a 30 fps frame loop, and a test mode (`?test`: virtual clock, turbo unless `&turbo=off`, frames advance only on `step()`, pixel readback and simulated input via `window.bytecat`). `page.ts` builds the standalone page in Node or the browser. `bundle.ts` (Node) builds its script with esbuild: `programBundle` bundles the player (`start.ts`) with the program as `toModule` writes it, so esbuild resolves the program's imports and ships only the runtime modules, and the functions in them, that it reaches (`bytecat bundle`; `tests/bundle.test.ts` checks a project without motion carries no motion code). `playerBundle` is the full player (`main.ts`), with every runtime module, for pages built where no bundler runs: it runs the program the page holds as `toScript` writes it. `Player.dispose()` frees the canvas for another player. | runtime, sb3, esbuild, turbowarp-render |
 | `packages/bench` | Benchmark harness: `Engine` implementations (Bytecat, scratch-vm, more via `registerEngine`), `benchmark` (warmup, timed runs, output check) and `formatTable`. See [benchmarks.md](benchmarks.md). | compiler, runtime, reference, sb3 |
 | `packages/web` | The web app (`pnpm web`): one HTML page that opens an `.sb3` or pseudocode, compiles it in the browser, plays it and offers downloads. See [web.md](web.md). | pseudo, sb3, compiler, player, esbuild |
 | `packages/cli` | The `bytecat` command (`pnpm bytecat ...`). Thin glue over the other packages. | all |
-| `packages/trace` | The trace oracle: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time on a virtual clock, and compares a snapshot of everything visible after every frame (`pnpm bytecat trace`, see [testing.md](testing.md)). The TurboWarp side is `TurboWarpLockstep` in `packages/reference`. | compiler, runtime, reference, sb3 |
+| `packages/trace` | The trace oracle: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time on a virtual clock, and compares a snapshot of everything visible after every frame (`pnpm bytecat trace`, see [testing.md](testing.md)). The TurboWarp side is `TurboWarpLockstep` in `packages/reference`. `browser/` is the browser oracle: `oracle.ts` (Node) bundles `page.ts` and drives it in Chromium, where TurboWarp runs with its renderer (`pnpm bytecat trace --browser`). | compiler, runtime, reference, player, sb3, playwright |
 | `tests/fuzz/` | The differential fuzzer: random pseudocode programs run on Bytecat and TurboWarp and compared (`pnpm fuzz`, see [fuzzing.md](fuzzing.md)). | pseudo, compiler, runtime, reference |
 | `tests/` | Cross-package tests: every example end to end (scratch-vm, TurboWarp, Bytecat runtime, and in Chromium with `.pixels` probes and `.input` scripts, see `browser.test.ts`), the block inventory against TurboWarp (`inventory.test.ts`), and docs staying in sync. | |
 | `examples/` | Test projects (`NAME.sbp`), their expected `log` output (`NAME.expected`), and optionally pixel probes (`NAME.pixels`) and scripted input (`NAME.input`). | |
@@ -88,8 +88,9 @@ return [
 The imports are exactly the runtime functions the code calls (see [extensions.md](extensions.md),
 "Runtime functions"); `tests/uses.test.ts` checks that for every example and benchmark. Each
 script is a generator function: loops end each iteration with
-`if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and any blocked state
-(`wait`, `wait until`, `ask`) does `yield WAIT`. A custom block that can yield (a waiting block, a loop outside warp,
+`if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and a wait (`wait`,
+`wait until`, `glide`, `broadcast and wait`) does `yield WAIT` until it is over. `ask` yields
+`BLOCKED` (see [Scheduler](#scheduler)). A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
 never yields compiles to a plain function, which is much cheaper to call. A direct recursive call in a non-warp procedure yields before the call (`if (th.warp === 0) yield;`), as scratch-vm and TurboWarp do, so such a procedure is a generator; a warp one stays plain. Calls to a plain
 function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
@@ -154,9 +155,44 @@ literal is passed as a number.
 ## Scheduler
 
 `tick(rt)` in `packages/runtime/src/scheduler.ts` (`Runtime.tick()` calls it) runs one frame, with `step(rt, thread)` advancing a thread. It steps every thread in turn, repeating within a frame until most
-of the frame budget is used, a redraw is requested outside turbo mode, or every thread is blocked;
+of the frame budget is used, a redraw is requested outside turbo mode, or no thread can go on;
 it reads the clock every few hundred microseconds rather than after every pass, and within a few
 passes of a thread starting, since a new thread can make passes much heavier.
+
+**When a frame ends early.** This follows TurboWarp's `stepThreads` (`src/engine/sequencer.js`
+in its scratch-vm), which ends a frame when no thread is left with status `RUNNING` after a pass.
+Its compiled scripts yield with the status unchanged, waits included, so a thread in `wait` or
+`wait until` keeps the frame going and checks its wait again on the next pass: a `wait until`
+sees what another thread did later in the same pass, and `wait(0)` takes no frame in turbo mode.
+Only a thread that is done, waiting on a promise (`ask`) or yielding for the rest of the frame
+(`STATUS_YIELD_TICK`) does not count. In Bytecat a `WAIT` yield counts as going on, like a loop
+yield, and the frame ends after a pass in which every step yielded `BLOCKED` (`thread.ts`) or ended
+its thread. A thread that yields `BLOCKED` may be stepped again in the same frame, when other
+threads keep it going, so it must check its condition again without side effects. `broadcast and
+wait` yields `WAIT` even where TurboWarp uses `STATUS_YIELD_TICK` (every thread it waits for is
+itself blocked); that only keeps an idle frame going, which nothing can observe.
+
+**Time within a frame.** `rt.now()`, which `wait`, `say for` and the `timer` read, stands still
+while a frame runs, like TurboWarp's `currentMSecs`: on the real clock `tick` and the green flag
+set it (`startFrame`), and on the virtual clock it is one frame per tick. So a wait can only end
+at the start of a frame, however long the frame keeps checking it. `glide` reads `rt.liveNow()`
+instead, the real clock at the call, since TurboWarp times a glide with a real-time `Timer`.
+
+**Sleeping waits.** Busy-waiting until the budget runs out, as TurboWarp does, would make every
+frame with a pending `wait` cost three quarters of a frame of real time, even on the virtual
+clock. A timed wait therefore yields `WAIT` once and then `SLEEP` each time it checks its time
+and is not over (`glide` does the same on the virtual clock, once it has moved for the frame).
+Since time stands still, a `SLEEP` step cannot end its wait in this frame and has no side
+effects. So after a pass in which every step yielded `SLEEP` or `BLOCKED` the frame ends:
+repeating that pass could change nothing. A pass in which a thread also ended does not end the
+frame, since the ended thread may have done work, such as restarting a script behind it, that
+TurboWarp would run within the frame.
+
+**`stop all`** in a script reaches `step` as the `STOP_ALL` exception. As in TurboWarp, where
+`runtime.stopAll()` replaces the thread list while the sequencer goes on through the old one, the
+threads after the stopping one that were still running get one more step in that pass. They are
+already marked done, so `broadcast and wait` sees them as finished, and threads they start go into
+the new list and first run in the next pass. So `tick` steps the list it had when the pass began.
 
 **Loop yields.** A loop yield hands control back to the scheduler, which for a thread that is
 alone would step the same thread again straight away. So `rt.spin` counts how many more loop
@@ -211,6 +247,28 @@ first or last. Strings and booleans take the general `listIndex` path. `ops.test
 helper to a copy of the slow implementation for every kind of index, so the results must stay
 identical.
 
+## Renderer
+
+Scratch answers several block questions from its renderer: which sprite a click hits, how far a
+sprite can leave the stage (fencing), whether it touches another sprite, the edge, the mouse or a
+color, where `if on edge, bounce` turns, and how large `set size` may make it. Bytecat answers them
+the same way (decision A): through a renderer interface, `RenderBackend` in
+`packages/player/src/backend.ts`, with TurboWarp's scratch-render behind it. Nothing outside the
+backend touches scratch-render, so another renderer means another implementation of the
+interface.
+
+| Backend | Where | Queries | Used by |
+| --- | --- | --- | --- |
+| `ScratchRenderBackend` | `scratch-render.ts` | TurboWarp's own: exact pixels, the same bounds, fence, picks and costume sizes | the browser oracle; the player with `backend: ScratchRenderBackend.create` |
+| `Renderer` (Canvas 2D) | `renderer.ts` | pick by costume pixel; bounds, fence and touching by the costume's box; no `touching color` | the player by default (keeps the standalone page small: scratch-render adds about 1.6 MB of minified script) |
+
+A backend is synced from the runtime (`sync`) before it draws and before a query, so the
+runtime stays independent of it. Today the player uses it to draw and to hit-test clicks. The
+blocks that need the other queries (fencing, touching, bounce, size limits) do not call it yet;
+they are listed in [deviations.md](deviations.md#found-by-the-browser-oracle) and are Phase 2
+work. `tests/browser-oracle.test.ts` checks that `ScratchRenderBackend` places every sprite as
+TurboWarp's renderer does (bounds, fence, costume size, touching and picks).
+
 ## Differential fuzzing
 
 `tests/fuzz/` generates random small programs (`generate.ts`), runs each on the Bytecat runtime and
@@ -225,7 +283,9 @@ real scheduler and TurboWarp's sequencer both run on a virtual clock with a budg
 frame, `pick random` is seeded, and the date is pinned. After every frame a snapshot of each engine
 (variables, lists, and each sprite's position, direction, costume, size, visibility, bubble and
 layer) is compared. `tests/trace.test.ts` traces every example and benchmark. The design, the
-snapshot format and what headless TurboWarp cannot judge are in [testing.md](testing.md).
+snapshot format and what headless TurboWarp cannot judge are in [testing.md](testing.md). The
+browser oracle runs the same trace in Chromium against TurboWarp with its renderer
+(`tests/browser-oracle.test.ts`).
 
 ## Design rules
 

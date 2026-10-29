@@ -62,6 +62,7 @@ export class Runtime {
   /** @internal Counted by the scheduler (`scheduler.ts`). */
   frame = 0;
   private readonly startTime = performance.now();
+  private frameTime = 0;
   /** @internal Read and reset by the timer helpers (`lib/sensing.ts`). */
   timerStart = 0;
   /** Each target's hats, in the order its scripts appear. */
@@ -80,10 +81,25 @@ export class Runtime {
     for (const hat of this.hats) this.hatsByTarget[hat.target]!.push(hat);
   }
 
-  /** Milliseconds since the project started, on the configured clock. */
+  /**
+   * Milliseconds since the project started, on the configured clock, as of the start of the
+   * current frame: like TurboWarp's `currentMSecs`, which its waits and timer read, it stands still
+   * while a frame runs. `tick` and the green flag move it on (`startFrame`).
+   */
   now(): number {
     if (this.options.clock === "virtual") return (this.frame * 1000) / this.options.fps;
+    return this.frameTime;
+  }
+
+  /** Like `now()`, but read from the real clock at the call, as TurboWarp times a glide. */
+  liveNow(): number {
+    if (this.options.clock === "virtual") return (this.frame * 1000) / this.options.fps;
     return performance.now() - this.startTime;
+  }
+
+  /** @internal Sets the time `now()` reports for the frame that starts; `tick` calls it. */
+  startFrame(): void {
+    this.frameTime = performance.now() - this.startTime;
   }
 
   // ---- starting scripts ----
@@ -150,6 +166,7 @@ export class Runtime {
 
   greenFlag(): void {
     this.stopAll();
+    this.startFrame();
     this.timerStart = this.now();
     this.startHats("flag");
   }

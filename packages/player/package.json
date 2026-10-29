@@ -6,11 +6,18 @@
   "description": "Browser player: canvas renderer, input, frame loop, and the standalone HTML bundler.",
   "exports": {
     ".": "./src/index.ts",
-    "./bundle": "./src/bundle.ts"
+    "./bundle": "./src/bundle.ts",
+    "./scratch-render": "./src/scratch-render.ts",
+    "./scratch-esbuild": "./src/scratch-esbuild.ts"
   },
   "dependencies": {
     "@bytecat/runtime": "workspace:*",
     "@bytecat/sb3": "workspace:*",
-    "esbuild": "^0.28.2"
+    "@turbowarp/scratch-svg-renderer": "1.1.0",
+    "buffer": "6.0.3",
+    "esbuild": "^0.28.2",
+    "events": "3.3.0",
+    "turbowarp-render": "github:TurboWarp/scratch-render#430b44fbff2040198ce526b05bae4f59f4e530ce",
+    "url": "0.11.4"
   }
 }

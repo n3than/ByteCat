@@ -8,6 +8,9 @@
 // Both engines step synchronously, so nothing else runs while the globals are swapped. The file has
 // no Node imports, so a browser-side driver can use it too.
 
+/** Date.now() at frame 0 unless a trace says otherwise: 1 January 2026, 00:00 UTC. */
+export const DEFAULT_DATE = Date.UTC(2026, 0, 1);
+
 /** mulberry32, the generator the fuzzer uses: small, fast and the same on every machine. */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;

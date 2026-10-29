@@ -2,7 +2,7 @@ import * as ops from "../ops.js";
 import type { Value } from "../ops.js";
 import type { Runtime } from "../runtime.js";
 import type { Target } from "../target.js";
-import { WAIT } from "../thread.js";
+import { BLOCKED } from "../thread.js";
 import { say } from "./looks.js";
 
 export function timer(rt: Runtime): number {
@@ -18,11 +18,14 @@ export function* ask(rt: Runtime, t: Target, question: Value): Generator<unknown
   if (rt.onAsk) {
     let result: string | null = null;
     rt.onAsk(ops.toStr(question)).then((a) => (result = a));
-    while (result === null) yield WAIT;
+    while (result === null) yield BLOCKED;
     rt.answer = result;
   } else {
+    // A queued answer arrives in the next frame, as an answer does in TurboWarp.
     rt.answer = rt.answers.shift() ?? "";
-    yield WAIT;
+    const frame = rt.frame;
+    do yield BLOCKED;
+    while (rt.frame === frame);
   }
   if (!t.isStage) say(rt, t, "say", "");
 }

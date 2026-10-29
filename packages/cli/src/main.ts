@@ -39,6 +39,7 @@ Commands:
   trace <file.sbp|file.sb3>       Run on Bytecat and TurboWarp in lockstep and compare what every frame shows
         [--frames 300] [--input file.input] [--seed 1]   (docs/testing.md); exits with code 1 on a difference
         [--fps 30] [--passes 50] [--turbo] [--json]
+        [--browser]                   Against TurboWarp with its renderer, in Chromium (fencing, touching, clicks)
 `;
 
 const { positionals, values } = parseArgs({
@@ -60,6 +61,7 @@ const { positionals, values } = parseArgs({
     fps: { type: "string" },
     passes: { type: "string" },
     turbo: { type: "boolean" },
+    browser: { type: "boolean" },
     "runs-bytecat": { type: "string" },
     "warmup-bytecat": { type: "string" },
     help: { type: "boolean", short: "h" },
@@ -306,14 +308,28 @@ switch (command) {
       return n;
     };
     const input = values.input ? parseInput(readFileSync(values.input, "utf8"), values.input) : [];
-    const result = await traceProject(load(files[0]!), {
+    const options = {
       frames: int("frames", values.frames, 300),
       input,
       seed: int("seed", values.seed, 1, 0),
       fps: int("fps", values.fps, 30),
       passes: int("passes", values.passes, 50),
       turbo: values.turbo ?? false,
-    });
+    };
+    const sb3 = load(files[0]!);
+    let result;
+    if (values.browser) {
+      // Loaded only here: the browser oracle needs Playwright and esbuild.
+      const { BrowserOracle } = await import("@bytecat/trace/browser");
+      const oracle = await BrowserOracle.launch();
+      try {
+        result = await oracle.trace(sb3, options);
+      } finally {
+        await oracle.close();
+      }
+    } else {
+      result = await traceProject(sb3, options);
+    }
     if (values.json) console.log(JSON.stringify(result, null, 2));
     else console.log(describeTrace(result));
     if (result.diff || result.problems.length) process.exitCode = 1;

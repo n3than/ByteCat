@@ -1,0 +1,11 @@
+# Size limits: a 48 pixel costume grows to at most 1.5 stage heights (1125%) and shrinks to at
+# least 5 pixels (10.42%).
+sprite Box:
+  costume box = square "#ff0000"
+
+  when flag:
+    set_size(5000)
+    log(size())
+    wait(0)
+    set_size(1)
+    log(size())

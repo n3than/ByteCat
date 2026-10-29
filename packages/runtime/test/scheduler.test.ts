@@ -1,11 +1,12 @@
 // The scheduler's treatment of loop yields. Hand-written scripts mimic what the compiler emits at
 // the end of a loop iteration: `if (th.warp === 0 && --rt.spin < 0) yield;`.
 import type { ProjectJson } from "@bytecat/sb3";
-import { describe, expect, it } from "vitest";
-import { Runtime, type Hat, type RuntimeOptions, type ScriptFn, type Thread } from "../src/index.js";
-import { stopOthers } from "../src/lib/control.js";
+import { describe, expect, it, vi } from "vitest";
+import { passClock, Runtime, WAIT, type Hat, type RuntimeOptions, type ScriptFn, type Thread } from "../src/index.js";
+import { stopOthers, wait } from "../src/lib/control.js";
 import { broadcast } from "../src/lib/event.js";
 import { say, setVisible, switchCostume } from "../src/lib/looks.js";
+import { timer } from "../src/lib/sensing.js";
 
 const project = {
   targets: [
@@ -169,6 +170,73 @@ describe("loop yields", () => {
     runToEnd(rt);
     expect(c.steps.a).toBeLessThan(from / 2 + 20);
     expect(c.events.slice(0, 11)).toEqual(["a19990", "b0", "a19991", "b1", "a19992", "b2", "a19993", "b3", "a19994", "b4", "a19995"]);
+  });
+});
+
+describe("waits", () => {
+  it("read a time that stands still within a frame on the real clock, like TurboWarp's currentMSecs", () => {
+    // A real-like clock that a busy thread moves on by 1 ms per loop iteration.
+    let ms = 1000;
+    const spy = vi.spyOn(performance, "now").mockImplementation(() => ms);
+    try {
+      const passes = passClock(20);
+      const timers: number[] = [];
+      const { rt, c } = setup({ clock: "real", turbo: true, schedulerClock: passes.read }, (rt, c) => [
+        { name: "busy", fn: loop(rt, 1000, () => { ms += 1; timers.push(timer(rt)); }) },
+        {
+          name: "waiter",
+          fn: function* () {
+            yield* wait(rt, 0.005);
+            c.events.push(`waited until ${rt.now()}`);
+          },
+        },
+      ]);
+      rt.greenFlag();
+      passes.reset();
+      rt.tick();
+      // 20 ms passed during the frame, but the wait and the timer saw its start.
+      expect(ms).toBe(1020);
+      expect(new Set(timers)).toEqual(new Set([0]));
+      expect(c.events).toEqual([]);
+      passes.reset();
+      rt.tick();
+      expect(c.events).toEqual(["waited until 20"]);
+      rt.stopAll();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("end a frame once every thread only sleeps, while a wait until is checked all frame", () => {
+    const passes = passClock(50);
+    let ready = false;
+    const { rt, c } = setup({ turbo: true, schedulerClock: passes.read }, (rt) => [
+      {
+        name: "sleeper",
+        fn: function* () {
+          yield* wait(rt, 1);
+        },
+      },
+      {
+        name: "until",
+        fn: function* () {
+          while (!ready) yield WAIT;
+        },
+      },
+    ]);
+    rt.greenFlag();
+    passes.reset();
+    rt.tick();
+    expect(c.steps).toEqual({ sleeper: 50, until: 50 });
+    ready = true;
+    passes.reset();
+    rt.tick();
+    // The second pass only sleeps, so it is the last.
+    expect(c.steps).toEqual({ sleeper: 52, until: 51 });
+    passes.reset();
+    rt.tick();
+    expect(c.steps.sleeper).toBe(53);
+    rt.stopAll();
   });
 });
 

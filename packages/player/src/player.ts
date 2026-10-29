@@ -1,5 +1,6 @@
 import { Runtime, type ProgramFactory } from "@bytecat/runtime";
 import type { ProjectJson } from "@bytecat/sb3";
+import type { RenderBackend } from "./backend.js";
 import { loadCostumes, Renderer, STAGE_HEIGHT, STAGE_WIDTH } from "./renderer.js";
 
 export interface PlayerOptions {
@@ -18,11 +19,17 @@ export interface PlayerOptions {
   answers?: string[];
   /** Called with the name of each costume image the browser cannot decode (it is skipped). */
   onAssetError?: (name: string) => void;
+  /**
+   * Makes the renderer backend (backend.ts). Default: the Canvas 2D renderer. Pass
+   * `ScratchRenderBackend.create` for TurboWarp's scratch-render (the page must then be bundled
+   * with scratchBuildOptions).
+   */
+  backend?: (canvas: HTMLCanvasElement, rt: Runtime, assets: Record<string, string>) => Promise<RenderBackend>;
 }
 
 export interface Player {
   rt: Runtime;
-  renderer: Renderer;
+  renderer: RenderBackend;
   greenFlag(): void;
   stop(): void;
   /** Test mode: advance `frames` frames, then render. */
@@ -62,17 +69,21 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
     turbo,
     ...(options.answers ? { answers: options.answers } : {}),
   });
-  const costumes = await loadCostumes(options.assets, options.onAssetError);
-  const renderer = new Renderer(canvas, rt, costumes, test ? 1 : Math.min(2, window.devicePixelRatio || 1));
+  const renderer = options.backend
+    ? await options.backend(canvas, rt, options.assets)
+    : new Renderer(canvas, rt, await loadCostumes(options.assets, options.onAssetError), test ? 1 : Math.min(2, window.devicePixelRatio || 1));
   let timer: ReturnType<typeof setInterval> | null = null;
   const listeners = new AbortController();
 
-  const toCanvas = (x: number, y: number) => ({ x: STAGE_WIDTH / 2 + x, y: STAGE_HEIGHT / 2 - y });
+  const render = () => {
+    renderer.sync();
+    renderer.draw();
+  };
   const click = (x: number, y: number) => {
     rt.mouse.x = x;
     rt.mouse.y = y;
-    const p = toCanvas(x, y);
-    rt.click(renderer.hit(p.x, p.y) ?? rt.stage);
+    renderer.sync();
+    rt.click(renderer.pick(x, y) ?? rt.stage);
   };
 
   const player: Player = {
@@ -83,17 +94,17 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
       if (!test && !timer) {
         timer = setInterval(() => {
           rt.tick();
-          renderer.draw();
+          render();
         }, 1000 / 30);
       }
     },
     stop() {
       rt.stopAll();
-      renderer.draw();
+      render();
     },
     step(frames = 1) {
       for (let i = 0; i < frames; i++) rt.tick();
-      renderer.draw();
+      render();
     },
     runUntilDone(maxFrames = 10_000) {
       rt.greenFlag();
@@ -102,15 +113,10 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
         rt.tick();
         frames++;
       }
-      renderer.draw();
+      render();
       return { finished: !rt.running, frames };
     },
-    pixel(x, y) {
-      const p = toCanvas(x, y);
-      const ctx = canvas.getContext("2d")!;
-      const d = ctx.getImageData(Math.floor(p.x * renderer.scale), Math.floor(p.y * renderer.scale), 1, 1).data;
-      return [d[0]!, d[1]!, d[2]!, d[3]!];
-    },
+    pixel: (x, y) => renderer.pixel(x, y),
     press: (key) => rt.keyDown(key),
     release: (key) => rt.keyUp(key),
     click,
@@ -124,7 +130,7 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
   };
 
   if (!test) attachInput(player, listeners.signal);
-  renderer.draw();
+  render();
   return player;
 }
 
