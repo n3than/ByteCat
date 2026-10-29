@@ -29,12 +29,15 @@ export function scriptSafe(js: string): string {
 }
 
 /**
- * One self-contained HTML page: `programScript` is the compiled program as `toScript` (in
- * @bytecat/compiler) writes it, and `playerScript` the bundled browser player (see `playerBundle`).
+ * One self-contained HTML page. `playerScript` is the browser player: either one built for this
+ * project, which carries the program (`programBundle`, with `programScript` undefined), or the
+ * full player (`playerBundle`), which runs `programScript`, the program as `toScript` (in
+ * @bytecat/compiler) writes it.
  */
-export function pageHtml(project: Project, programScript: string, playerScript: string, title = "Bytecat"): string {
+export function pageHtml(project: Project, programScript: string | undefined, playerScript: string, title = "Bytecat"): string {
   const assets = Object.fromEntries(costumeAssets(project).map(([name, data]) => [name, dataUrl(name, data)]));
-  const data = `window.BYTECAT = { project: ${JSON.stringify(project.json)}, assets: ${JSON.stringify(assets)}, program: ${programScript} };`;
+  const program = programScript === undefined ? "" : `, program: ${programScript}`;
+  const data = `window.BYTECAT = { project: ${JSON.stringify(project.json)}, assets: ${JSON.stringify(assets)}${program} };`;
   const escapedTitle = title.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
   return `<!doctype html>
 <html lang="en">
