@@ -33,15 +33,15 @@ export type ProgramFactory = (rt: Runtime) => Hat[];
  */
 export const WAIT = 1;
 /**
- * Yielded while a thread cannot go on before a later frame (`ask`), like TurboWarp's
- * STATUS_PROMISE_WAIT and STATUS_YIELD_TICK. It does not keep the frame going: a pass in which
- * every step yields this or ends its thread ends the frame. Other threads can still keep the
- * frame going, and then the thread is stepped again in the same frame, so the code that yields
- * this must check its condition again, with no side effects, and yield it again.
+ * Yielded while a thread cannot go on before a later frame (`ask`, `say for secs`), like
+ * TurboWarp's STATUS_PROMISE_WAIT and STATUS_YIELD_TICK. It does not keep the frame going: a
+ * pass in which every step yields this or ends its thread ends the frame. Other threads can still
+ * keep the frame going, and then the thread is stepped again in the same frame, so the code that
+ * yields this must check its condition again, with no side effects, and yield it again.
  */
 export const BLOCKED = 2;
 /**
- * Yielded by a timed wait (`wait`, `say for`) that checked its time again and is not over yet. It
+ * Yielded by a timed wait (`wait`) that checked its time again and is not over yet. It
  * keeps the frame going like `WAIT`, but `now()` stands still within a frame, so the wait cannot
  * end before the next one, and the check has no side effects. A pass in which every step yields
  * this or `BLOCKED` therefore changes nothing, and neither would any later pass of the frame:
