@@ -1,6 +1,6 @@
 import type { ProjectJson, Target as TargetJson } from "@bytecat/sb3";
 import type { Value } from "./ops.js";
-import type { Hat, Thread } from "./thread.js";
+import type { Thread } from "./thread.js";
 
 export interface CostumeInfo {
   name: string;
@@ -41,10 +41,11 @@ export class Target {
   /** Whether a renderer would have the bubble drawn: it appeared on a visible sprite and is still up. */
   bubbleDrawn = false;
   /**
-   * @internal The thread each hat of this target last started (`Runtime.start`), to find it
-   * without searching the thread list for the hat and target.
+   * @internal The thread each hat of this target's sprite last started for this target, by the
+   * hat's place among the sprite's hats (`Runtime.start`), so a restart finds it without
+   * searching the thread list for the hat and target.
    */
-  readonly hatThreads = new Map<Hat, Thread>();
+  readonly hatThreads: (Thread | undefined)[] = [];
 
   /** The target at `index` in project.json, or given a target, a clone of it. */
   constructor(source: TargetJson | Target, index = 0) {

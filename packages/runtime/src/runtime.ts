@@ -36,6 +36,8 @@ export const MAX_CLONES = 300;
 interface StartList {
   targets: Target[];
   hats: Hat[];
+  /** Each hat's place among its target's hats (`Target.hatThreads`). */
+  slots: number[];
 }
 
 /**
@@ -107,6 +109,15 @@ export class Runtime {
    * stored, so broadcasting made-up names does not fill it.
    */
   private startLists = new Map<HatKind, Map<string, StartList>>();
+  /**
+   * The event `startHats` started last and its start list, in front of `startLists`: a project
+   * that broadcasts the same message over and over finds it with two comparisons.
+   */
+  private lastKind: HatKind | null = null;
+  private lastArg = "";
+  private lastList: StartList | undefined;
+  /** Each hat's place among its target's hats, in script order. */
+  private readonly slots = new Map<Hat, number>();
   /** Every target from the top layer down (the stage last), or null after a change. */
   private topDown: Target[] | null = null;
 
@@ -119,7 +130,9 @@ export class Runtime {
     this.originals = this.targets.length;
     this.hats = program(this);
     this.hatIndex = this.targets.map(() => new Map());
+    const counts = this.targets.map(() => 0);
     for (const hat of this.hats) {
+      this.slots.set(hat, counts[hat.target]!++);
       const byArg = this.hatIndex[hat.target]!;
       let byKind = byArg.get(hat.kind);
       if (!byKind) byArg.set(hat.kind, (byKind = new Map()));
@@ -182,17 +195,20 @@ export class Runtime {
 
   // ---- starting scripts ----
 
-  /** Starts `hat` for `target`, the sprite it belongs to or one of its clones. */
-  private start(hat: Hat, target: Target): Thread | undefined {
+  /**
+   * Starts `hat` for `target`, the sprite it belongs to or one of its clones. `slot` is the hat's
+   * place among its target's hats.
+   */
+  private start(hat: Hat, target: Target, slot: number): Thread | undefined {
     // The thread this hat last started for this target. A restarting hat has at most one thread
     // per target in the list, and it is that one.
-    const old = target.hatThreads.get(hat);
+    const old = target.hatThreads[slot];
     // A hat that does not restart its script (`when key pressed`) is not started again while the
     // script runs. Once it has finished, the new run goes at the end of the list like any new
     // thread, even if the finished one is still listed, as in TurboWarp.
     if (hat.restart === false && old !== undefined && !old.done) return undefined;
     const th = new Thread(hat, target);
-    target.hatThreads.set(hat, th);
+    target.hatThreads[slot] = th;
     // Re-triggering a hat restarts its script in the same place in the thread list, like
     // TurboWarp, so the new run waits for the next pass if that place is behind. That includes a
     // run that finished earlier in this pass: TurboWarp only forgets a thread when the pass ends,
@@ -222,11 +238,16 @@ export class Runtime {
    */
   startHats(kind: HatKind, arg = ""): Thread[] {
     const started: Thread[] = [];
-    const list = this.startLists.get(kind)?.get(arg) ?? this.startList(kind, arg);
+    if (kind !== this.lastKind || arg !== this.lastArg) {
+      this.lastKind = kind;
+      this.lastArg = arg;
+      this.lastList = this.startLists.get(kind)?.get(arg) ?? this.startList(kind, arg);
+    }
+    const list = this.lastList;
     if (!list) return started;
-    const { targets, hats } = list;
+    const { targets, hats, slots } = list;
     for (let i = 0; i < hats.length; i++) {
-      const th = this.start(hats[i]!, targets[i]!);
+      const th = this.start(hats[i]!, targets[i]!, slots[i]!);
       if (th) started.push(th);
     }
     return started;
@@ -235,11 +256,12 @@ export class Runtime {
   /** Builds and stores the start list for an event, or returns undefined when no hat has it. */
   private startList(kind: HatKind, arg: string): StartList | undefined {
     if (!this.hatIndex.some((byKind) => byKind.get(kind)?.has(arg))) return undefined;
-    const list: StartList = { targets: [], hats: [] };
+    const list: StartList = { targets: [], hats: [], slots: [] };
     for (const t of this.topDown ?? this.layerOrder()) {
       for (const hat of this.hatIndex[t.index]!.get(kind)?.get(arg) ?? []) {
         list.targets.push(t);
         list.hats.push(hat);
+        list.slots.push(this.slots.get(hat)!);
       }
     }
     let byArg = this.startLists.get(kind);
@@ -256,7 +278,7 @@ export class Runtime {
 
   /** Starts `target`'s own hats for `kind` (a clone's `clone` hats, a sprite's `click` hats). */
   private startOwn(target: Target, kind: HatKind): void {
-    for (const hat of this.hatIndex[target.index]!.get(kind)?.get("") ?? []) this.start(hat, target);
+    for (const hat of this.hatIndex[target.index]!.get(kind)?.get("") ?? []) this.start(hat, target, this.slots.get(hat)!);
   }
 
   /**
@@ -265,6 +287,7 @@ export class Runtime {
    */
   layersChanged(): void {
     this.topDown = null;
+    this.lastKind = null;
     if (this.startLists.size > 0) this.startLists = new Map();
   }
 
