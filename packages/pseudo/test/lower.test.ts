@@ -116,6 +116,32 @@ describe("lowering", () => {
     expect(errorOf(`stage:\n  when flag:\n    move(1)\n`)).toMatch(/only available in sprites/);
   });
 
+  it("lowers the hidden counter blocks and all_at_once", () => {
+    const json = project(
+      `sprite A:\n  when flag:\n    clear_counter()\n    all_at_once:\n      incr_counter()\n      log(counter())\n`,
+    );
+    const blocks = json.targets[1]!.blocks;
+    expect(Object.values(blocks).map((b) => b.opcode).sort()).toEqual([
+      "control_all_at_once", "control_clear_counter", "control_get_counter", "control_incr_counter",
+      "data_addtolist", "event_whenflagclicked",
+    ]);
+    const [id, all] = Object.entries(blocks).find(([, b]) => b.opcode === "control_all_at_once")!;
+    expect(blocks[all.inputs.SUBSTACK![1] as string]!.opcode).toBe("control_incr_counter");
+    expect(blocks[all.inputs.SUBSTACK![1] as string]!.parent).toBe(id);
+  });
+
+  it("only treats all_at_once as a block when a colon follows", () => {
+    // Still an ordinary name elsewhere.
+    expect(opcodes(`var all_at_once = 1\nsprite A:\n  when flag:\n    all_at_once = 2\n`)).toEqual([
+      "event_whenflagclicked", "data_setvariableto",
+    ]);
+  });
+
+  it("rejects counter() as a statement and incr_counter() as a value", () => {
+    expect(errorOf(`sprite A:\n  when flag:\n    counter()\n`)).toMatch(/reporter and cannot be used as a statement/);
+    expect(errorOf(`sprite A:\n  when flag:\n    log(incr_counter())\n`)).toMatch(/statement and cannot be used as a value/);
+  });
+
   it("rejects unknown costumes", () => {
     expect(errorOf(`sprite A:\n  when flag:\n    switch_costume("nope")\n`)).toMatch(/unknown costume/);
   });

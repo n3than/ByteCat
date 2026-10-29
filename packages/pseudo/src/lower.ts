@@ -301,6 +301,7 @@ export class TargetBuilder {
       case "if":
       case "repeat":
       case "forever":
+      case "allAtOnce":
       case "until":
       case "while":
       case "for":

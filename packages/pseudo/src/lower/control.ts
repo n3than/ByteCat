@@ -2,7 +2,7 @@ import type { Expr, Stmt } from "../ast.js";
 import type { TargetBuilder } from "../lower.js";
 import { assign } from "./data.js";
 
-export type ControlStmt = Extract<Stmt, { kind: "if" | "repeat" | "forever" | "until" | "while" | "for" }>;
+export type ControlStmt = Extract<Stmt, { kind: "if" | "repeat" | "forever" | "allAtOnce" | "until" | "while" | "for" }>;
 
 /** Lowers a control-flow statement. Returns [first, last] block ids. */
 export function controlStatement(b: TargetBuilder, stmt: ControlStmt, parent: string): [string, string] {
@@ -22,6 +22,11 @@ export function controlStatement(b: TargetBuilder, stmt: ControlStmt, parent: st
     }
     case "forever": {
       const id = b.block("control_forever", parent, stmt.pos);
+      substack(b, id, "SUBSTACK", stmt.body);
+      return [id, id];
+    }
+    case "allAtOnce": {
+      const id = b.block("control_all_at_once", parent, stmt.pos);
       substack(b, id, "SUBSTACK", stmt.body);
       return [id, id];
     }

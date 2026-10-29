@@ -1,0 +1,63 @@
+# The hidden counter blocks (counter, increment counter, clear counter) and the hidden "all at
+# once" block. The counter is one number for the whole project: every sprite and the stage see the
+# same value, it starts at 0 and only these blocks change it. "All at once" is a Scratch 2 leftover
+# that TurboWarp compiles as `if true`: its body is plain code, so a loop in it still yields at
+# the end of every iteration (it is not "run without screen refresh").
+# Part 1: counting up, clearing, counting again.
+# Part 2: another sprite and the stage change the same counter.
+# Part 3: the body runs in place, and a loop inside it still lets other scripts run.
+
+sprite A:
+  costume a = circle "#ff6666"
+
+  when flag:
+    log(join("start ", counter()))
+    incr_counter()
+    incr_counter()
+    incr_counter()
+    log(join("counted ", counter()))
+    clear_counter()
+    log(join("cleared ", counter()))
+    incr_counter()
+    log(join("again ", counter()))
+    # The counter is a number, so it adds like one.
+    log(counter() + 41)
+
+    broadcast_wait("bump")
+    log(join("after sprite and stage ", counter()))
+    clear_counter()
+
+    all_at_once:
+      incr_counter()
+      incr_counter()
+      log(join("inside ", counter()))
+    log(join("outside ", counter()))
+    clear_counter()
+
+    broadcast("loop")
+    all_at_once:
+      repeat 3:
+        incr_counter()
+        log(join("A loop ", counter()))
+    log("A done")
+    wait(0.5)
+    stop("all")
+
+  when receive "bump":
+    log(join("sprite sees ", counter()))
+    incr_counter()
+    incr_counter()
+
+sprite B:
+  costume b = circle "#6666ff"
+
+  # Reads the counter once per iteration, side by side with A's loop in all_at_once.
+  when receive "loop":
+    repeat 3:
+      log(join("B loop ", counter()))
+    log("B done")
+
+stage:
+  when receive "bump":
+    log(join("stage sees ", counter()))
+    incr_counter()
