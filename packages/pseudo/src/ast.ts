@@ -48,6 +48,7 @@ export type Stmt =
   | { kind: "if"; cond: Expr; then: Stmt[]; else: Stmt[] | null; pos: SourcePos }
   | { kind: "repeat"; count: Expr; body: Stmt[]; pos: SourcePos }
   | { kind: "forever"; body: Stmt[]; pos: SourcePos }
+  | { kind: "allAtOnce"; body: Stmt[]; pos: SourcePos }
   | { kind: "until"; cond: Expr; body: Stmt[]; pos: SourcePos }
   | { kind: "while"; cond: Expr; body: Stmt[]; pos: SourcePos }
   | { kind: "for"; variable: string; from: Expr; to: Expr; body: Stmt[]; pos: SourcePos };

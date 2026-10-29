@@ -1,0 +1,4 @@
+// Move the mouse, queue an answer, then let the script ask.
+mouse 100 -50
+answer Bob
+step 10

@@ -85,6 +85,9 @@ export const STATEMENTS: Record<string, Builtin[]> = {
     doc: 'stop ["all" | "this script" | "other scripts in sprite"]',
   }],
 
+  incr_counter: [{ opcode: "control_incr_counter", slots: [], doc: "increment counter (hidden)" }],
+  clear_counter: [{ opcode: "control_clear_counter", slots: [], doc: "clear counter (hidden)" }],
+
   ask: [{ opcode: "sensing_askandwait", slots: [text("QUESTION", "What's your name?")], doc: "ask (question) and wait" }],
   reset_timer: [{ opcode: "sensing_resettimer", slots: [], doc: "reset timer" }],
 };
@@ -117,6 +120,8 @@ export const REPORTERS: Record<string, Builtin[]> = {
   backdrop_number: [{ opcode: "looks_backdropnumbername", slots: [], fixed: { NUMBER_NAME: "number" }, returns: "value", doc: "backdrop [number]" }],
   backdrop_name: [{ opcode: "looks_backdropnumbername", slots: [], fixed: { NUMBER_NAME: "name" }, returns: "value", doc: "backdrop [name]" }],
   size: [{ opcode: "looks_size", slots: [], returns: "value", spriteOnly: true, doc: "size" }],
+
+  counter: [{ opcode: "control_get_counter", slots: [], returns: "value", doc: "counter (hidden)" }],
 
   timer: [{ opcode: "sensing_timer", slots: [], returns: "value", doc: "timer" }],
   answer: [{ opcode: "sensing_answer", slots: [], returns: "value", doc: "answer" }],

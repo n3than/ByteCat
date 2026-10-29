@@ -1,6 +1,6 @@
-import { POS_INT } from "../analysis/typeset.js";
-import { notCode } from "../cast.js";
-import { menu, missing, missingHat, statement, type Extension } from "./api.js";
+import { POS_INT, ZERO } from "../analysis/typeset.js";
+import { notCode, numEx, unindent } from "../cast.js";
+import { menu, missing, missingHat, reporter, statement, type Extension } from "./api.js";
 
 const SUBSTACK = ["SUBSTACK"];
 const NO_CLONES = "no clones in the runtime yet";
@@ -73,9 +73,14 @@ export const control: Extension = {
       },
       { yields: "loop", substacks: SUBSTACK, hidden: true },
     ),
-    control_get_counter: missing("reporter", "TurboWarp's hidden counter blocks", { hidden: true }),
-    control_incr_counter: missing("statement", "TurboWarp's hidden counter blocks", { hidden: true }),
-    control_clear_counter: missing("statement", "TurboWarp's hidden counter blocks", { hidden: true }),
-    control_all_at_once: missing("statement", "runs its substack like a plain block in Scratch 3", { hidden: true }),
+    // The counter is one number on the runtime, shared by every target. TurboWarp keeps it in
+    // `runtime.ext_scratch3_control._counter`, types the reporter as a non-negative integer, and
+    // clears it only when the runtime is disposed, not on the green flag.
+    control_get_counter: reporter(() => numEx("rt.counter", POS_INT | ZERO), { hidden: true }),
+    control_incr_counter: statement(() => ["rt.counter++;"], { hidden: true }),
+    control_clear_counter: statement(() => ["rt.counter = 0;"], { hidden: true }),
+    // TurboWarp compiles this Scratch 2 block as `if (true) { substack }`: plain code in the
+    // script's own warp mode, so the substack is emitted in place.
+    control_all_at_once: statement((b, g) => unindent(g.substack(b, "SUBSTACK")), { substacks: SUBSTACK, hidden: true }),
   },
 };

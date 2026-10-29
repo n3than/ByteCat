@@ -1,0 +1,54 @@
+# Frame pacing: which blocks end a frame outside turbo mode, the timing of wait and glide, and
+# pick random with equal ends. tests/trace.test.ts runs this frame by frame on Bytecat and
+# TurboWarp and compares every frame; the log below only shows the end result.
+var n = 0
+var passes = 0
+
+stage:
+  backdrop sky "#88ccff"
+  backdrop night "#224488"
+
+  # Counts passes in frames that nothing else ends early.
+  when flag:
+    repeat 200:
+      passes += 1
+    log(join("stage passes ", passes))
+
+sprite Cat:
+  costume a = circle "#ffab19"
+  costume b = square "#ff0000"
+
+  when flag:
+    # Hiding, layer changes and hidden costume changes and bubbles do not end a frame.
+    repeat 3:
+      hide()
+      n += 1
+    repeat 3:
+      go_to_front()
+      n += 1
+    repeat 3:
+      next_costume()
+      say(n)
+      n += 1
+    show()
+    # Visible changes do.
+    repeat 3:
+      next_costume()
+      n += 1
+    repeat 3:
+      say(n)
+      n += 1
+    say("")
+    switch_backdrop("night")
+    glide(0.5, 100, 50)
+    wait(0)
+    wait(1)
+    n += random(7, 7)
+    log(join("n ", n))
+    log(join("x ", x_position()))
+
+sprite Dog:
+  costume d = triangle "#00cc00"
+  position -100, 0
+  when flag:
+    go_to_front()

@@ -9,6 +9,7 @@ import { compileProject, toScript } from "@bytecat/compiler";
 import type { Player } from "@bytecat/player";
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile } from "@bytecat/pseudo";
+import { parseInput } from "@bytecat/trace";
 import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -17,7 +18,6 @@ const examples = readdirSync(dir).filter((f) => f.endsWith(".sbp")).sort();
 const MAX_FRAMES = 10_000;
 const TOLERANCE = 8;
 
-type Command = { op: "press" | "release"; key: string } | { op: "click"; x: number; y: number } | { op: "step"; n: number };
 interface Probe {
   x: number;
   y: number;
@@ -36,18 +36,6 @@ function dataLines(path: string): { text: string; line: number }[] {
     .filter((l) => l.text !== "" && !l.text.startsWith("//"));
 }
 
-function parseInput(path: string): Command[] {
-  return dataLines(path).map(({ text, line }) => {
-    const [op = "", ...rest] = text.split(/\s+/);
-    const where = `${path}:${line}`;
-    if ((op === "press" || op === "release") && rest.length > 0) return { op, key: rest.join(" ") };
-    if (op === "click" && rest.length === 2 && rest.every((r) => !Number.isNaN(Number(r)))) {
-      return { op, x: Number(rest[0]), y: Number(rest[1]) };
-    }
-    if (op === "step" && rest.length === 1 && Number.isInteger(Number(rest[0]))) return { op, n: Number(rest[0]) };
-    throw new Error(`${where}: bad input command "${text}" (expected press KEY, release KEY, click X Y or step N)`);
-  });
-}
 
 /** Probes from a .pixels file, and whether the page runs in turbo mode (the default in test mode). */
 function parsePixels(path: string): { probes: Probe[]; turbo: boolean } {
@@ -95,7 +83,8 @@ describe("browser", () => {
     const name = file.replace(/\.sbp$/, "");
 
     it(name, async () => {
-      const commands = parseInput(join(dir, `${name}.input`));
+      const inputPath = join(dir, `${name}.input`);
+      const commands = existsSync(inputPath) ? parseInput(readFileSync(inputPath, "utf8"), `${name}.input`) : [];
       const { probes, turbo } = parsePixels(join(dir, `${name}.pixels`));
       const { project } = compile(readFileSync(join(dir, file), "utf8"), file);
       const html = join(tmp, `${name}.html`);
@@ -135,6 +124,10 @@ describe("browser", () => {
               if (c.op === "press") p.press(c.key);
               else if (c.op === "release") p.release(c.key);
               else if (c.op === "click") p.click(c.x, c.y);
+              else if (c.op === "mouse") Object.assign(p.rt.mouse, { x: c.x, y: c.y });
+              // Test mode has no prompt: the runtime takes queued answers, and the asking script
+              // resumes in the next frame, as in the trace oracle.
+              else if (c.op === "answer") p.rt.answers.push(c.text);
               if (c.op === "step") step(c.n);
               else step(1);
             }
