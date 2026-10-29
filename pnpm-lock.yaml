@@ -29,6 +29,9 @@ importers:
       '@bytecat/sb3':
         specifier: workspace:*
         version: link:packages/sb3
+      '@bytecat/trace':
+        specifier: workspace:*
+        version: link:packages/trace
       '@bytecat/web':
         specifier: workspace:*
         version: link:packages/web
@@ -89,6 +92,9 @@ importers:
       '@bytecat/sb3':
         specifier: workspace:*
         version: link:../sb3
+      '@bytecat/trace':
+        specifier: workspace:*
+        version: link:../trace
       '@bytecat/web':
         specifier: workspace:*
         version: link:../web
@@ -140,6 +146,21 @@ importers:
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
+
+  packages/trace:
+    dependencies:
+      '@bytecat/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@bytecat/reference':
+        specifier: workspace:*
+        version: link:../reference
+      '@bytecat/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@bytecat/sb3':
+        specifier: workspace:*
+        version: link:../sb3
 
   packages/web:
     dependencies:

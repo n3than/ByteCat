@@ -1,0 +1,9 @@
+# Scripted mouse moves and answers (ask_input.input), applied at frame boundaries. Needs the input,
+# so the node-only test suites skip it; tests/browser.test.ts and tests/trace.test.ts run it.
+stage:
+  when flag:
+    wait(0.2)
+    log(join("mouse ", join(mouse_x(), join(" ", mouse_y()))))
+    ask("name?")
+    log(join("hello ", answer()))
+    stop("all")

@@ -26,6 +26,7 @@ declare module "scratch-vm" {
     stopAll(): void;
     quit(): void;
     greenFlag(): void;
+    postIOData(device: string, data: object): void;
   }
   export default VirtualMachine;
 }

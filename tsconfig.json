@@ -8,6 +8,7 @@
     { "path": "packages/compiler" },
     { "path": "packages/player" },
     { "path": "packages/bench" },
+    { "path": "packages/trace" },
     { "path": "packages/web" },
     { "path": "packages/cli" }
   ]

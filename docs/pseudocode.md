@@ -317,7 +317,14 @@ frame 5
 | `press KEY` | Key goes down. `KEY` is a Scratch key name and may contain spaces: `space`, `a`, `left arrow`. |
 | `release KEY` | Key goes up. |
 | `click X Y` | Mouse click at stage coordinates: hits the topmost sprite with an opaque pixel there, otherwise the stage. |
+| `mouse X Y` | Move the mouse to stage coordinates (`mouse x`, `mouse y`). |
+| `answer TEXT` | Answer the next `ask` with the rest of the line (it may be empty). The answer waits until a question is asked; put it before the `ask` runs. |
 | `step N` | Advance `N` frames. |
+
+Coordinates for `click` and `mouse` are whole numbers on the stage (X from -240 to 240, Y from
+-180 to 180). The same files drive `pnpm bytecat trace --input` ([testing.md](testing.md)), which
+applies each command at the same frame on Bytecat and TurboWarp. Headless, a click there always
+hits the stage.
 
 The test clicks the green flag, steps one frame, applies each command followed by one frame (`step N`
 runs `N` frames instead), then keeps stepping until every script stops or 10000 frames have passed.

@@ -18,6 +18,44 @@ const MAX_STRIDE = 128;
 const MAX_SPIN = 32;
 
 /**
+ * A read of the scheduler clock this long after the previous one marks the interval as heavy, and
+ * `tick` sends the stride and the spin limit back to their floor. `tick` writes it as a literal so
+ * its hot loop is unchanged by the lockstep hooks below; `passClock` depends on the two agreeing
+ * (tests/trace.test.ts checks that a frame runs exactly the pass budget).
+ */
+const HEAVY_INTERVAL = 0.25;
+
+/** How long `tick` keeps stepping threads, in milliseconds: 75% of a frame, as in Scratch. */
+export function frameBudget(fps: number): number {
+  return (1000 / fps) * 0.75;
+}
+
+/**
+ * A scheduler clock for lockstep runs (the trace oracle, docs/testing.md). With it, and with the
+ * runtime's `spin` pinned to 0, a frame ends after exactly `passes` passes over the threads (sooner
+ * on a redraw or when every thread is blocked), whatever the machine. Each read moves it on by
+ * HEAVY_INTERVAL, so `tick` keeps reading it after every pass, and the read after the last allowed
+ * pass is past any budget. Call `reset()` before each tick. Every earlier read must stay inside
+ * the budget, so `passes` is at most ceil(frameBudget(fps) / 0.25) (100 at 30 fps, 50 at 60).
+ */
+export function passClock(passes: number, fps = 30): { read: () => number; reset: () => void } {
+  if (!(Number.isInteger(passes) && passes >= 1 && (passes - 1) * HEAVY_INTERVAL < frameBudget(fps))) {
+    const max = Math.ceil(frameBudget(fps) / HEAVY_INTERVAL);
+    throw new RangeError(`passes must be an integer from 1 to ${max} at ${fps} fps, got ${passes}`);
+  }
+  let reads = 0;
+  return {
+    read: () => {
+      const k = reads++;
+      return k < passes ? k * HEAVY_INTERVAL : Infinity;
+    },
+    reset: () => {
+      reads = 0;
+    },
+  };
+}
+
+/**
  * Runs one frame. Like Scratch, it keeps cycling through threads until most of the frame budget
  * is used, a redraw is requested (outside turbo mode), or every thread is blocked.
  *
