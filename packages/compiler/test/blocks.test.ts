@@ -64,9 +64,26 @@ describe("statement handlers", () => {
     expect(stop("this script")).toEqual(["store;", "return;"]);
     expect(stop("other scripts in sprite")).toEqual(["rt.stopOthers(t, th);"]);
   });
+
+  it("the counter blocks are plain operations on the runtime's counter", () => {
+    expect(statements.control_incr_counter!(block("control_incr_counter"), stubGen())).toEqual(["rt.counter++;"]);
+    expect(statements.control_clear_counter!(block("control_clear_counter"), stubGen())).toEqual(["rt.counter = 0;"]);
+  });
+
+  it("all at once puts its body in place, without a loop or a yield of its own", () => {
+    const g = stubGen();
+    expect(statements.control_all_at_once!(block("control_all_at_once"), g)).toEqual(["body;"]);
+    expect(g.yielded).toBe(false);
+  });
 });
 
 describe("reporter handlers", () => {
+  it("counter reads the runtime's counter, typed like TurboWarp's non-negative integer", () => {
+    const counter = reporters.control_get_counter!(block("control_get_counter"), stubGen())!;
+    expect(counter.c).toBe("rt.counter");
+    expect(counter.t).toBe(POS_INT | ZERO);
+  });
+
   it("arithmetic is typed from its operands", () => {
     const g = stubGen({ NUM1: anyEx("a", POS_INT), NUM2: lit("2") });
     const sum = reporters.operator_add!(block("operator_add"), g)!;

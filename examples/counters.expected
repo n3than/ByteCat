@@ -1,0 +1,18 @@
+start 0
+counted 3
+cleared 0
+again 1
+42
+sprite sees 1
+stage sees 3
+after sprite and stage 4
+inside 2
+outside 2
+A loop 1
+B loop 1
+A loop 2
+B loop 2
+A loop 3
+B loop 3
+A done
+B done

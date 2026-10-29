@@ -171,3 +171,8 @@ export function indent(lines: string[], levels = 1): string[] {
   const pad = "  ".repeat(levels);
   return lines.map((l) => pad + l);
 }
+
+/** The inverse of `indent` for one level: lines compiled as a nested block, placed at the outer level. */
+export function unindent(lines: string[]): string[] {
+  return lines.map((l) => (l.startsWith("  ") ? l.slice(2) : l));
+}
