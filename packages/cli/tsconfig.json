@@ -2,5 +2,5 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "dist" },
   "include": ["src"],
-  "references": [{ "path": "../sb3" }, { "path": "../pseudo" }, { "path": "../reference" }, { "path": "../compiler" }, { "path": "../runtime" }, { "path": "../player" }, { "path": "../bench" }, { "path": "../web" }]
+  "references": [{ "path": "../sb3" }, { "path": "../pseudo" }, { "path": "../reference" }, { "path": "../compiler" }, { "path": "../runtime" }, { "path": "../player" }, { "path": "../bench" }, { "path": "../web" }, { "path": "../trace" }]
 }

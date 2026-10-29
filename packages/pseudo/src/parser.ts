@@ -259,6 +259,11 @@ class Parser {
   private statement(): Stmt {
     const t = this.peek();
     if (t.kind !== "ident") throw this.error(`expected a statement, found ${describe(t)}`);
+    // Not a reserved word: `all_at_once` is only this block when a ':' follows.
+    if (t.value === "all_at_once" && this.isOp(":", 1)) {
+      this.next();
+      return { kind: "allAtOnce", body: this.statements(), pos: t.pos };
+    }
     switch (t.value) {
       case "if":
         return this.ifStatement();

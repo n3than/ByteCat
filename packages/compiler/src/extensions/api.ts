@@ -48,8 +48,9 @@ interface SpecBase {
    * extension's `runtime` module: `move` for `move(rt, t, 10)`, the `itemOf` list helper. A
    * program imports each one its code names, and nothing else. What the code generator emits
    * itself (the casts, a list dropped into an input) is in `CODEGEN_USES` and not listed, and nor
-   * is the runtime state the code reads off `rt` (`rt.answer`, `rt.mouse`). `tests/uses.test.ts`
-   * checks that every example and benchmark program calls nothing else.
+   * is the runtime state the code reads and writes on `rt` (`rt.answer`, `rt.mouse`,
+   * `rt.counter`). `tests/uses.test.ts` checks that every example and benchmark program calls
+   * nothing else.
    */
   readonly uses?: readonly string[];
 }

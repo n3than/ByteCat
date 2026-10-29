@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 const root = join(import.meta.dirname, "..");
 
 /** The runtime state generated code may read or write directly. */
-const RUNTIME_STATE = new Set(["stage", "spin", "answer", "mouse"]);
+const RUNTIME_STATE = new Set(["stage", "spin", "answer", "mouse", "counter"]);
 
 type Modules = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 

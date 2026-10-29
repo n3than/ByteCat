@@ -1,11 +1,12 @@
-import { createRequire } from "node:module";
+// Before turbowarp-vm: TurboWarp's ids must come from a counter, not Math.random (see tw-ids.ts).
+import "./tw-ids.js";
+import { silenced } from "./quiet.js";
 import ScratchVM from "scratch-vm";
 import TurboWarpVM from "turbowarp-vm";
 
-// TurboWarp's shared logger binds console methods when it loads, so swapping console in silenced()
-// does not reach it; silenced() swaps the logger's methods too.
-const twLog = createRequire(import.meta.url)("turbowarp-vm/src/util/log") as Record<string, unknown>;
-const twLogLevels = ["debug", "log", "info", "warn", "warning"];
+export { DEFAULT_DATE, TurboWarpLockstep, type LockstepOptions } from "./lockstep.js";
+export { flushPromises, mulberry32, VirtualTimers, withVirtualGlobals, type VirtualGlobals } from "./virtual.js";
+export { turbowarpUsesCounterIds } from "./tw-ids.js";
 
 /**
  * Which VM runs the project. `turbowarp` is TurboWarp's fork with its JavaScript compiler enabled,
@@ -126,19 +127,3 @@ async function runLoaded(sb3: Uint8Array, options: RunOptions): Promise<RunResul
   return { log, says, variables, finished, elapsedMs, compileErrors, compiledThreads };
 }
 
-/**
- * scratch-vm logs noisy warnings at startup and about the missing renderer; hide them while it sets
- * up. Errors still print, and TurboWarp's compiler warnings print while the project runs.
- */
-async function silenced<T>(fn: () => Promise<T>): Promise<T> {
-  const { log, warn, info } = console;
-  const tw = Object.fromEntries(twLogLevels.map((level) => [level, twLog[level]]));
-  console.log = console.warn = console.info = () => {};
-  for (const level of twLogLevels) twLog[level] = () => {};
-  try {
-    return await fn();
-  } finally {
-    Object.assign(console, { log, warn, info });
-    Object.assign(twLog, tw);
-  }
-}
