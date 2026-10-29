@@ -19,9 +19,7 @@ export const CODEGEN_USES: readonly string[] = ["toNum", "toStr", "toBool", "lis
  */
 export function emitProgram(parts: { prelude: string[]; procedures: string[]; hats: string[] }): string {
   return [
-    "function (rt) {",
-    '"use strict";',
-    "const S = rt.stage;",
+    FACTORY_HEAD + "const S = rt.stage;",
     ...parts.prelude,
     ...parts.procedures,
     "return [",
@@ -30,6 +28,9 @@ export function emitProgram(parts: { prelude: string[]; procedures: string[]; ha
     "}",
   ].join("\n");
 }
+
+/** How every program factory starts. `toScript` binds the imports right after it. */
+const FACTORY_HEAD = 'function (rt) {\n"use strict";\n';
 
 /**
  * The imports of a program: every runtime function it may call (`declared`, name to module) that
@@ -94,9 +95,12 @@ export function toModule(result: { code: string; imports: readonly RuntimeImport
 /**
  * The program as a script expression: a function that takes the runtime modules, keyed by
  * specifier (`RUNTIME_MODULES` in @bytecat/runtime), and returns the program factory. `load`
- * and the full player use it where there is nothing to resolve an import.
+ * and the full player use it where there is nothing to resolve an import. The imports are bound
+ * inside the factory, next to `S`, so the scripts reach them as closely as before they were
+ * imports.
  */
 export function toScript(result: { code: string; imports: readonly RuntimeImport[] }): string {
+  if (!result.code.startsWith(FACTORY_HEAD)) throw new Error("internal error: the program does not start with the factory head");
   const bind = result.imports.map(({ from, names }) => `const { ${names.join(", ")} } = modules[${JSON.stringify(from)}];\n`).join("");
-  return `(function (modules) {\n${bind}return ${result.code};\n})`;
+  return `(function (modules) {\nreturn ${FACTORY_HEAD}${bind}${result.code.slice(FACTORY_HEAD.length)};\n})`;
 }
