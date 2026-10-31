@@ -116,7 +116,10 @@ export function tick(rt: Runtime): void {
     // broadcast and wait does) would then read it on nearly every pass.
     if (rt.threads.length !== count && untilCheck > START_CHECK) untilCheck = START_CHECK;
     if (finished || rt.threads.length !== count) spinLimit = 1;
-    if (finished) rt.threads = rt.threads.filter((th) => !th.done);
+    if (finished) {
+      rt.threads = rt.threads.filter((th) => !th.done);
+      rt.doneListed = false;
+    }
     // TurboWarp would go on after a pass of SLEEP alone, but nothing could change. A thread that
     // ended (`finished`) may have done work, such as restarting a script behind it, so then it
     // goes on, as TurboWarp does while a thread sleeps.
@@ -152,9 +155,11 @@ export function step(rt: Runtime, th: Thread): unknown {
     const r = th.gen.next();
     if (!r.done) return r.value;
     th.done = true;
+    rt.doneListed = true;
     return BLOCKED;
   } catch (e) {
     th.done = true;
+    rt.doneListed = true;
     if (e === RETIRE) return BLOCKED;
     if (e !== STOP_ALL) throw e;
     return stopAll(rt, th);

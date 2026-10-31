@@ -1,0 +1,65 @@
+# `broadcast and wait` goes on once its scripts have left the thread list, as in TurboWarp, not as
+# soon as they end. A script that ends, or is stopped by `delete_clone()`, earlier in the same pass
+# stays listed until the pass ends. When every script it waits on has ended but is still listed,
+# the waiter gives up the rest of the frame (STATUS_YIELD_TICK) and goes on in the next frame.
+# A `broadcast and wait` that starts no script does not yield.
+var part = 1
+
+stage:
+  when flag:
+    broadcast("go")
+    broadcast("waiter")
+
+  when flag:
+    repeat 4:
+      log(join("tick ", part))
+
+  # Started before the waiter, so its restarted run is ahead of the waiter in the list.
+  when receive "go":
+    log("go")
+
+  when receive "waiter":
+    broadcast_wait("go")
+    log("waiter done")
+    part = 2
+    broadcast("make")
+
+  when receive "make":
+    create_clone("Kit")
+    create_clone("Kit")
+    broadcast("bye")
+    broadcast("wait")
+    # Logs before the loop below starts.
+    broadcast_wait("nobody")
+    log("no wait")
+
+  when receive "make":
+    repeat 4:
+      log(join("tick ", part))
+
+sprite Kit:
+  var me = 0
+
+  when cloned:
+    me = 1
+    if part = 3:
+      me = 2
+    part = 3
+
+  # Started before the waiter, so the waiter's broadcast restarts these runs ahead of it. In the
+  # restarted runs, clone 2 deletes itself, which stops its other "bye" script.
+  when receive "bye":
+    log(join("bye ", me))
+    if part = 4 and me = 2:
+      delete_clone()
+
+  when receive "bye":
+    if me = 2:
+      repeat 3:
+        log("bye loop")
+
+  when receive "wait":
+    if me = 1:
+      part = 4
+      broadcast_wait("bye")
+      log("waited")

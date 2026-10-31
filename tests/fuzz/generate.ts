@@ -114,6 +114,8 @@ interface Scope {
   /** True inside the recursive procedure, where a loop counter would be clobbered by the recursion. */
   noCounters: boolean;
   allowBroadcast: boolean;
+  /** Variables this script or procedure has set to a boolean so far (see the KNOWN note in `bool`). */
+  boolVars: Set<string>;
 }
 
 /** A generated expression: its code, whether it can be NaN, and its value when it is a plain literal. */
@@ -445,7 +447,9 @@ class Generator {
         const ordered = op !== "=" && op !== "!=";
         // KNOWN: when a variable holds NaN, `var > (1 < 2)` is true in TurboWarp (its typed compare
         // reads the boolean as the number 1) and false in scratch-vm and Bytecat. A boolean block under
-        // < or > is therefore wrapped as join("", e), the text "true" or "false". See docs/deviations.md.
+        // < or > is therefore wrapped as join("", e), the text "true" or "false". The same holds for a
+        // variable that TurboWarp's type analysis knows holds a boolean, so a variable this script set
+        // to a boolean is wrapped too. See docs/deviations.md.
         // KNOWN: TurboWarp compiles a literal "Infinity" or "-Infinity" in a comparison as a number
         // constant, so `"Infinity" = x` is false there for x = "infinity"; scratch-vm and Bytecat say
         // true (equal as text, ignoring case). Such a literal operand is replaced by a computed
@@ -454,7 +458,7 @@ class Generator {
           const e = this.value(sc, d, false);
           if (e.s === '"Infinity"') return "(1 / 0)";
           if (e.s === '"-Infinity"') return "(0 - (1 / 0))";
-          return ordered && e.b ? `join("", ${e.s})` : e.s;
+          return ordered && (e.b || sc.boolVars.has(e.s)) ? `join("", ${e.s})` : e.s;
         };
         return `(${operand()} ${op} ${operand()})`;
       }
@@ -500,8 +504,9 @@ class Generator {
       case "set": {
         const v = this.r.pick(vars);
         // Literal assignments set up a known type; the others change it.
-        const e = this.r.chance(0.3) ? this.litEx().s : this.r.chance(0.2) ? this.bool(sc, 2) : this.free(sc, 3, true);
-        return [`${v} = ${e}`];
+        const e: Ex = this.r.chance(0.3) ? this.litEx() : this.r.chance(0.2) ? { s: this.bool(sc, 2), nan: false, b: true } : this.value(sc, 3, true);
+        if (e.b) sc.boolVars.add(v);
+        return [`${v} = ${e.s}`];
       }
       case "change": {
         const v = this.r.pick(vars);
@@ -643,7 +648,7 @@ class Generator {
     const proc: Proc = { name, params, warp, recursive, sets: guarded ? this.r.pick([...this.globalVars, ...owner.vars]) : undefined };
     const visible = recursive ? [] : [...owner.procs];
     const sc: Scope = {
-      owner, params, procs: visible, loopDepth: 0, noCounters: recursive, allowBroadcast: false,
+      owner, params, procs: visible, loopDepth: 0, noCounters: recursive, allowBroadcast: false, boolVars: new Set(),
     };
     let lines: string[];
     if (recursive) {
@@ -680,7 +685,7 @@ class Generator {
   /** A script as its top-level statements, so a broadcast can be inserted between two of them. */
   private script(owner: Owner, hat: string, allowBroadcast: boolean): Script {
     const sc: Scope = {
-      owner, params: [], procs: owner.procs, loopDepth: 0, noCounters: false, allowBroadcast,
+      owner, params: [], procs: owner.procs, loopDepth: 0, noCounters: false, allowBroadcast, boolVars: new Set(),
     };
     const stmts: string[][] = [];
     for (let i = this.r.between(3, 8); i > 0; i--) stmts.push(this.statement(sc, 0));

@@ -23,6 +23,7 @@ export function* wait(rt: Runtime, seconds: number): Generator<unknown, void, un
 /** "stop other scripts in sprite": ends every thread of `t` except `self`. */
 export function stopOthers(rt: Runtime, t: Target, self: Thread): void {
   for (const th of rt.threads) if (th.target === t && th !== self) th.done = true;
+  rt.doneListed = true;
   rt.spin = 0;
 }
 

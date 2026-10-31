@@ -90,7 +90,12 @@ The imports are exactly the runtime functions the code calls (see [extensions.md
 script is a generator function: loops end each iteration with
 `if (th.warp === 0 && --rt.spin < 0) yield;` (never in warp mode), and a wait (`wait`,
 `wait until`, `glide`, `broadcast and wait`) does `yield WAIT` until it is over. `ask` yields
-`BLOCKED` (see [Scheduler](#scheduler)). A custom block that can yield (a waiting block, a loop outside warp,
+`BLOCKED` (see [Scheduler](#scheduler)). `broadcast and wait` follows TurboWarp's `waitThreads`: it
+goes on once its threads have left `rt.threads`, which a thread that ended or was stopped by
+`delete this clone` only does when `tick` filters the list at the end of the pass (`rt.doneListed`
+says the list may still hold such a thread). While its threads have all ended but some are still
+listed it yields `BLOCKED` until the next frame (TurboWarp's STATUS_YIELD_TICK), and with no
+thread started it does not yield (`examples/broadcast_wait_listed`). A custom block that can yield (a waiting block, a loop outside warp,
 or a call to another custom block that can yield) is a generator called with `yield*`; one that
 never yields compiles to a plain function, which is much cheaper to call. A direct recursive call in a non-warp procedure yields before the call (`if (th.warp === 0) yield;`), as scratch-vm and TurboWarp do, so such a procedure is a generator; a warp one stays plain. Calls to a plain
 function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
@@ -223,7 +228,7 @@ TurboWarp would run within the frame.
 `runtime.stopAll()` replaces the thread list while the sequencer goes on through the old one, the
 threads after the stopping one that were still running get one more step in that pass, except
 those of clones, which TurboWarp stops when it disposes the clones (`examples/clones_stop_all`). They are
-already marked done, so `broadcast and wait` sees them as finished, and threads they start go into
+already marked done and are not in the new list, so `broadcast and wait` sees them as finished, and threads they start go into
 the new list and first run in the next pass. So `tick` steps the list it had when the pass began.
 
 **Loop yields.** A loop yield hands control back to the scheduler, which for a thread that is

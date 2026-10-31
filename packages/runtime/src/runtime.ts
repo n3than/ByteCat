@@ -54,6 +54,11 @@ export class Runtime {
   cloneCount = 0;
   readonly hats: Hat[];
   threads: Thread[] = [];
+  /**
+   * True while `threads` may hold a thread that is done: one ended or was stopped since `tick` last
+   * filtered the list at the end of a pass. `broadcast and wait` only searches the list then.
+   */
+  doneListed = false;
   readonly says: SayEvent[] = [];
   /** Set by `requestRedraw()` when a block changes what is on screen; ends the frame early unless in turbo mode. */
   redraw = false;
@@ -318,6 +323,7 @@ export class Runtime {
     this.targets.splice(i, 1);
     this.cloneCount--;
     for (const th of this.threads) if (th.target === clone) th.done = true;
+    this.doneListed = true;
     this.spin = 0;
     // TurboWarp's renderer redraws when a visible clone, or a bubble it shows, goes away.
     if (clone.visible || clone.bubbleDrawn) this.requestRedraw();
