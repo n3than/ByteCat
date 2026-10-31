@@ -335,6 +335,8 @@ interface.
 | `ScratchRenderBackend` | `scratch-render.ts` | TurboWarp's own: exact pixels, the same bounds, fence, picks and costume sizes | the browser oracle; the player with `backend: ScratchRenderBackend.create` |
 | `Renderer` (Canvas 2D) | `renderer.ts` | pick by costume pixel; bounds, fence and touching by the costume's box; no `touching color` | the player by default (keeps the standalone page small: scratch-render adds about 1.6 MB of minified script) |
 
+List monitors (`show list`, `hide list`) are kept by the runtime (`rt.listMonitors`, `packages/runtime/src/monitor.ts`) and drawn by the Canvas 2D `Renderer` (`packages/player/src/monitor.ts`): name, indexed rows, `length N`, at the project's position and size or the first free spot from the top left; a long list is clipped, not scrolled. `ScratchRenderBackend` does not draw them yet.
+
 A backend is synced from the runtime (`sync`) before it draws and before a query, so the
 runtime stays independent of it. Today the player uses it to draw and to hit-test clicks. The
 blocks that need the other queries (fencing, touching, bounce, size limits) do not call it yet;
