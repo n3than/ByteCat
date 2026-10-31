@@ -25,7 +25,6 @@ function p1_3(t, th, a0) {
       return;
     }
   }
-  S.v["var_0"] = v0;
 }
 function p1_4(t, th, a0) {
   let v0 = S.v["var_3"];
