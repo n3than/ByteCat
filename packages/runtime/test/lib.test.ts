@@ -159,6 +159,10 @@ describe("lib helpers", () => {
       expect(order(rt)).toEqual(["S", "One", "Two", "One'"]);
       moveLayers(rt, one, 0);
       expect(order(rt)).toEqual(["S", "One", "Two", "One'"]);
+      // At the back, -0.5 would make TurboWarp's index 0.5, which `splice` takes as 0: before the
+      // stage in its execution order, so its hats start after the stage's. Bytecat stays at 1.
+      moveLayers(rt, one, -0.5);
+      expect(order(rt)).toEqual(["S", "One", "Two", "One'"]);
       expect(rt.stage.layer).toBe(0);
     });
 

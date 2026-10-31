@@ -1,0 +1,53 @@
+# Layer moves on the canvas: in each pair two squares overlap, and a block changes which one is on
+# top after 0.2 seconds. layers_pixels.pixels probes the overlap before (frame 1) and after.
+#   Left top:     blue is on top of red; blue goes backward 1 layer.
+#   Right top:    purple is on top of orange; orange goes forward 1 layer.
+#   Left bottom:  cyan is on top of green; cyan goes to the back layer.
+#   Right bottom: a clone starts just behind its parent (yellow, then magenta); the clone goes forward.
+stage:
+  backdrop night "#224488"
+
+sprite Red:
+  costume c = square "#ff0000"
+  position -150, 100
+
+sprite Blue:
+  costume c = square "#0000ff"
+  position -130, 100
+  when flag:
+    wait(0.2)
+    go_backward(1)
+
+sprite Orange:
+  costume c = square "#ff8800"
+  position 60, 100
+  when flag:
+    wait(0.2)
+    go_forward(1)
+
+sprite Purple:
+  costume c = square "#8800ff"
+  position 80, 100
+
+sprite Green:
+  costume c = square "#00cc00"
+  position -150, -60
+
+sprite Cyan:
+  costume c = square "#00ffff"
+  position -130, -60
+  when flag:
+    wait(0.2)
+    go_to_back()
+
+sprite Parent:
+  costume yellow = square "#ffff00"
+  costume magenta = square "#ff00ff"
+  position 60, -60
+  when flag:
+    create_clone()
+  when cloned:
+    change_x(20)
+    switch_costume("magenta")
+    wait(0.2)
+    go_forward(1)

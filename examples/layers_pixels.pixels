@@ -1,0 +1,16 @@
+// The overlap of each pair, after the run (the layer move has happened) and then at frame 1 (before).
+// After: red, orange, green and magenta are on top.
+-140 100 #ff0000
+70 100 #ff8800
+-140 -60 #00cc00
+70 -60 #ff00ff
+// Squares' own parts stay visible.
+-165 100 #ff0000
+-115 100 #0000ff
+turbo off
+frame 1
+// Before: blue, purple, cyan and the parent (yellow) are on top.
+-140 100 #0000ff
+70 100 #8800ff
+-140 -60 #00ffff
+70 -60 #ffff00
