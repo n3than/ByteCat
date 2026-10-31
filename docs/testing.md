@@ -1,13 +1,90 @@
 # Testing against TurboWarp
 
-Bytecat has four oracles, all with TurboWarp (compiler on) as the ground truth:
+Bytecat has five oracles, all with TurboWarp (compiler on) as the ground truth:
 
 | Oracle | Compares | Judges | Where |
 | --- | --- | --- | --- |
-| Example logs | the stage `log` list at the end of a finite run, in turbo mode | results | `tests/examples.test.ts` (`NAME.expected`) |
+| Example logs | the stage `log` list at the end of a finite run, in turbo mode | results | `tests/examples.test.ts`, `tests/compiler.test.ts` (`NAME.expected`) |
 | Fuzzer | the same, for thousands of random programs | compiler optimizations | `pnpm fuzz`, [fuzzing.md](fuzzing.md) |
-| **Trace** | everything visible after **every frame**, with scripted input, at normal pacing | frame timing, input, programs that never end | `pnpm bytecat trace`, `tests/trace.test.ts` |
+| **Relaxed comparison** | what is visible at **checkpoints**, with tolerances, a frame window and allowed differences, with scripted input, at normal pacing | behaviour of examples and real projects, programs that never end | `pnpm bytecat compare`, `tests/trace.test.ts` |
+| **Trace** | everything visible after **every frame** | frame timing in the scheduler | `pnpm bytecat trace`, `tests/trace.test.ts` |
 | **Browser trace** | the same, against TurboWarp with its renderer, in Chromium | fencing, touching, bounce, size limits, clicks on sprites | `pnpm bytecat trace --browser`, `tests/browser-oracle.test.ts` |
+
+## Relaxed and exact checks
+
+Bytecat is meant to behave like TurboWarp, not to be TurboWarp: it leaves out some of its limits
+on purpose ("Intended Bytecat differences" in [deviations.md](deviations.md)), and a frame more or
+less before something shows is not a bug in a game. So there are two kinds of check:
+
+- **Relaxed** (the default): Bytecat runs with its own defaults and is compared at checkpoints
+  with tolerances. Use it for every example and every real project, unless the example is about
+  timing.
+- **Exact**: Bytecat runs with the `turbowarpCompat` compat preset (`EXACT_COMPAT`), and the log or
+  every frame must be the same. The fuzzer, the log comparisons with TurboWarp and scratch-vm in
+  `tests/compiler.test.ts` and `tests/examples.test.ts`, the trace and the browser trace are
+  exact. In `tests/trace.test.ts` only the scheduler-sensitive examples in `EXACT` are traced
+  exactly (at 50, 7 and 1 passes per frame): add an example there when the frame its effects show
+  up in is what it tests (broadcast and wait, stop all, say for secs, restart order).
+
+`EXACT_COMPAT` in `packages/trace/src/bytecat.ts` is the one place the exact checks get their
+runtime options; set it to `{}` and they all compare Bytecat's own defaults.
+
+### The relaxed comparison
+
+```sh
+pnpm bytecat compare game.sb3                        # 300 frames, checkpoints every 10, window ±2
+pnpm bytecat compare game.sb3 --frames 900 --input game.input --every 30 --window 3
+pnpm bytecat compare tests/projects/                 # every .sb3 and .sbp in a folder
+```
+
+Both engines run in lockstep with the same frame settings as the trace (below), so a run is
+deterministic. Bytecat runs with its own defaults (`--compat turbowarp` to change that). The
+check (`compareEngines` in `packages/trace/src/compare.ts`):
+
+- **Checkpoints.** Frame 0, every `every` frames (default 10) and the last frame (when every
+  script has finished, or at `--frames`).
+- **Fields.** Each sprite's and clone's `x`, `y`, `direction`, `size`, `visible` and `costume`,
+  every variable and list (the `log` list included), the clone count (`clones`) and the layer
+  order (`layers`). Bubbles and rotation styles are left out.
+- **Tolerances.** Numbers match within an absolute 1e-6 or a relative 1e-9 (`tolerance`). Only
+  canonical number text counts as a number, so `"1.0"` and `"1"` still differ.
+- **Frame window.** A Bytecat value at checkpoint frame f matches when TurboWarp shows it at any
+  frame from f - `window` to f + `window` (default 2), field by field.
+- **Allowed differences.** Named allowances (`ALLOWANCES`) let an intended difference through:
+  `clone-limit` (TurboWarp is at 300 clones and Bytecat has more: clone fields, the clone count
+  and the layers are not compared) and `min-size` (Bytecat's size is below TurboWarp's minimum).
+  All of them apply to every comparison (`DEFAULT_ALLOW`); the report says which ones were used.
+- **Finished.** At the end both engines must agree on whether every script finished.
+
+It prints `agree at N checkpoint(s) over M frame(s)`, or the first mismatch with the path, both
+values and the frame window it searched:
+
+```
+first mismatch at frame 10, Cat.x: bytecat "70" but turbowarp "100"; no match in frames 8..12, where turbowarp had "80", "90", "100", "110", ...
+```
+
+It exits with code 1 on a mismatch or a problem.
+
+**Sidecar files.** Next to `NAME.sb3` or `NAME.sbp`, `NAME.input` is its scripted input and
+`NAME.compare.json` its settings. Both are optional; the defaults work without them. The settings
+are `every`, `window`, `tolerance` (`{ "abs": 1e-6, "rel": 1e-9 }`), `allow` (more allowance
+names), `ignore` (field paths not to compare, with `*` for any run of characters, for values that
+follow from an intended difference) and `why` (a note). An unknown setting or allowance is an
+error. `examples/clones_limit.compare.json` is an example.
+
+**A folder of projects.** `projectsIn(dir)` in `@bytecat/trace` lists every `.sb3` in a folder
+with its sidecars, and `compareFile(path)` compares one, so a test needs a few lines:
+
+```ts
+for (const p of projectsIn(dir)) {
+  it(p.name, async () => {
+    const r = await compareFile(p.path);
+    expect(r.mismatch, describeCompare(r)).toBeNull();
+  });
+}
+```
+
+## The exact trace
 
 A log cannot judge a game. Games run forever, react to keys and the mouse, and much of what they
 show is never logged. The trace oracle runs Bytecat and TurboWarp in **lockstep**, one frame at a
@@ -30,12 +107,14 @@ first difference at frame 1, Stage.var.n: bytecat "1" but turbowarp "10"
 ```
 
 It exits with code 1 when it finds a difference or a problem. A problem is a block Bytecat does
-not support, a script TurboWarp could not compile, or a crash.
+not support, a script TurboWarp could not compile, or a crash. Bytecat runs with `EXACT_COMPAT`
+(`--compat none` for its own defaults).
 
 ## Snapshots
 
-A snapshot (`packages/trace/src/snapshot.ts`) is a flat, ordered record of display strings. Frame
-0 is the state after loading and the green flag, before any frame has run.
+A snapshot (`packages/trace/src/snapshot.ts`) is a flat, ordered record of display strings, the
+same for both checks. Frame 0 is the state after loading and the green flag, before any frame has
+run.
 
 | Field | Value |
 | --- | --- |
@@ -117,8 +196,9 @@ So the oracle runs **both schedulers on a virtual cost clock**:
   agreeing there at 50 and 1 passes is the check that the stand-in behaves like it.
 
 With these, a frame does the same work on both engines and ends at the same pass, whatever the
-machine. `tests/trace.test.ts` checks this on every example and benchmark at 50, 7 and 1 passes
-per frame. The small budgets move frame boundaries into the middle of loops.
+machine. `tests/trace.test.ts` checks this on the scheduler-sensitive examples at 50, 7 and 1
+passes per frame, and the relaxed comparison runs every other example at 50. The small budgets move
+frame boundaries into the middle of loops.
 
 What still differs is a real difference, and the oracle reports it. The known ones are listed in
 [deviations.md](deviations.md#found-by-the-trace-oracle).
@@ -130,7 +210,7 @@ What still differs is a real difference, and the oracle reports it. The known on
 with no input. Each command is then applied just before the next frame, and `step N` lets `N`
 frames run without input. An answer waits in a queue until a question is open. Coordinates are
 whole stage coordinates, because that is the only form a player and TurboWarp turn into the same
-`mouse x`. `tests/trace.test.ts` traces every example with its `.input` file.
+`mouse x`. `tests/trace.test.ts` runs every example with its `.input` file.
 
 ## What headless TurboWarp cannot judge
 

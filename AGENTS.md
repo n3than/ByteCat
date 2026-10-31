@@ -18,6 +18,8 @@ pnpm bytecat compile examples/NAME.sbp -o out.js        # compile to a JS module
 pnpm bytecat bundle examples/NAME.sbp -o out.html       # standalone HTML player (open it with ?test for test mode)
 pnpm examples:html   # bundle every example into out/examples
 pnpm web             # build the web app into out/web/index.html (docs/web.md)
+pnpm bytecat compare examples/NAME.sbp # relaxed check against TurboWarp (also any .sb3 or a folder of them)
+pnpm bytecat trace examples/NAME.sbp   # exact check: every frame the same as TurboWarp
 pnpm bytecat dump examples/NAME.sbp    # print the generated project.json
 pnpm bench           # time bench/*.sbp on each engine (add names, --engines, --runs); exits 1 on a wrong log
 pnpm fuzz            # differential fuzzer: random programs on Bytecat vs TurboWarp (--count N --seed S --also-scratch)
@@ -46,6 +48,22 @@ the log in `examples/NAME.expected`, pixel probes in `examples/NAME.pixels`, scr
 `packages/NAME/test/`. Rendering and input changes get a `.pixels` / `.input` example. When you add
 probes, render the page and look at a screenshot to choose points well inside shapes. Run
 `pnpm verify` and make it pass before finishing.
+
+Checks against TurboWarp come in two kinds (`docs/testing.md`, "Relaxed and exact checks"):
+
+- **Relaxed** is the default for every example and real `.sb3`: Bytecat with its own defaults
+  (no clone limit), compared at checkpoints with tolerances, a ±2 frame window and the allowed
+  intended differences. Use it unless timing is the point. An optional `NAME.compare.json` tunes
+  it; prefer an `ignore` entry naming the values an intended difference changes over loosening
+  the tolerances.
+- **Exact** compares every frame (or the whole log) with Bytecat on TurboWarp's limits
+  (`EXACT_COMPAT`). The fuzzer, the log comparisons and the scheduler-sensitive examples in the
+  `EXACT` list of `tests/trace.test.ts` use it. Add an example to `EXACT` when it tests the frame
+  something happens in.
+
+An intended difference from TurboWarp is a runtime option with a `turbowarpCompat` preset value, a row
+under "Intended Bytecat differences" in `docs/deviations.md`, an allowance in
+`packages/trace/src/compare.ts`, and `NAME.turbowarp.expected` for an example whose log shows it.
 
 The browser tests need Chromium. First-time setup: `pnpm exec playwright install chromium`.
 

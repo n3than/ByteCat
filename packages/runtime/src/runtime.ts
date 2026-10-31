@@ -28,13 +28,23 @@ export interface RuntimeOptions {
    * the stage, always applies. `turbowarpCompat` turns it on.
    */
   minSize?: boolean;
+  /**
+   * The most clones that can exist at once, across all sprites. Default `Infinity`: no limit.
+   * TurboWarp's is 300 (`turbowarpCompat`).
+   */
+  cloneLimit?: number;
 }
 
 /**
  * The options that make Bytecat do what TurboWarp does where Bytecat deliberately differs by
- * default. The trace oracle, the fuzzer, the benchmarks and the example checks run with them.
+ * default ("Intended Bytecat differences" in docs/deviations.md). The exact checks against
+ * TurboWarp run with them (`EXACT_COMPAT` in @bytecat/trace). Spread it into the options:
+ * `new Runtime(json, program, { ...turbowarpCompat, clock: "virtual" })`.
  */
-export const turbowarpCompat = { minSize: true } as const satisfies RuntimeOptions;
+export const turbowarpCompat = { minSize: true, cloneLimit: 300 } as const satisfies RuntimeOptions;
+
+/** The compat presets by name, for `--compat NAME` and the player's `?compat=NAME`. */
+export const COMPAT_PRESETS: Readonly<Record<string, Readonly<RuntimeOptions>>> = { turbowarp: turbowarpCompat };
 
 export interface SayEvent {
   target: string;
@@ -48,9 +58,6 @@ export interface Timeout {
   ms: number;
   fn: () => void;
 }
-
-/** The most clones that can exist at once, across all sprites: TurboWarp's default `maxClones`. */
-export const MAX_CLONES = 300;
 
 /** The hats one event starts, each with the target it runs for, in start order (`startHats`). */
 interface StartList {
@@ -70,7 +77,7 @@ export class Runtime {
    */
   readonly targets: Target[];
   readonly stage: Target;
-  /** How many clones exist. `create clone` makes none while there are MAX_CLONES. */
+  /** How many clones exist. `create clone` makes none while there are `options.cloneLimit`. */
   cloneCount = 0;
   readonly hats: Hat[];
   threads: Thread[] = [];
@@ -151,8 +158,8 @@ export class Runtime {
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
     // A fixed set of fields, built in one go: the scheduler reads them every pass, and an options
     // object made by spreading ...rest was measurably slower to read (arith +25%).
-    const { turbo = false, fps = 30, clock = "real", minSize = false, costumeSizes } = options;
-    this.options = { turbo, fps, clock, minSize };
+    const { turbo = false, fps = 30, clock = "real", minSize = false, cloneLimit = Infinity, costumeSizes } = options;
+    this.options = { turbo, fps, clock, minSize, cloneLimit };
     this.answers = [...(options.answers ?? [])];
     this.schedulerClock = options.schedulerClock ?? (() => performance.now());
     this.targets = Target.all(project, costumeSizes);

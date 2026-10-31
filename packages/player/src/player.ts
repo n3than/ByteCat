@@ -1,4 +1,4 @@
-import { Runtime, type ProgramFactory } from "@bytecat/runtime";
+import { Runtime, type ProgramFactory, type RuntimeOptions } from "@bytecat/runtime";
 import { imageSize, type CostumeSizes, type ImageSize, type ProjectJson } from "@bytecat/sb3";
 import type { RenderBackend } from "./backend.js";
 import { loadCostumes, Renderer, STAGE_HEIGHT, STAGE_WIDTH } from "./renderer.js";
@@ -19,6 +19,12 @@ export interface PlayerOptions {
   answers?: string[];
   /** The size of each costume image by md5ext (`costumeSizes` in @bytecat/sb3). Default: measured from `assets`. */
   costumeSizes?: CostumeSizes;
+  /**
+   * Runtime options that copy TurboWarp's limits, usually a compat preset such as `turbowarpCompat`
+   * from @bytecat/runtime (`?compat=turbowarp` on a standalone page). Default: Bytecat's own
+   * behaviour, with no clone limit and no minimum size.
+   */
+  compat?: Readonly<RuntimeOptions>;
   /** Called with the name of each costume image the browser cannot decode (it is skipped). */
   onAssetError?: (name: string) => void;
   /**
@@ -67,6 +73,7 @@ export function scratchKey(e: KeyboardEvent): string | null {
 export async function createPlayer(options: PlayerOptions): Promise<Player> {
   const { canvas, project, program, test = false, turbo = test } = options;
   const rt = new Runtime(project, program, {
+    ...options.compat,
     clock: test ? "virtual" : "real",
     turbo,
     costumeSizes: options.costumeSizes ?? (await measureAssets(options.assets)),

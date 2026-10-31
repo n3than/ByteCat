@@ -3,8 +3,9 @@
 import { compile as compileToJs } from "@bytecat/compiler";
 import { compile as compilePseudo } from "@bytecat/pseudo";
 import { runProject } from "@bytecat/reference";
-import { Runtime, turbowarpCompat } from "@bytecat/runtime";
+import { Runtime } from "@bytecat/runtime";
 import { costumeSizes, readSb3, writeSb3, type Project } from "@bytecat/sb3";
+import { EXACT_COMPAT } from "@bytecat/trace";
 import { generateProgram } from "./generate.js";
 
 export interface Diff {
@@ -52,7 +53,8 @@ export function failed(r: FuzzResult): boolean {
 function runBytecat(project: Project, timeoutMs: number, problems: string[]): string[] {
   try {
     const { program } = compileToJs(project.json);
-    const rt = new Runtime(project.json, program, { ...turbowarpCompat, clock: "virtual", turbo: true, costumeSizes: costumeSizes(project) });
+    // An exact log comparison, so Bytecat copies TurboWarp's limits (EXACT_COMPAT).
+    const rt = new Runtime(project.json, program, { ...EXACT_COMPAT, clock: "virtual", turbo: true, costumeSizes: costumeSizes(project) });
     const { finished } = rt.runUntilDone(timeoutMs);
     if (!finished) problems.push(`bytecat did not finish within ${timeoutMs} ms`);
     return rt.log();

@@ -1,6 +1,8 @@
-# At most 300 clones exist at once, counted across all sprites; deleting one makes room again.
-# The stage can clone a sprite by name but not itself, an unknown name clones nothing, and a clone
-# can clone itself. `delete_clone()` inside a custom block ends the clone's whole script.
+# Bytecat has no clone limit by default; TurboWarp (and `--compat turbowarp`) allows at most 300
+# clones at once, counted across all sprites, and deleting one makes room again
+# (clones_limit.turbowarp.expected). The stage can clone a sprite by name but not itself, an unknown
+# name clones nothing, and a clone can clone itself. `delete_clone()` inside a custom block ends the
+# clone's whole script.
 var alive = 0
 var total = 0
 
@@ -13,7 +15,7 @@ stage:
     log(join("after the stage: ", alive))
     broadcast("spawn")
     wait(0)
-    log(join("alive at the limit: ", alive))
+    log(join("alive after spawning: ", alive))
     log(join("clones made: ", total))
     broadcast_wait("thin out")
     log(join("alive after thinning: ", alive))

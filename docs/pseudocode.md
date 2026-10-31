@@ -302,6 +302,23 @@ Bytecat follows TurboWarp: where scratch-vm knowingly differs, put scratch-vm's 
 a TurboWarp-only block scratch-vm cannot run (custom reporters) gets `examples/NAME.scratch.skip`,
 a line saying why, instead: it is not run in scratch-vm, and is listed in `docs/deviations.md` too.
 
+`NAME.expected` is Bytecat's own output, with its defaults. Where an intended Bytecat difference
+shows in the log (more than 300 clones), put TurboWarp's output in
+`examples/NAME.turbowarp.expected`: TurboWarp, scratch-vm and Bytecat with `--compat turbowarp`
+are checked against it, and `docs/deviations.md` lists the file under "Intended Bytecat
+differences".
+
+Every example is also run against TurboWarp while it runs (`tests/trace.test.ts`,
+[testing.md](testing.md#relaxed-and-exact-checks)). By default that is the **relaxed comparison**:
+Bytecat with its own defaults, compared every 10 frames and at the end, with number tolerances, a
+window of ±2 frames and the allowed intended differences (`pnpm bytecat compare examples/NAME.sbp`
+shows the result). An optional `examples/NAME.compare.json` changes its settings or names values
+that follow from an intended difference and are not compared (`ignore`); see
+`examples/clones_limit.compare.json`. An example whose point is the frame something happens in
+(scheduling, broadcast and wait, stop all, say for secs) goes in the `EXACT` list in
+`tests/trace.test.ts` instead and is traced exactly, frame by frame, with TurboWarp's limits
+(`pnpm bytecat trace examples/NAME.sbp`).
+
 Two more optional files test what the canvas shows and how a project reacts to input. They run in
 a real browser (`tests/browser.test.ts`: the standalone HTML from `bytecat bundle`, opened with
 `?test`, so the clock is virtual and frames advance only when the test steps them).
@@ -349,7 +366,7 @@ frame 5
 
 Coordinates for `click` and `mouse` are whole numbers on the stage (X from -240 to 240, Y from
 -180 to 180). The same files drive `pnpm bytecat trace --input` ([testing.md](testing.md)), which
-applies each command at the same frame on Bytecat and TurboWarp. Headless, a click there always
+applies each command at the same frame on Bytecat and TurboWarp, and so does `pnpm bytecat compare`. Headless, a click there always
 hits the stage; with `--browser` it hits the sprite under the mouse.
 
 The test clicks the green flag, steps one frame, applies each command followed by one frame (`step N`

@@ -1,3 +1,4 @@
+import type { RuntimeOptions } from "@bytecat/runtime";
 import type { Snapshot } from "./snapshot.js";
 
 /** Settings both engines of a trace share. */
@@ -15,6 +16,12 @@ export interface FrameOptions {
   seed?: number;
   /** Date.now() at frame 0, in milliseconds since the epoch. Default 1 January 2026, 00:00 UTC. */
   date?: number;
+  /**
+   * Bytecat's runtime options: a compat preset such as `turbowarpCompat`, or `{}` for Bytecat's own
+   * defaults. TurboWarp ignores it. Default `EXACT_COMPAT` (the exact trace); the relaxed
+   * comparison (`compareEngines`) passes `{}`.
+   */
+  compat?: Readonly<RuntimeOptions>;
 }
 
 /**

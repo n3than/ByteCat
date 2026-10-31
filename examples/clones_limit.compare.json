@@ -1,0 +1,4 @@
+{
+  "why": "Bytecat has no clone limit by default and TurboWarp stops at 300 (the clone-limit allowance), so the counts and the log differ too; examples/clones_limit.turbowarp.expected pins TurboWarp's log.",
+  "ignore": ["Stage.var.alive", "Stage.var.total", "Stage.list.log", "Dog#*"]
+}

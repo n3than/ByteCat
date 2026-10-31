@@ -22,7 +22,7 @@ and `vitest` runs tests. `pnpm typecheck` runs `tsc -b` over the project referen
 | `packages/bench` | Benchmark harness: `Engine` implementations (Bytecat, scratch-vm, more via `registerEngine`), `benchmark` (warmup, timed runs, output check) and `formatTable`. See [benchmarks.md](benchmarks.md). | compiler, runtime, reference, sb3 |
 | `packages/web` | The web app (`pnpm web`): one HTML page that opens an `.sb3` or pseudocode, compiles it in the browser, plays it and offers downloads. See [web.md](web.md). | pseudo, sb3, compiler, player, esbuild |
 | `packages/cli` | The `bytecat` command (`pnpm bytecat ...`). Thin glue over the other packages. | all |
-| `packages/trace` | The trace oracle: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time on a virtual clock, and compares a snapshot of everything visible after every frame (`pnpm bytecat trace`, see [testing.md](testing.md)). The TurboWarp side is `TurboWarpLockstep` in `packages/reference`. `browser/` is the browser oracle: `oracle.ts` (Node) bundles `page.ts` and drives it in Chromium, where TurboWarp runs with its renderer (`pnpm bytecat trace --browser`). | compiler, runtime, reference, player, sb3, playwright |
+| `packages/trace` | The trace oracles: runs a project on Bytecat and TurboWarp in lockstep, one frame at a time on a virtual clock, and compares snapshots of everything visible, at checkpoints with tolerances (`compare.ts`, the relaxed comparison, `pnpm bytecat compare`; `files.ts` reads the sidecar files) or after every frame (`trace.ts`, the exact trace, `pnpm bytecat trace`), see [testing.md](testing.md). The TurboWarp side is `TurboWarpLockstep` in `packages/reference`. `browser/` is the browser oracle: `oracle.ts` (Node) bundles `page.ts` and drives it in Chromium, where TurboWarp runs with its renderer (`pnpm bytecat trace --browser`). | compiler, runtime, reference, player, sb3, playwright |
 | `tests/fuzz/` | The differential fuzzer: random pseudocode programs run on Bytecat and TurboWarp and compared (`pnpm fuzz`, see [fuzzing.md](fuzzing.md)). | pseudo, compiler, runtime, reference |
 | `tests/` | Cross-package tests: every example end to end (scratch-vm, TurboWarp, Bytecat runtime, and in Chromium with `.pixels` probes and `.input` scripts, see `browser.test.ts`), the block inventory against TurboWarp (`inventory.test.ts`), and docs staying in sync. | |
 | `examples/` | Test projects (`NAME.sbp`), their expected `log` output (`NAME.expected`), and optionally pixel probes (`NAME.pixels`) and scripted input (`NAME.input`). | |
@@ -291,8 +291,9 @@ as `goBehindOther` places it. "go forward/backward n layers", "go to back layer"
 layer" (`moveLayers`, `goToBack`, `goToFront` in `lib/looks.ts`) move a sprite in that order as
 TurboWarp's `moveExecutable` does: it swaps places with the targets in its way and stops in front of
 the stage and at the top; the stage never moves. A move renumbers the layers so they stay distinct.
-At most `MAX_CLONES` (300) clones exist at once across all sprites,
-counted as TurboWarp's `_cloneCounter` counts them; the stage cannot be cloned. The new clone's
+By default any number of clones can exist; with the runtime option `cloneLimit` (300 in the
+`turbowarpCompat` preset, see "Runtime options") at most that many exist at once across all sprites,
+counted as TurboWarp's `_cloneCounter` counts them. The stage cannot be cloned. The new clone's
 "when I start as a clone" scripts start for it alone, and a visible clone requests a redraw, as
 TurboWarp's renderer draws it at once. Clones hear broadcasts, keys and clicks like their
 sprite. `stop all` (and so the green flag) removes every clone. `delete this clone` removes the
@@ -348,7 +349,7 @@ additions and compares. Before that, `setXY` skips the geometry altogether when 
 the costume (`CostumeInfo.radius`, scaled by the size) stays more than 225 by 165 pixels from the
 center, where the fence never moves a sprite in any direction; most moves end there. TurboWarp fences with this same box; only the tight bounds of a visible
 sprite (its convex hull, for `bounce`) differ ([deviations.md](deviations.md#headless-geometry)).
-`set size` clamps to at most 1.5 times the stage; TurboWarp's minimum of 5 pixels only applies with `RuntimeOptions.minSize`, which the `turbowarpCompat` preset sets (the trace oracle, fuzzer, benchmarks and example checks run with the preset; see [deviations.md](deviations.md#from-turbowarp)). The CLI, benchmarks, fuzzer and trace oracle pass the sizes; the player measures them from its
+`set size` clamps to at most 1.5 times the stage; TurboWarp's minimum of 5 pixels only applies with `RuntimeOptions.minSize`, which the `turbowarpCompat` preset sets (the exact checks and the benchmarks run with the preset; see "Runtime options" and [deviations.md](deviations.md#intended-bytecat-differences)). The CLI, benchmarks, fuzzer and trace oracle pass the sizes; the player measures them from its
 asset URLs and then sets `rt.geometry` to its backend.
 
 | Backend | Where | Queries | Used by |
@@ -365,6 +366,28 @@ size, touching and picks), and that `BoxGeometry` gives the same box, fence and 
 `tests/geometry.test.ts` checks `BoxGeometry` against the reference's port of scratch-render
 over many sprite states.
 
+## Runtime options
+
+`new Runtime(project, program, options)` takes plain fields (`RuntimeOptions` in `runtime.ts`):
+the frame settings (`turbo`, `fps`, `clock`, `schedulerClock`, `answers`), the costume sizes and the limits where
+Bytecat differs from TurboWarp on purpose. The runtime keeps them in `rt.options`, with the
+defaults filled in, and a block reads its option there once, as a number or a flag, so the fast
+path costs a comparison (`createClone` checks `rt.cloneCount >= rt.options.cloneLimit`).
+
+| Option | Default | `turbowarpCompat` | Effect |
+| --- | --- | --- | --- |
+| `minSize` | `false` | `true` | TurboWarp's minimum size: `set size` keeps a costume at least 5 pixels wide or high. |
+| `cloneLimit` | `Infinity` | `300` | The most clones that exist at once across all sprites. |
+| `costumeSizes` | none | (not a limit) | The costume images' sizes; with them the runtime fences, bounces and clamps (above). |
+
+A compat preset is a partial `RuntimeOptions` spread into the options: `turbowarpCompat` copies
+TurboWarp's limits, and `COMPAT_PRESETS` names the presets for `bytecat run --compat turbowarp`,
+the player's `compat` option and a standalone page's `?compat=turbowarp`. Each limit is listed
+with its preset behaviour under "Intended Bytecat differences" in [deviations.md](deviations.md).
+The exact checks against TurboWarp run with `EXACT_COMPAT` (`turbowarpCompat` today, in
+`packages/trace/src/bytecat.ts`); setting it to `{}` drops the compat mode from all of them at
+once.
+
 ## Differential fuzzing
 
 `tests/fuzz/` generates random small programs (`generate.ts`), runs each on the Bytecat runtime and
@@ -374,11 +397,18 @@ in the compiler cannot change program results without a test noticing. `tests/fu
 
 ## Trace oracle
 
-`packages/trace` compares two engines frame by frame rather than by their final log. Bytecat's
-real scheduler and TurboWarp's sequencer both run on a virtual clock with a budget of passes per
-frame, `pick random` is seeded, and the date is pinned. After every frame a snapshot of each engine
-(variables, lists, and each sprite's position, direction, costume, size, visibility, bubble and
-layer) is compared. `tests/trace.test.ts` traces every example and benchmark. The design, the
+`packages/trace` compares two engines while they run rather than by their final log, in one of two
+modes ([testing.md](testing.md#relaxed-and-exact-checks)). The **relaxed comparison**
+(`compare.ts`, `pnpm bytecat compare`) is the default for examples and real `.sb3` projects: Bytecat
+with its own defaults, compared at checkpoints (every 10 frames and at the end) with number
+tolerances, a frame window of ±2 and named allowed differences. The **exact trace** (`trace.ts`,
+`pnpm bytecat trace`) compares after every frame, with Bytecat on `EXACT_COMPAT`, for the
+scheduler-sensitive examples listed in `tests/trace.test.ts`, and for the fuzzer's kind of
+exactness. In both modes Bytecat's real scheduler and TurboWarp's sequencer run in lockstep on a
+virtual clock with a budget of passes per frame, `pick random` is seeded, and the date is pinned.
+A snapshot of each engine (variables, lists, and each sprite's position, direction, costume, size,
+visibility, bubble and layer) is compared after every frame, or at each checkpoint.
+`tests/trace.test.ts` checks every example and benchmark, each in one mode. The design, the
 snapshot format and what headless TurboWarp cannot judge are in [testing.md](testing.md). The
 browser oracle runs the same trace in Chromium against TurboWarp with its renderer
 (`tests/browser-oracle.test.ts`).

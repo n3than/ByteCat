@@ -4,10 +4,18 @@
 import { compile } from "@bytecat/compiler";
 import type { RenderBackend } from "@bytecat/player";
 import { DEFAULT_DATE, flushPromises, mulberry32, withVirtualGlobals, type VirtualGlobals } from "@bytecat/reference/virtual";
-import { passClock, Runtime, turbowarpCompat } from "@bytecat/runtime";
+import { passClock, Runtime, turbowarpCompat, type RuntimeOptions } from "@bytecat/runtime";
 import type { CostumeSizes, ProjectJson } from "@bytecat/sb3";
 import type { FrameOptions, LockstepEngine } from "./engine.js";
 import { cloneLabels, toSnapshot, type Snapshot, type StageState } from "./snapshot.js";
+
+/**
+ * The runtime options of every exact check against TurboWarp: the frame-by-frame trace, the fuzzer
+ * and the log comparisons in tests/compiler.test.ts. They copy TurboWarp's limits, so exactness is
+ * meaningful there. Set this to `{}` to drop the compat mode: the exact checks then run Bytecat's
+ * own defaults, like the relaxed comparison.
+ */
+export const EXACT_COMPAT: Readonly<RuntimeOptions> = turbowarpCompat;
 
 /** The raw visible state of a Bytecat runtime. */
 export function bytecatState(rt: Runtime): StageState {
@@ -53,11 +61,11 @@ export class BytecatLockstep implements LockstepEngine {
 
   /** `costumeSizes`: the costume images' sizes, so that sprites are fenced and clamped (`RuntimeOptions`). */
   constructor(project: ProjectJson, options: FrameOptions = {}, costumeSizes?: CostumeSizes) {
-    const { fps = 30, turbo = false, passes = 50, seed = 1, date = DEFAULT_DATE } = options;
+    const { fps = 30, turbo = false, passes = 50, seed = 1, date = DEFAULT_DATE, compat = EXACT_COMPAT } = options;
     const { program, warnings } = compile(project);
     for (const w of warnings) this.problems.push(`bytecat does not support ${w}`);
     this.clock = passClock(passes, fps);
-    const rt = new Runtime(project, program, { ...turbowarpCompat, clock: "virtual", fps, turbo, schedulerClock: this.clock.read, costumeSizes });
+    const rt = new Runtime(project, program, { ...compat, clock: "virtual", fps, turbo, schedulerClock: this.clock.read, costumeSizes });
     // One loop iteration per step, as in TurboWarp: `spin` (how many iterations a lone thread may
     // run without yielding) always reads 0 and ignores writes, so loops yield every iteration. This
     // is done here, on this instance only, so the scheduler's hot loop has no lockstep option.

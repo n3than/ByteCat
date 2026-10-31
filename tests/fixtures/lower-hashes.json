@@ -20,8 +20,8 @@
   "sourceMap": "3716ce6324dfd13dd865604cc5745bc64eca5075c202fbc37ff432eb4dac8cea"
  },
  "examples/clones_limit.sbp": {
-  "project": "46165d122bc9291360c67525c43a4191f2498130a050b14aefa032aa9b00715e",
-  "sourceMap": "394d116b748d1779a65c0ff59c696125c4f41cb3b04f901591666671ef82e9ee"
+  "project": "e0d1d84f6a3174bb8efc4960500f6d0383acc77931ed4edb2057c88334cde128",
+  "sourceMap": "3a427c9d8002a0dd41697e838a8c4b34b049838fbdd7c5eefcf8471653693527"
  },
  "examples/clones_stop_all.sbp": {
   "project": "f167e6208330f9c582c1864d662b347b6fa281775c387710470d44ba72170ed7",
@@ -29,7 +29,7 @@
  },
  "examples/clones_trace.sbp": {
   "project": "c27bded26cf4829056091041ba1c4745fdc20dd0609d3464cc95065ea2669131",
-  "sourceMap": "0260e76e5a64e9eaa8c5ffc6893322e927410dc2d70ddb8eda7c040f1c1f7217"
+  "sourceMap": "491c2d86528758c4ef7b1941af0762599638c8a55df54949990f11e687d85f7e"
  },
  "examples/compare.sbp": {
   "project": "98834551a5406095e3925624e9fe5f2e83a302b71e5ec0b65d317a111e99c4fa",
