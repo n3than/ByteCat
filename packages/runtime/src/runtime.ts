@@ -3,6 +3,7 @@ import { BoxGeometry, type Geometry } from "./geometry.js";
 import { Target } from "./target.js";
 import { Thread, type Hat, type HatKind, type ProgramFactory } from "./thread.js";
 import { tick } from "./scheduler.js";
+import { listMonitorsOf, placeMonitors, type ListMonitor } from "./monitor.js";
 
 export interface RuntimeOptions {
   /** Skip the redraw that normally ends a frame after visible changes. Default false. */
@@ -96,6 +97,8 @@ export class Runtime {
    * `ext_scratch3_control._counter`, the green flag and stop do not reset it.
    */
   counter = 0;
+  /** The list monitors by list id (`show list` / `hide list`); the player draws the visible ones. */
+  readonly listMonitors: Map<string, ListMonitor>;
   mouse = { x: 0, y: 0, down: false };
   readonly keys = new Set<string>();
   onAsk: ((question: string) => Promise<string>) | null = null;
@@ -156,6 +159,8 @@ export class Runtime {
     this.answers = [...(options.answers ?? [])];
     this.schedulerClock = options.schedulerClock ?? (() => performance.now());
     this.targets = Target.all(project, costumeSizes);
+    this.listMonitors = listMonitorsOf(project);
+    placeMonitors(this.listMonitors.values());
     this.geometry = costumeSizes ? new BoxGeometry() : null;
     this.stage = this.targets[0]!;
     this.originals = this.targets.length;

@@ -356,6 +356,8 @@ asset URLs and then sets `rt.geometry` to its backend.
 | `ScratchRenderBackend` | `scratch-render.ts` | TurboWarp's own: exact pixels, the same bounds, fence, picks and costume sizes | the browser oracle; the player with `backend: ScratchRenderBackend.create` |
 | `Renderer` (Canvas 2D) | `renderer.ts` | pick by costume pixel; bounds, fence and costume size from `BoxGeometry`; touching by the costume's box; no `touching color` | the player by default (keeps the standalone page small: scratch-render adds about 1.6 MB of minified script) |
 
+List monitors (`show list`, `hide list`) are kept by the runtime (`rt.listMonitors`, `packages/runtime/src/monitor.ts`) and drawn by the Canvas 2D `Renderer` (`packages/player/src/monitor.ts`): name, indexed rows, `length N`, at the project's position and size or the first free spot from the top left; a long list is clipped, not scrolled. `ScratchRenderBackend` does not draw them yet.
+
 A backend is synced from the runtime (`sync`) before it draws, picks or answers a touching
 query, so the runtime stays independent of it. The `Geometry` queries come in the middle of a
 frame, so `ScratchRenderBackend` brings only the asking target's drawable up to date for them.

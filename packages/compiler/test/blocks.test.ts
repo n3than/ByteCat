@@ -28,6 +28,12 @@ describe("block handler tables", () => {
 });
 
 describe("statement handlers", () => {
+  it("show list and hide list call showList with the list's id", () => {
+    const fields = { LIST: ["items", "L1"] } as never;
+    expect(statements.data_showlist!(block("data_showlist", { fields }), stubGen())).toEqual(['showList(rt, t, "L1", true);']);
+    expect(statements.data_hidelist!(block("data_hidelist", { fields }), stubGen())).toEqual(['showList(rt, t, "L1", false);']);
+  });
+
   it("motion casts inputs to numbers", () => {
     const g = stubGen({ X: lit("5"), Y: anyEx("v") });
     expect(statements.motion_gotoxy!(block("motion_gotoxy"), g)).toEqual(["setXY(rt, t, 5, toNum(v));"]);

@@ -3,6 +3,8 @@
 
 export type Value = string | number | boolean;
 
+export { showList } from "./monitor.js";
+
 export function toNum(v: Value): number {
   if (typeof v === "number") return Number.isNaN(v) ? 0 : v;
   if (typeof v === "boolean") return v ? 1 : 0;

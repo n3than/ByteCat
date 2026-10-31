@@ -113,6 +113,7 @@ also works in an ordinary `define`, where it stops the block and the value is dr
 | `items.insert(i, expr)` | insert (expr) at (i) of [items] |
 | `items.delete(i)` | delete (i) of [items] |
 | `items.clear()` | delete all of [items] |
+| `items.show()`, `items.hide()` | show list [items], hide list [items] (the list monitor on the stage, see [Rendering](architecture.md#renderer)) |
 | `if cond:` ... `elif cond:` ... `else:` | if / if-else (`elif` nests another if-else in the else branch) |
 | `repeat n:` | repeat (n) |
 | `repeat until cond:` | repeat until <cond> |

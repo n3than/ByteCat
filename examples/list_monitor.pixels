@@ -1,0 +1,8 @@
+// The monitor of `shown` is at the top left: an item label (orange), and the empty body.
+-150 141 #fc662c
+-190 40 #e6f0ff
+// `other` is next to it, at the first free spot.
+-90 40 #e6f0ff
+-50 141 #fc662c
+// `gone` was shown and hidden: nothing is drawn where it would be.
+40 80 #ffffff

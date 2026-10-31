@@ -22,11 +22,11 @@ below but not counted.
 | [Control](#control) | `control` | 11 | 0 | 0 |
 | [Sensing](#sensing) | `sensing` | 10 | 1 | 7 |
 | [Operators](#operator) | `operator` | 18 | 0 | 0 |
-| [Variables and lists](#data) | `data` | 13 | 4 | 0 |
+| [Variables and lists](#data) | `data` | 15 | 2 | 0 |
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
 | [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **97** | **6** | **31** |
+| **All** | | **99** | **4** | **31** |
 
 <a id="motion"></a>
 
@@ -232,7 +232,7 @@ below but not counted.
 
 ## Variables and lists (`data`)
 
-13 compiled, 4 partial, 0 missing, counting hidden blocks.
+15 compiled, 2 partial, 0 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
@@ -251,8 +251,8 @@ below but not counted.
 | `data_itemnumoflist` | reporter | Compiled | yes |  |
 | `data_lengthoflist` | reporter | Compiled | yes |  |
 | `data_listcontainsitem` | boolean | Compiled | yes |  |
-| `data_showlist` | statement | Partial | yes | compiles to nothing; no list monitors are drawn |
-| `data_hidelist` | statement | Partial | yes | compiles to nothing; no list monitors are drawn |
+| `data_showlist` | statement | Compiled | yes |  |
+| `data_hidelist` | statement | Compiled | yes |  |
 
 <a id="procedures"></a>
 

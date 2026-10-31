@@ -33,16 +33,18 @@ export function setItem(b: TargetBuilder, stmt: Extract<Stmt, { kind: "setItem" 
   return [id, id];
 }
 
-/** Lowers `list.add(x)`, `.insert`, `.delete` and `.clear`. */
+/** Lowers `list.add(x)`, `.insert`, `.delete`, `.clear`, `.show` and `.hide`. */
 export function listMethod(b: TargetBuilder, stmt: Extract<Stmt, { kind: "method" }>, parent: string): [string, string] {
   const spec: Record<string, { opcode: string; args: [string, 7 | 10, string][] }> = {
     add: { opcode: "data_addtolist", args: [["ITEM", 10, "thing"]] },
     insert: { opcode: "data_insertatlist", args: [["INDEX", 7, "1"], ["ITEM", 10, "thing"]] },
     delete: { opcode: "data_deleteoflist", args: [["INDEX", 7, "1"]] },
     clear: { opcode: "data_deletealloflist", args: [] },
+    show: { opcode: "data_showlist", args: [] },
+    hide: { opcode: "data_hidelist", args: [] },
   };
   const m = spec[stmt.method];
-  if (!m) throw b.error(`unknown list method '${stmt.method}', expected add, insert, delete or clear`, stmt.pos);
+  if (!m) throw b.error(`unknown list method '${stmt.method}', expected add, insert, delete, clear, show or hide`, stmt.pos);
   if (stmt.args.length !== m.args.length) {
     throw b.error(`${stmt.object}.${stmt.method}() takes ${m.args.length} argument(s), got ${stmt.args.length}`, stmt.pos);
   }

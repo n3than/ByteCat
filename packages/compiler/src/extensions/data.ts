@@ -78,7 +78,7 @@ export const data: Extension = {
     data_listcontainsitem: boolean((b, g) => boolEx(`listContains(${g.list(b.fields.LIST)}, ${g.any(b, "ITEM")})`), {
       uses: ["listContains"],
     }),
-    data_showlist: statement(() => [], { partial: "compiles to nothing; no list monitors are drawn" }),
-    data_hidelist: statement(() => [], { partial: "compiles to nothing; no list monitors are drawn" }),
+    data_showlist: statement((b) => [`showList(rt, t, ${JSON.stringify(b.fields.LIST?.[1] ?? "")}, true);`], { uses: ["showList"] }),
+    data_hidelist: statement((b) => [`showList(rt, t, ${JSON.stringify(b.fields.LIST?.[1] ?? "")}, false);`], { uses: ["showList"] }),
   },
 };
