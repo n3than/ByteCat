@@ -172,6 +172,64 @@ describe("analyzeSync", () => {
   });
 });
 
+describe("custom reporters", () => {
+  // `say (call)`: a call in an input, which is TurboWarp's custom reporter.
+  const sayCall = (proccode: string) => ({
+    start: block("looks_say", { inputs: { MESSAGE: [3, "c", [10, ""]] } }),
+    c: call(proccode),
+  });
+
+  it("makes a statement yield when a call in one of its inputs, however deep, yields", () => {
+    const t = withProcs({
+      outer: {
+        blocks: {
+          start: block("looks_say", { inputs: { MESSAGE: [3, "j", [10, ""]] } }),
+          j: block("operator_join", { inputs: { STRING1: [3, "c", [10, ""]] } }),
+          c: call("inner"),
+        },
+      },
+      inner: { blocks: { start: block("control_wait") } },
+      plain: { blocks: sayCall("leaf") },
+      leaf: { blocks: { start: block("looks_show") } },
+    });
+    expect(syncOf(t)).toEqual({ outer: false, inner: false, plain: true, leaf: true });
+  });
+
+  it("makes a non-warp reporter that calls itself in an input a generator, and keeps a warp one sync", () => {
+    const t = withProcs({ rec: { blocks: sayCall("rec") }, wrec: { warp: true, blocks: sayCall("wrec") } });
+    expect(syncOf(t)).toEqual({ rec: false, wrec: true });
+  });
+
+  it("marks a procedure a reporter only when a call to it sits in an input, not at the top of a substack", () => {
+    const t = withProcs({
+      caller: {
+        blocks: {
+          start: block("control_repeat", { inputs: { SUBSTACK: [2, "c"], TIMES: [3, "r", [4, "1"]] } }),
+          c: call("command"),
+          r: call("value"),
+        },
+      },
+      command: { blocks: { start: block("looks_show") } },
+      value: { blocks: { start: block("procedures_return", { inputs: { VALUE: [1, [10, "1"]] } }) } },
+    });
+    const table = collectProcedures(t, 0);
+    expect(Object.fromEntries([...table.procs].map(([code, p]) => [code, p.reporter]))).toEqual({
+      caller: false,
+      command: false,
+      value: true,
+    });
+  });
+
+  it("counts a call in an input in the caller's effects", () => {
+    const t = withProcs({
+      outer: { blocks: sayCall("inner") },
+      inner: { blocks: { start: block("data_setvariableto", { fields: { VARIABLE: ["x", "x"] } }) } },
+    });
+    const effects = analyzeEffects(t.blocks, collectProcedures(t, 0), (f) => String(f?.[0]));
+    expect([...effects.get("outer")!.writes]).toEqual(["x"]);
+  });
+});
+
 describe("generated procedures", () => {
   it("are generators exactly when the analysis says", () => {
     const t = withProcs({

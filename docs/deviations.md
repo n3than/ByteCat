@@ -9,10 +9,13 @@ difference is always a decision, never an accident.
 Bytecat and TurboWarp agree here; only the official scratch-vm differs. An example that shows the
 difference keeps scratch-vm's output in `examples/NAME.scratch.expected` next to
 `examples/NAME.expected` (what TurboWarp and Bytecat produce). `tests/examples.test.ts` uses the
-`.scratch.expected` file for scratch-vm and checks that every such file is listed below.
+`.scratch.expected` file for scratch-vm and checks that every such file is listed below. An
+example that uses a TurboWarp-only block, which scratch-vm cannot run at all, has
+`examples/NAME.scratch.skip` (saying why) instead and is not run in scratch-vm; it is listed below too.
 
 | Difference | Reason | Pinned by |
 | --- | --- | --- |
+| Custom reporters (a custom block with `return`, `procedures_return`) are a TurboWarp extension to Scratch. scratch-vm has no `return` block and runs a call in an input as a command, so these projects never finish there. | Follows TurboWarp. | `examples/custom_reporters.scratch.skip`, `examples/custom_reporters_yield.scratch.skip`. |
 | scratch-vm caps a list at 200000 items and ignores adds beyond that; TurboWarp and Bytecat have no limit. | Follows TurboWarp. | `examples/list_limit.scratch.expected`. Benchmarks keep lists under the cap so every engine can run them (see [benchmarks.md](benchmarks.md)). |
 | "contents of list" joins items without spaces when every item is one character long, counting numbers by their text: a list holding the numbers 3 and 4 (say from `add (1 + 2)`) prints "34". scratch-vm only counts text items and prints "3 4". Literals are not affected, since scratch-vm stores them as text. | Follows TurboWarp (`listContents` in its runtime). | `examples/constants.scratch.expected`. |
 
@@ -24,6 +27,7 @@ or test that pins Bytecat's behaviour.
 | Difference | Reason | Pinned by |
 | --- | --- | --- |
 | A list position of 2³² or more is out of range in Bytecat. TurboWarp's fast path cuts it to 32 bits (`index \| 0`), so `replace item 4294967297` changes item 1, while its `item 4294967297` still gives `""`. | Follows scratch-vm, since TurboWarp disagrees with itself here; no real list is that long. | "treats huge positions as out of range" in `packages/runtime/test/ops.test.ts`. |
+| A `wait` inside a run-without-screen-refresh (warp) procedure always yields in Bytecat; TurboWarp's `yieldNotWarp` does not yield there, so a warp reporter calling a reporter with `wait(0)` can drift by a couple of frames. | Not intended: a known gap, still to be fixed. | Not pinned yet; the custom reporter examples avoid it. |
 | `letter i of s` with an index of 2³¹ or more: where Bytecat proves the index is a whole number it uses `s.charAt(i - 1)` without TurboWarp's 32-bit cut, so `letter 4294967297` is `""`; elsewhere it cuts like TurboWarp and gives the first letter. TurboWarp does the same, but its type inference proves whole numbers in different places, so the two can pick different paths. | TurboWarp disagrees with itself here, and no real string is that long. | "index fast paths match the helpers" in `packages/compiler/test/blocks.test.ts`. |
 
 ## Found by the fuzzer

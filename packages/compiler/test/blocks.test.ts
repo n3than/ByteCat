@@ -2,7 +2,7 @@ import { ops, type Value } from "@bytecat/runtime";
 import { describe, expect, it } from "vitest";
 import { builtins } from "../src/extensions/index.js";
 import { comparison } from "../src/extensions/operator.js";
-import type { Ex } from "../src/types.js";
+import type { Ex, Proc } from "../src/types.js";
 import {
   ANY, NAN, NEG_FRACT, NEG_INT, NEG_ZERO, NUM, NUM_OR_NAN, POS_FRACT, POS_INF, POS_INT, STR, STR_NUM, STR_TEXT, ZERO, mod as modType,
   typeOfValue,
@@ -13,8 +13,11 @@ import { block, stubGen } from "./helpers.js";
 const { statements, reporters } = builtins;
 
 describe("block handler tables", () => {
-  it("have no opcode in both tables", () => {
-    for (const op of Object.keys(statements)) expect(reporters, op).not.toHaveProperty(op);
+  it("have no opcode in both tables, except a statement that declares an expression form", () => {
+    for (const op of Object.keys(statements)) {
+      if (builtins.statement(op)?.reporter) expect(reporters[op], op).toBe(builtins.statement(op)!.reporter);
+      else expect(reporters, op).not.toHaveProperty(op);
+    }
   });
 
   it("only handle real Scratch opcodes", () => {
@@ -77,7 +80,7 @@ describe("statement handlers", () => {
     const g = stubGen();
     expect(del(g)).toEqual(["store;", "if (deleteClone(rt, t)) return;"]);
     expect(g.yielded).toBe(false);
-    const inProc = Object.assign(stubGen(), { procedure: { fn: "p0", params: [], warp: true, sync: true } });
+    const inProc = Object.assign(stubGen(), { procedure: { fn: "p0", params: [], warp: true, sync: true, reporter: false } });
     expect(del(inProc)).toEqual(["store;", "if (deleteClone(rt, t)) throw RETIRE;"]);
   });
 
@@ -90,6 +93,60 @@ describe("statement handlers", () => {
     const g = stubGen();
     expect(statements.control_all_at_once!(block("control_all_at_once"), g)).toEqual(["body;"]);
     expect(g.yielded).toBe(false);
+  });
+});
+
+describe("custom reporters", () => {
+  const proc = (extra: Partial<Proc> = {}): Proc => ({ fn: "p0", params: [], warp: false, sync: true, reporter: true, ...extra });
+  /** A Gen inside procedure `inside` (or a hat script) where the target defines `callee`. */
+  const gen = (callee: Proc | undefined, inside?: Proc, inputs: Record<string, Ex> = {}) =>
+    Object.assign(stubGen(inputs), {
+      procedure: inside,
+      proc: () => callee,
+      returnType: () => NUM,
+      callExpr: (code: string, p: Proc) => `[${p.fn}: ${code}]`,
+    });
+  const callBlock = block("procedures_call", { mutation: { tagName: "mutation", children: [], proccode: "f %s", argumentids: '["a"]' } });
+  const report = (g: ReturnType<typeof gen>) => reporters.procedures_call!(callBlock, g)!;
+
+  it("a call to a sync reporter is a plain function call with the callee's return type", () => {
+    const g = gen(proc(), undefined, { a: lit("2") });
+    expect(report(g)).toEqual({ c: "[p0: p0(t, th, 2)]", t: NUM });
+    expect(g.yielded).toBe(false);
+  });
+
+  it("a call to a reporter that may yield runs it with yield*", () => {
+    const g = gen(proc({ sync: false }), undefined, { a: anyEx("x") });
+    expect(report(g).c).toBe("[p0: (yield* p0(t, th, x))]");
+    expect(g.yielded).toBe(true);
+  });
+
+  it("a direct recursive call outside warp mode yields after its arguments, like TurboWarp's yieldThenCall", () => {
+    const p = proc({ sync: false });
+    expect(report(gen(p, p)).c).toBe('[p0: (yield* yieldThenCall(th, p0(t, th, "")))]');
+  });
+
+  it("a call to a warp reporter that may yield runs it in warp mode", () => {
+    expect(report(gen(proc({ sync: false, warp: true }))).c).toBe('[p0: (yield* callInWarp(th, p0(t, th, "")))]');
+  });
+
+  it("a call to a procedure the target does not define reports the empty string", () => {
+    expect(report(gen(undefined))).toEqual(lit(""));
+  });
+
+  it("return leaves a custom block with its value, and stops a hat script", () => {
+    const ret = block("procedures_return");
+    const noted: number[] = [];
+    const inProc = Object.assign(gen(proc(), proc(), { VALUE: lit("5") }), { noteReturn: (t: number) => noted.push(t) });
+    expect(statements.procedures_return!(ret, inProc)).toEqual(["store;", "return 5;"]);
+    expect(noted).toEqual([typeOfValue(5)]);
+    expect(statements.procedures_return!(ret, gen(proc(), undefined, { VALUE: lit("5") }))).toEqual(["store;", "return;"]);
+  });
+
+  it('stop this script in a custom reporter reports ""', () => {
+    const stop = (inside: Proc) => statements.control_stop!(block("control_stop"), Object.assign(gen(undefined, inside), { field: () => "this script" }));
+    expect(stop(proc())).toEqual(["store;", 'return "";']);
+    expect(stop(proc({ reporter: false }))).toEqual(["store;", "return;"]);
   });
 });
 

@@ -44,10 +44,10 @@ one stage:
 | `cast.ts` | Pure helpers: literals, `asNum`/`asStr`/`asBool`/`asAny` casts that skip casts that cannot change the value, `indent`. |
 | `scope.ts` | `Scope`: variable and list fields → `t.v[id]` / `S.v[id]`, with the stale-id fallback and the startup prelude for unknown ones. |
 | `extensions/*.ts` | Every block category is an extension (see [extensions.md](extensions.md)): one file per id (`motion`, `looks`, `sound`, `event`, `control`, `sensing`, `operator`, `data`, `procedures`, `argument`, `pen`), each declaring every opcode TurboWarp knows in it with its kind, status (compiled, partial, missing), handler, yield behaviour, hat rules and the runtime functions it uses. A handler is a pure function of a block and a `Gen`; returning `undefined` makes the block unsupported. `extensions/api.ts` defines the specs, `extensions/registry.ts` the `ExtensionRegistry` every other stage looks opcodes up in, and `extensions/index.ts` the built-in list. |
-| `analysis/yields.ts` | Pure question "can this stack yield?", answered from each statement's `yields` and `substacks` declarations, the one source of truth. A test runs every handler against a stub and checks it against its declaration, so they cannot drift. |
-| `analysis/procedures.ts` | `collectProcedures` (the custom-block table) and `analyzeSync`, which settles which procedures are plain functions rather than generators by repeating `stackYields` until nothing changes. Runs before any code is generated. |
+| `analysis/yields.ts` | Pure question "can this stack yield?", answered from each statement's `yields` and `substacks` declarations (and, for a custom reporter call in any input, the call's `yields`), the one source of truth. A test runs every handler against a stub and checks it against its declaration, so they cannot drift. |
+| `analysis/procedures.ts` | `collectProcedures` (the custom-block table, with which procedures are called as reporters) and `analyzeSync`, which settles which procedures are plain functions rather than generators by repeating `stackYields` until nothing changes. Runs before any code is generated. |
 | `analysis/typeset.ts` | The static type lattice: a type is a bit set of runtime kinds (positive or negative integer or fraction, +0, -0, the infinities, NaN, numeric string, other string, boolean), with `castNum` and transfer functions for `+ - * / mod round`. Pure, and tested by sampling values of every kind. |
-| `analysis/env.ts` | `TypeEnv`: the whole-program types of variables, list items and procedure parameters, which codegen reads and widens until they stop changing. |
+| `analysis/env.ts` | `TypeEnv`: the whole-program types of variables, list items, procedure parameters and what each procedure returns, which codegen reads and widens until they stop changing. |
 | `analysis/effects.ts` | `analyzeEffects`: which variables each procedure (with everything it calls) may read or assign, and whether it may `stop all`. Callers use it to store and reload only the variables a call can see; codegen checks it against every body it compiles. |
 | `target.ts` | `TargetCodegen`: implements `Gen` for one target, dispatches blocks to the registry's handlers and compiles procedures and hat scripts (each hat's event and argument come from its spec). It throws if the code it generates for a procedure disagrees with the analysis. |
 | `emit.ts` | `emitProgram` assembles the final `function (rt)` text; `programImports` picks its imports (the declared runtime functions the code names, by `referencedNames`); `toModule` and `toScript` write the program with them as an ES module or as a script that takes the modules. |
@@ -96,6 +96,22 @@ never yields compiles to a plain function, which is much cheaper to call. A dire
 function skip the `th.warp` counter, which is safe because only the yield at the end of a loop
 reads it and a plain function contains none; a new runtime helper that reads `th.warp` would have
 to make its caller a generator.
+
+A call in an input is a TurboWarp custom reporter (`procedures_call` declares this expression form
+as `reporter` in its spec): it reports what the callee's `return` block (`procedures_return`)
+gives, and `""` when the body ends without one, so a procedure that is called this way
+(`Proc.reporter`) ends in `return "";` and its `stop this script` returns `""`. A call to a sync
+callee is a plain call, `p1_0(t, th, 10)`; any other is `(yield* p1_0(t, th, 10))`, and the yield
+analysis looks into every input of a statement, so a statement holding such a call can yield. As
+in TurboWarp, a direct recursive call outside warp mode evaluates its arguments, yields, then calls
+(`yieldThenCall(th, p1_0(...))`, which works because calling a generator function runs nothing),
+and a call to a warp generator runs inside `callInWarp`. A call in an expression stores the
+caller's cached variables that the callee can see and reloads the ones it may change, inline:
+`v0 + (t.v["x"] = v0, ret = p1_0(t, th), v0 = t.v["x"], ret)`, with one `let ret;` per function
+(`Gen.callExpr`; with nothing to store or reload the call stays bare). What a call reports is typed:
+each `return` records its value's type, a body that can end without a `return` (`endsInReturn`)
+adds the type of `""`, and the code generator repeats until these stop growing, like variable
+types, so `fib(n - 1) + fib(n - 2)` adds without casts when every return is a number.
 
 A literal input that is passed on without a cast (`set`, list items and indexes, procedure
 arguments, and so on) is emitted as a JavaScript number when that is invisible, the rule of
@@ -333,7 +349,8 @@ browser oracle runs the same trace in Chromium against TurboWarp with its render
 - **TurboWarp is the oracle.** Behaviour is checked by running the same `.sb3` in TurboWarp
   (compiler on, every script must compile) and comparing the `log` list, not by asserting on
   generated code. Every example also runs in scratch-vm as a second check; where scratch-vm
-  knowingly differs, its output goes in `NAME.scratch.expected` and the difference is listed in
+  knowingly differs, its output goes in `NAME.scratch.expected` (or, for a TurboWarp-only block
+  it cannot run, the reason in `NAME.scratch.skip`) and the difference is listed in
   [deviations.md](deviations.md).
 - **Errors point at source.** Every pseudocode error carries file, line and column; the lowering
   step also records a block id → source line map (`bytecat build --map`).

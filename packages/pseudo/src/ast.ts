@@ -39,7 +39,16 @@ export interface Param {
 
 export type ScriptNode =
   | { kind: "when"; hat: Hat; body: Stmt[]; pos: SourcePos }
-  | { kind: "define"; name: string; params: Param[]; warp: boolean; body: Stmt[]; pos: SourcePos };
+  | {
+      kind: "define";
+      name: string;
+      params: Param[];
+      warp: boolean;
+      /** Set for a custom reporter (`-> value`) or boolean (`-> bool`), which calls use as a value. */
+      returns?: "value" | "bool";
+      body: Stmt[];
+      pos: SourcePos;
+    };
 
 export type Stmt =
   | { kind: "assign"; target: string; op: "=" | "+=" | "-=" | "*=" | "/="; value: Expr; pos: SourcePos }
@@ -52,7 +61,8 @@ export type Stmt =
   | { kind: "allAtOnce"; body: Stmt[]; pos: SourcePos }
   | { kind: "until"; cond: Expr; body: Stmt[]; pos: SourcePos }
   | { kind: "while"; cond: Expr; body: Stmt[]; pos: SourcePos }
-  | { kind: "for"; variable: string; from: Expr; to: Expr; body: Stmt[]; pos: SourcePos };
+  | { kind: "for"; variable: string; from: Expr; to: Expr; body: Stmt[]; pos: SourcePos }
+  | { kind: "return"; value: Expr; pos: SourcePos };
 
 export type Literal = { kind: "number"; value: string } | { kind: "string"; value: string };
 

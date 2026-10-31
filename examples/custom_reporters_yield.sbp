@@ -1,0 +1,43 @@
+# Custom reporters that yield: a wait inside, a loop outside warp mode, and direct recursion,
+# which yields before each call. Another script logs between the frames.
+var n = 0
+
+sprite Main:
+  define slow_add(a, b) -> value:
+    wait(0)
+    return a + b
+
+  define count_up(k) -> value:
+    n = 0
+    repeat k:
+      n += 1
+    return n
+
+  define factorial(k) -> value:
+    if k <= 1:
+      return 1
+    return k * factorial(k - 1)
+
+  # Warp: the loop and the recursion run without yielding.
+  define warp fast_factorial(k) -> value:
+    if k <= 1:
+      return 1
+    return k * fast_factorial(k - 1)
+
+  # Warp, calling a reporter that loops: the loop does not yield either.
+  define warp warp_count(k) -> value:
+    return count_up(k) + count_up(k)
+
+  when flag:
+    broadcast("tick")
+    log(join("slow ", slow_add(slow_add(1, 2), 3)))
+    log(join("count ", count_up(3)))
+    log(join("factorial ", factorial(4)))
+    log(join("fast ", fast_factorial(5)))
+    log(join("warp ", warp_count(4)))
+    stop("all")
+
+sprite Ticker:
+  when receive "tick":
+    forever:
+      log("tick")

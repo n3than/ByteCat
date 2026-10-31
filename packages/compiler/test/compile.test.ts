@@ -102,6 +102,41 @@ describe("compileProject", () => {
     expect(code).toContain('switchCostume(rt, t, "1");');
   });
 
+  describe("custom reporters", () => {
+    // A sprite whose flag script calls a reporter in a loop; the reporter adds to `x` and returns it.
+    const reporterProject = () => {
+      const mutation = { tagName: "mutation", children: [], proccode: "bump", argumentids: "[]", argumentnames: "[]", warp: "true" };
+      const blocks: Record<string, Block> = {
+        hat: block("event_whenflagclicked", { topLevel: true, next: "loop" }),
+        loop: block("control_repeat", { inputs: { TIMES: [1, [4, "3"]], SUBSTACK: [2, "change"] } }),
+        change: block("data_changevariableby", { fields: { VARIABLE: ["x", "x"] }, inputs: { VALUE: [3, "call", [4, "1"]] } }),
+        call: block("procedures_call", { mutation: mutation as never }),
+        def: block("procedures_definition", { topLevel: true, next: "inc", inputs: { custom_block: [1, "proto"] } }),
+        proto: block("procedures_prototype", { mutation: mutation as never }),
+        inc: block("data_changevariableby", { fields: { VARIABLE: ["x", "x"] }, inputs: { VALUE: [1, [4, "1"]] }, next: "ret" }),
+        ret: block("procedures_return", { inputs: { VALUE: [3, [12, "x", "x"], [10, ""]] } }),
+      };
+      return project(target(blocks, { variables: { x: ["x", 0] } }));
+    };
+
+    it("store the caller's locals before a call in an expression and reload them after", () => {
+      const { code } = compileProject(reporterProject());
+      expect(code).toContain('v0 = v0 + (t.v["x"] = v0, ret = p1_0(t, th), v0 = t.v["x"], ret);');
+      expect(code).toContain("let ret;");
+      // Every return is a number, so the caller adds without a cast.
+      expect(code).not.toContain("toNum(");
+    });
+
+    it('report "" when no return runs, and widen the return type with it', () => {
+      const p = reporterProject();
+      delete p.targets[1]!.blocks.ret;
+      p.targets[1]!.blocks.inc!.next = null;
+      const { code } = compileProject(p);
+      expect(code).toMatch(/function p1_0\(t, th\) \{\n {2}t\.v\["x"\] = t\.v\["x"\] \+ 1;\n {2}return "";\n\}/);
+      expect(code).toContain("toNum(");
+    });
+  });
+
   it("is deterministic", () => {
     const p = project(target(script(["motion_ifonedgebounce"])));
     expect(compileProject(p).code).toBe(compileProject(p).code);

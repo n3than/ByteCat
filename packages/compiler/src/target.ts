@@ -2,7 +2,7 @@ import type { Block, CompactPrimitive, Input, InputValue, Target } from "@byteca
 import { TypeEnv } from "./analysis/env.js";
 import { analyzeEffects, type Effects } from "./analysis/effects.js";
 import { analyzeSync, collectProcedures } from "./analysis/procedures.js";
-import { ZERO, type TypeSet } from "./analysis/typeset.js";
+import { typeOfValue, ZERO, type TypeSet } from "./analysis/typeset.js";
 import { builtins } from "./extensions/index.js";
 import type { ExtensionRegistry } from "./extensions/registry.js";
 import { anyEx, asAny, asBool, asNum, asStr, indent, lit, menuLiteral, strEx } from "./cast.js";
@@ -55,7 +55,7 @@ export class TargetCodegen implements Gen {
   ) {
     this.scope = new Scope(target, stage, prelude);
     this.blocks = target.blocks;
-    const table = collectProcedures(target, index);
+    const table = collectProcedures(target, index, registry);
     this.procs = table.procs;
     // Settle which procedures are sync before compiling any call to them.
     analyzeSync(target, table, registry);
@@ -86,7 +86,12 @@ export class TargetCodegen implements Gen {
     this.paramKeys = new Map(proc.params.map((name, i) => [name, TypeEnv.paramKey(proc.fn, i)]));
     this.inWarp = proc.warp;
     this.yields = false;
-    const body = this.withLocals(() => this.stack(block.next), this.effects.get(proc.fn));
+    // A reporter that can reach the end of its body reports "", as in TurboWarp.
+    const fallsOff = !this.endsInReturn(block.next);
+    if (fallsOff) this.noteReturn(EMPTY);
+    // A body that never falls off needs no store at its end: every way out stored already.
+    const end = !fallsOff ? [] : proc.reporter ? [STORE, 'return "";'] : [STORE];
+    const body = this.withLocals(() => this.stack(block.next), this.effects.get(proc.fn), end);
     // The analysis and the handlers must agree, or a generator would be called as a plain function.
     if (this.yields === proc.sync) {
       throw new Error(`internal error: yield analysis disagrees with codegen for ${proc.fn}`);
@@ -96,6 +101,32 @@ export class TargetCodegen implements Gen {
     this.paramKeys = new Map();
     this.inWarp = false;
     return body;
+  }
+
+  /**
+   * True when the stack never runs past its last block: it ends in a `return`, a `stop all` or
+   * `stop this script`, a `forever`, or an if-else whose branches both end so. Conservative: a
+   * false answer only costs a `return ""` that never runs and a `""` in the return type.
+   */
+  private endsInReturn(id: string | null | undefined): boolean {
+    let last: Block | undefined;
+    for (let b = id ? this.blocks[id] : undefined; b; b = b.next ? this.blocks[b.next] : undefined) last = b;
+    if (!last) return false;
+    const sub = (name: string) => {
+      const v = last.inputs[name]?.[1];
+      return typeof v === "string" && this.endsInReturn(v);
+    };
+    switch (last.opcode) {
+      case "procedures_return":
+      case "control_forever":
+        return true;
+      case "control_stop":
+        return ["all", "this script"].includes(last.fields.STOP_OPTION?.[0] ?? "");
+      case "control_if_else":
+        return sub("SUBSTACK") && sub("SUBSTACK2");
+      default:
+        return false;
+    }
   }
 
   /**
@@ -142,12 +173,12 @@ export class TargetCodegen implements Gen {
    * see `Gen`), and at the end. Other scripts only run while this one is yielded, so between those
    * points the locals are the truth. A procedure's `effects` are checked against its body.
    */
-  private withLocals(compile: () => string[], effects?: Effects): string[] {
+  private withLocals(compile: () => string[], effects?: Effects, end: string[] = [STORE]): string[] {
     this.refs = [];
     this.hot = new Set();
     this.assigned = new Set();
     this.loopDepth = 0;
-    const body = [...compile(), STORE];
+    const body = [...compile(), ...end];
     const { refs, assigned } = this;
     if (effects) {
       for (const ref of refs) {
@@ -161,31 +192,65 @@ export class TargetCodegen implements Gen {
     for (const ref of refs) if (this.hot.has(ref)) locals.set(ref, `v${locals.size}`);
     const stored = [...assigned].filter((ref) => locals.has(ref));
     const out = locals.size === 0 ? [] : [`let ${[...locals].map(([ref, local]) => `${local} = ${ref}`).join(", ")};`];
+    // A sync callee only needs the variables it reads or writes (it may load a variable into a
+    // local and store it back unchanged on a path that skips the assignment), unless it can stop
+    // everything. Any other call or yield needs them all.
+    const stores = (fn: string | undefined) => {
+      const callee = fn ? this.effects.get(fn) : undefined;
+      return stored
+        .filter((ref) => !callee || callee.stops || callee.reads.has(ref) || callee.writes.has(ref))
+        .map((ref) => `${ref} = ${locals.get(ref)}`);
+    };
+    const loads = (fn: string | undefined) => {
+      const callee = fn ? this.effects.get(fn) : undefined;
+      return [...locals].filter(([ref]) => !callee || callee.writes.has(ref)).map(([ref, local]) => `${local} = ${ref}`);
+    };
+    let needsRet = false;
+    // A call in an expression (`callExpr`), innermost first: `(stores, ret = call, loads, ret)`.
+    const callExpr = (_: string, fn: string, code: string) => {
+      const before = stores(fn);
+      const after = loads(fn);
+      if (after.length > 0) {
+        needsRet = true;
+        return `(${[...before, `ret = ${code}`, ...after, "ret"].join(", ")})`;
+      }
+      return before.length > 0 ? `(${[...before, code].join(", ")})` : code;
+    };
     for (const raw of body) {
-      const line = raw.replace(/\u0002(\d+)\u0002/g, (_, i: string) => {
+      let line = raw.replace(/\u0002(\d+)\u0002/g, (_, i: string) => {
         const ref = refs[Number(i)]!;
         return locals.get(ref) ?? ref;
       });
+      while (line.includes(CALL_OPEN)) {
+        const next = line.replace(INNER_CALL, callExpr);
+        if (next === line) throw new Error("internal error: unmatched call marker in generated line");
+        line = next;
+      }
       const at = line.indexOf(MARK);
       if (at < 0) {
         out.push(line);
         continue;
       }
       const [kind, fn] = line.slice(at + 1).split(":");
-      const callee = fn ? this.effects.get(fn) : undefined;
-      const code =
-        kind === "store"
-          ? // A sync callee only needs the variables it reads or writes (it may load a variable into
-            // a local and store it back unchanged on a path that skips the assignment), unless it can
-            // stop everything.
-            stored
-              .filter((ref) => !callee || callee.stops || callee.reads.has(ref) || callee.writes.has(ref))
-              .map((ref) => `${ref} = ${locals.get(ref)};`)
-          : [...locals].filter(([ref]) => !callee || callee.writes.has(ref)).map(([ref, local]) => `${local} = ${ref};`);
-      if (code.length > 0) out.push(line.slice(0, at) + code.join(" "));
+      const code = kind === "store" ? stores(fn) : loads(fn);
+      if (code.length > 0) out.push(line.slice(0, at) + code.map((c) => `${c};`).join(" "));
     }
+    // One temporary for every call in the function: each one's value is used before the next runs.
+    if (needsRet) out.splice(locals.size === 0 ? 0 : 1, 0, "let ret;");
     this.refs = [];
     return collapseYields(out);
+  }
+
+  callExpr(code: string, proc: Proc): string {
+    return `${CALL_OPEN}${proc.sync ? proc.fn : ""}${CALL_SEP}${code}${CALL_CLOSE}`;
+  }
+
+  noteReturn(type: TypeSet): void {
+    if (this.procedure) this.env.note(TypeEnv.returnKey(this.procedure.fn), type);
+  }
+
+  returnType(proc: Proc): TypeSet {
+    return this.env.get(TypeEnv.returnKey(proc.fn));
   }
 
   store(proc?: Proc): string {
@@ -426,7 +491,15 @@ export class TargetCodegen implements Gen {
 
 /** Starts the placeholder lines for storing and loading cached variables (`TargetCodegen.store`). */
 const MARK = "\u0001";
+/** The type of `""`, what a reporter reports when no `return` runs. */
+const EMPTY = typeOfValue("");
 const STORE = `${MARK}store`;
+/** Delimit a call in an expression: open, the sync callee's function name, separator, the call, close (`callExpr`). */
+const CALL_OPEN = "\u0003";
+const CALL_SEP = "\u0004";
+const CALL_CLOSE = "\u0005";
+/** A marked call with no marked call inside it. */
+const INNER_CALL = /\u0003([^\u0003\u0004\u0005]*)\u0004([^\u0003\u0005]*)\u0005/g;
 
 /** `if (c) {` / `yield;` / `}` back on one line, where no variables needed storing around the yield. */
 function collapseYields(lines: string[]): string[] {

@@ -70,6 +70,12 @@ export interface StatementSpec extends SpecBase {
   readonly yields?: Yields;
   /** The substack inputs the statement runs, which the yield analysis follows. */
   readonly substacks?: readonly string[];
+  /**
+   * The block's form as an expression, for a statement that can also sit in an input: a call to a
+   * custom block, which reports what its `return` gives (TurboWarp's custom reporters). The yield
+   * analysis asks `yields` about it in an input too.
+   */
+  readonly reporter?: ReporterHandler;
 }
 
 export interface ReporterSpec extends SpecBase {

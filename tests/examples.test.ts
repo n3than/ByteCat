@@ -2,7 +2,9 @@
 // and in TurboWarp (compiler on). An example passes when each engine's log() output matches
 // examples/<name>.expected line by line, and TurboWarp compiled every script. Bytecat follows
 // TurboWarp, so an example where scratch-vm knowingly differs keeps scratch-vm's output in
-// examples/<name>.scratch.expected, and docs/deviations.md must name it.
+// examples/<name>.scratch.expected, and docs/deviations.md must name it. An example that uses a
+// TurboWarp-only block, which scratch-vm cannot run, has examples/<name>.scratch.skip instead,
+// saying why, and docs/deviations.md names that.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { compileToSb3 } from "@bytecat/pseudo";
@@ -15,7 +17,7 @@ const examples = readdirSync(dir).filter((f) => f.endsWith(".sbp")).sort();
 const deviations = readFileSync(join(import.meta.dirname, "..", "docs", "deviations.md"), "utf8");
 
 it("lists every scratch-vm deviation in docs/deviations.md", () => {
-  for (const file of readdirSync(dir).filter((f) => f.endsWith(".scratch.expected"))) {
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".scratch.expected") || f.endsWith(".scratch.skip"))) {
     expect(deviations, `add examples/${file} to docs/deviations.md`).toContain(`examples/${file}`);
   }
 });
@@ -36,7 +38,9 @@ describe.each(engines)("examples in %s", (engine) => {
       engine === "scratch" && existsSync(scratchPath) ? scratchPath : join(dir, `${name}.expected`);
 
     // Examples with scripted input would wait forever here; tests/browser.test.ts drives them.
-    const test = existsSync(join(dir, `${name}.input`)) ? it.skip : it;
+    // Examples with TurboWarp-only blocks never finish in scratch-vm.
+    const skip = existsSync(join(dir, `${name}.input`)) || (engine === "scratch" && existsSync(join(dir, `${name}.scratch.skip`)));
+    const test = skip ? it.skip : it;
 
     test(name, async () => {
       expect(existsSync(expectedPath), `missing ${expectedPath}`).toBe(true);

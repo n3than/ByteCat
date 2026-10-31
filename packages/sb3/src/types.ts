@@ -43,6 +43,8 @@ export interface Mutation {
   argumentdefaults?: string;
   warp?: string;
   hasnext?: string;
+  /** TurboWarp custom reporters: set (to "1") on the prototype and calls of a block that reports a value. */
+  return?: string;
 }
 
 export interface Block {

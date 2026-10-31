@@ -1,0 +1,77 @@
+# TurboWarp custom reporters: `define NAME(args) -> value:` with `return expr`.
+var total = 0
+var i = 0
+var d = 0
+
+sprite Main:
+  # Recursion: each call has its own argument, so no stack list is needed.
+  define warp fib(n) -> value:
+    if n < 2:
+      return n
+    return fib(n - 1) + fib(n - 2)
+
+  # Return inside loops: the first divisor above 1.
+  define warp smallest_divisor(n) -> value:
+    d = 2
+    repeat until d * d > n:
+      if n % d = 0:
+        return d
+      d += 1
+    return n
+
+  define warp is_even(n) -> bool:
+    return n % 2 = 0
+
+  # No return runs on some paths: the call reports "".
+  define sign_word(n) -> value:
+    if n > 0:
+      return "positive"
+    if n < 0:
+      return "negative"
+
+  define double(x) -> value:
+    return x * 2
+
+  define greet(name) -> value:
+    return join("hi ", name)
+
+  # A return in a command block stops it; the value is dropped.
+  define count_to(limit):
+    i = 0
+    forever:
+      i += 1
+      if i = limit:
+        return "ignored"
+
+  # A reporter that changes a variable its caller keeps in a loop.
+  define bump(by) -> value:
+    total += by
+    return total
+
+  when flag:
+    log(fib(10))
+    log(smallest_divisor(91))
+    log(smallest_divisor(97))
+    log(d)
+    if is_even(10):
+      log("10 is even")
+    if not is_even(7):
+      log("7 is odd")
+    log(join("[", join(sign_word(0), "]")))
+    log(sign_word(-3))
+    log(double(double(double(1.5))))
+    log(greet(greet("bob")))
+    log(double(fib(7)) + fib(3))
+    count_to(4)
+    log(i)
+    total = 0
+    repeat 5:
+      total += bump(1)
+    log(total)
+    broadcast_wait("hat")
+    log("end")
+
+  when receive "hat":
+    log("in hat")
+    return "stops this script"
+    log("not reached")

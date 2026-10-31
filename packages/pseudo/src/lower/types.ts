@@ -12,6 +12,8 @@ export interface Procedure {
   argumentIds: string[];
   params: { name: string; boolean: boolean }[];
   warp: boolean;
+  /** Set for a custom reporter or boolean, which reports a value. */
+  returns?: "value" | "bool";
 }
 
 /** The result of lowering an expression: an inline primitive or a reporter block. */

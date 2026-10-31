@@ -74,6 +74,37 @@ describe("lowering", () => {
     expect(call.inputs[fast!]![0]).toBe(2);
   });
 
+  it("lowers custom reporters: a prototype and calls marked as returning, the return block, and calls in inputs", () => {
+    const json = project(
+      `sprite A:\n  define warp twice(n) -> value:\n    return n * 2\n  define big(n) -> bool:\n    return n > 9\n` +
+        `  when flag:\n    if big(twice(5)):\n      log(twice(1))\n    return 0\n`,
+    );
+    const blocks = blocksOf(json);
+    const proto = blocks.find((b) => b.opcode === "procedures_prototype" && b.mutation!.proccode === "twice %s")!;
+    expect(proto.mutation).toMatchObject({ warp: "true", return: "1" });
+    const calls = blocks.filter((b) => b.opcode === "procedures_call");
+    expect(calls.map((b) => [b.mutation!.proccode, b.mutation!.return])).toEqual([
+      ["big %s", "1"],
+      ["twice %s", "1"],
+      ["twice %s", "1"],
+    ]);
+    // `big(...)` sits in the if's condition, and `twice(5)` in big's argument.
+    const ifBlock = blocks.find((b) => b.opcode === "control_if")!;
+    expect(json.targets[1]!.blocks[(ifBlock.inputs.CONDITION as [2, string])[1]]!.opcode).toBe("procedures_call");
+    const returns = blocks.filter((b) => b.opcode === "procedures_return");
+    expect(returns).toHaveLength(3);
+    expect(returns[2]!.inputs.VALUE).toEqual([1, [10, "0"]]);
+  });
+
+  it("rejects a custom reporter used as a statement and a command block used as a value", () => {
+    const defs = `sprite A:\n  define f() -> value:\n    return 1\n  define g():\n    move(1)\n  when flag:\n`;
+    expect(errorOf(`${defs}    f()\n`)).toMatch(/f\(\) reports a value and cannot be used as a statement/);
+    expect(errorOf(`${defs}    log(g())\n`)).toMatch(/returns nothing. Define it with '-> value'/);
+    expect(errorOf(`${defs}    if f():\n      move(1)\n`)).toMatch(/expected a condition/);
+    expect(errorOf(`sprite A:\n  define f() -> number:\n    return 1\n`)).toMatch(/unknown return type 'number'/);
+    expect(errorOf(`sprite A:\n  when flag:\n    return = 1\n`)).toMatch(/expected an expression|reserved/);
+  });
+
   it("fills the touching menu shadow with the target name", () => {
     const json = project(`sprite A:\n  when flag:\n    if touching("_edge_"):\n      move(1)\n`);
     const blocks = blocksOf(json);

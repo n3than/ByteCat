@@ -1,0 +1,1 @@
+Custom reporters are TurboWarp-only: scratch-vm has no procedures_return and never finishes.

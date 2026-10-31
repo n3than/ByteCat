@@ -46,6 +46,11 @@ export class TypeEnv {
     return `p${fn}:${i}`;
   }
 
+  /** Key of what the procedure compiled to the function `fn` returns. */
+  static returnKey(fn: string): string {
+    return `r${fn}`;
+  }
+
   /** The type known so far. Something never recorded has the empty type: no value reaches it. */
   get(key: string): TypeSet {
     return this.current.get(key) ?? 0;
