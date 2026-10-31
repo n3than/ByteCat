@@ -34,14 +34,11 @@ return [
     if (deleteClone(rt, t)) return;
 } },
 { target: 2, kind: "flag", fn: function* (t, th) {
-    let v0 = S.v["var_0"];
-    S.v["var_0"] = v0;
     yield* wait(rt, 0.1);
-    v0 = S.v["var_0"];
     switchCostume(rt, S, "night");
     S.l["list_6"].push((S.costume + 1));
     S.l["list_6"].push(S.costumes[S.costume].name);
-    S.l["list_6"].push(v0);
+    S.l["list_6"].push(S.v["var_0"]);
     S.l["list_6"].push(rt.targets[1].x);
     S.l["list_6"].push(rt.targets[1].y);
     S.l["list_6"].push(rt.targets[1].direction);
@@ -61,16 +58,10 @@ return [
     S.v["var_1"] = "Nobody";
     S.l["list_6"].push(attributeOf(rt, S.v["var_1"], "mood"));
     for (let r0 = Math.round(2); r0 > 0; r0--) {
-      v0 = v0 + 1;
-      S.v["var_0"] = v0;
+      S.v["var_0"] = S.v["var_0"] + 1;
       p2_0(t, th);
-      if (th.warp === 0 && --rt.spin < 0) {
-        S.v["var_0"] = v0;
-        yield;
-        v0 = S.v["var_0"];
-      }
+      if (th.warp === 0 && --rt.spin < 0) yield;
     }
-    S.v["var_0"] = v0;
 } },
 ];
 }

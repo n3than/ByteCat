@@ -52,7 +52,14 @@ const VOLUME = "100";
 function attributeOf(b: Block, g: Gen): Ex {
   const property = g.field(b, "PROPERTY");
   const object = g.menu(b, "OBJECT");
-  if (object.k === undefined) return anyEx(`attributeOf(rt, ${object.c}, ${JSON.stringify(property)})`);
+  if (object.k === undefined) {
+    // It may read a variable of this target or the stage with that name from its storage.
+    for (const owner of [g.target, g.stage]) {
+      const id = variableNamed(owner.variables, property);
+      if (id !== undefined) g.unlocal([property, id]);
+    }
+    return anyEx(`attributeOf(rt, ${object.c}, ${JSON.stringify(property)})`);
+  }
   if (property === "volume") return object.special === "_stage_" || g.sprite(object.k) ? lit(VOLUME) : lit("0");
   if (object.special === "_stage_") {
     if (property === "backdrop #" || property === "background #") return numEx("(S.costume + 1)", NUM);

@@ -33,6 +33,8 @@ export class TargetCodegen implements Gen {
   private hot = new Set<string>();
   /** The ones the function assigns. */
   private assigned = new Set<string>();
+  /** The ones that must stay in storage (`unlocal`). */
+  private cold = new Set<string>();
   /** How many loops the block being compiled is inside, in the current function. */
   private loopDepth = 0;
 
@@ -181,6 +183,7 @@ export class TargetCodegen implements Gen {
     this.refs = [];
     this.hot = new Set();
     this.assigned = new Set();
+    this.cold = new Set();
     this.loopDepth = 0;
     const body = [...compile(), ...end];
     const { refs, assigned } = this;
@@ -193,7 +196,7 @@ export class TargetCodegen implements Gen {
       }
     }
     const locals = new Map<string, string>();
-    for (const ref of refs) if (this.hot.has(ref)) locals.set(ref, `v${locals.size}`);
+    for (const ref of refs) if (this.hot.has(ref) && !this.cold.has(ref)) locals.set(ref, `v${locals.size}`);
     const stored = [...assigned].filter((ref) => locals.has(ref));
     const out = locals.size === 0 ? [] : [`let ${[...locals].map(([ref, local]) => `${local} = ${ref}`).join(", ")};`];
     // A sync callee only needs the variables it reads or writes (it may load a variable into a
@@ -335,6 +338,10 @@ export class TargetCodegen implements Gen {
     if (i < 0) i = this.refs.push(ref) - 1;
     if (this.loopDepth > 0) this.hot.add(ref);
     return `\u0002${i}\u0002`;
+  }
+
+  unlocal(field: FieldRef): void {
+    this.cold.add(this.scope.variable(field));
   }
 
   varType(field: FieldRef): TypeSet {

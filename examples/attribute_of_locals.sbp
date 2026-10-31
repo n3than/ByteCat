@@ -1,0 +1,21 @@
+# [property] of [object] with an object computed at run time reads a variable that a loop or a
+# custom block changes on every pass, so the variable cannot wait in a stale local.
+var score = 0
+var who = "Dog"
+
+sprite Dog:
+  costume c = circle "#885522"
+  var mood = 0
+
+  define bump():
+    repeat 2:
+      mood += 1
+      log(join("p ", attribute_of("mood", who)))
+
+  when flag:
+    repeat 3:
+      mood += 1
+      score += 1
+      log(join(attribute_of("mood", who), join(" ", attribute_of("score", join("_stage", "_")))))
+    bump()
+    log(attribute_of("mood", "Dog"))
