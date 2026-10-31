@@ -15,41 +15,41 @@ below but not counted.
 
 | Extension | Id | Compiled | Partial | Missing |
 | --- | --- | --- | --- | --- |
-| [Motion](#motion) | `motion` | 8 | 10 | 0 |
-| [Looks](#looks) | `looks` | 15 | 2 | 4 |
+| [Motion](#motion) | `motion` | 17 | 1 | 0 |
+| [Looks](#looks) | `looks` | 17 | 0 | 4 |
 | [Sound](#sound) | `sound` | 0 | 0 | 9 |
 | [Events](#event) | `event` | 7 | 0 | 2 |
 | [Control](#control) | `control` | 11 | 0 | 0 |
-| [Sensing](#sensing) | `sensing` | 10 | 0 | 8 |
+| [Sensing](#sensing) | `sensing` | 10 | 1 | 7 |
 | [Operators](#operator) | `operator` | 18 | 0 | 0 |
 | [Variables and lists](#data) | `data` | 15 | 2 | 0 |
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
 | [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **88** | **14** | **32** |
+| **All** | | **99** | **4** | **31** |
 
 <a id="motion"></a>
 
 ## Motion (`motion`)
 
-8 compiled, 10 partial, 5 missing, counting hidden blocks.
+17 compiled, 1 partial, 5 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
-| `motion_movesteps` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
+| `motion_movesteps` | statement | Compiled | yes |  |
 | `motion_turnright` | statement | Compiled | yes |  |
 | `motion_turnleft` | statement | Compiled | yes |  |
-| `motion_goto` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
-| `motion_gotoxy` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
-| `motion_glideto` | statement, waits | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either; a glide to a random position draws its position once, while TurboWarp draws again on every frame (unused), so later `pick random` results under a seeded generator differ |
-| `motion_glidesecstoxy` | statement, waits | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
+| `motion_goto` | statement | Compiled | yes |  |
+| `motion_gotoxy` | statement | Compiled | yes |  |
+| `motion_glideto` | statement, waits | Partial | yes | a glide to a random position draws its position once, while TurboWarp draws again on every frame (unused), so later `pick random` results under a seeded generator differ |
+| `motion_glidesecstoxy` | statement, waits | Compiled | yes |  |
 | `motion_pointindirection` | statement | Compiled | yes |  |
 | `motion_pointtowards` | statement | Compiled | yes |  |
-| `motion_changexby` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
-| `motion_setx` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
-| `motion_changeyby` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
-| `motion_sety` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
-| `motion_ifonedgebounce` | statement | Partial | yes | treats the sprite as a point; TurboWarp uses the costume's bounds |
+| `motion_changexby` | statement | Compiled | yes |  |
+| `motion_setx` | statement | Compiled | yes |  |
+| `motion_changeyby` | statement | Compiled | yes |  |
+| `motion_sety` | statement | Compiled | yes |  |
+| `motion_ifonedgebounce` | statement | Compiled | yes |  |
 | `motion_setrotationstyle` | statement | Compiled | yes |  |
 | `motion_xposition` | reporter | Compiled | yes |  |
 | `motion_yposition` | reporter | Compiled | yes |  |
@@ -67,7 +67,7 @@ below but not counted.
 
 ## Looks (`looks`)
 
-15 compiled, 2 partial, 7 missing, counting hidden blocks.
+17 compiled, 0 partial, 7 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
@@ -80,8 +80,8 @@ below but not counted.
 | `looks_switchbackdropto` | statement | Compiled | yes |  |
 | `looks_switchbackdroptoandwait` | statement | Missing | yes | waits for the scripts its backdrop hat starts |
 | `looks_nextbackdrop` | statement | Compiled | yes |  |
-| `looks_changesizeby` | statement | Partial | yes | only clamps at 5%; TurboWarp clamps by costume and stage size |
-| `looks_setsizeto` | statement | Partial | yes | only clamps at 5%; TurboWarp clamps by costume and stage size |
+| `looks_changesizeby` | statement | Compiled | yes |  |
+| `looks_setsizeto` | statement | Compiled | yes |  |
 | `looks_changeeffectby` | statement | Missing | yes | no effect state or drawing yet |
 | `looks_seteffectto` | statement | Missing | yes | no effect state or drawing yet |
 | `looks_cleargraphiceffects` | statement | Missing | yes | no effect state or drawing yet |
@@ -171,7 +171,7 @@ below but not counted.
 
 ## Sensing (`sensing`)
 
-10 compiled, 0 partial, 11 missing, counting hidden blocks.
+10 compiled, 1 partial, 10 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
@@ -189,7 +189,7 @@ below but not counted.
 | `sensing_loudness` | reporter | Missing | yes | no microphone; should report TurboWarp's value without one |
 | `sensing_timer` | reporter | Compiled | yes |  |
 | `sensing_resettimer` | statement | Compiled | yes |  |
-| `sensing_of` | reporter | Missing | yes | x, direction, costume, size, volume or a variable of another sprite or the stage |
+| `sensing_of` | reporter | Partial | yes | volume is always 100 (no sound yet) |
 | `sensing_current` | reporter | Missing | yes | year, month, date, weekday, hour, minute, second |
 | `sensing_dayssince2000` | reporter | Compiled | yes |  |
 | `sensing_username` | reporter | Compiled | yes |  |
@@ -275,7 +275,7 @@ below but not counted.
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
 | `argument_reporter_string_number` | reporter | Compiled | yes |  |
-| `argument_reporter_boolean` | boolean | Compiled | yes | known fuzzer finding: an empty boolean slot reads as "" instead of false |
+| `argument_reporter_boolean` | boolean | Compiled | yes | outside a custom block, "is compiled?" and "is TurboWarp?" read true; known fuzzer finding: an empty boolean slot reads as "" instead of false |
 
 <a id="pen"></a>
 

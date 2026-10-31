@@ -39,3 +39,35 @@ export function keyPressed(rt: Runtime, key: Value): boolean {
 export function daysSince2000(): number {
   return (Date.now() - Date.UTC(2000, 0, 1)) / 86_400_000;
 }
+
+/**
+ * `[property] of [object]` with an object known only at run time, as TurboWarp's
+ * `getAttributeOf`: `_stage_` or a sprite's original by name, a built-in property or the
+ * variable of that name the object owns, and 0 for anything else. Volume is 100 until sound exists.
+ */
+export function attributeOf(rt: Runtime, object: Value, property: string): Value {
+  const name = ops.toStr(object);
+  const of = object === "_stage_" ? rt.stage : rt.targets.find((x) => !x.isStage && x.name === name);
+  if (!of) return 0;
+  if (of.isStage) {
+    switch (property) {
+      case "background #":
+      case "backdrop #": return of.costume + 1;
+      case "backdrop name": return of.costumes[of.costume]!.name;
+      case "volume": return 100;
+    }
+  } else {
+    switch (property) {
+      case "x position": return of.x;
+      case "y position": return of.y;
+      case "direction": return of.direction;
+      case "costume #": return of.costume + 1;
+      case "costume name": return of.costumes[of.costume]!.name;
+      case "size": return of.size;
+      case "volume": return 100;
+    }
+  }
+  const variables = rt.project.targets[of.index]!.variables;
+  for (const id in variables) if (variables[id]![0] === property && id in of.v) return of.v[id]!;
+  return 0;
+}

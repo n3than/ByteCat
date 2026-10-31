@@ -1,7 +1,7 @@
 // The plain functions in src/lib/, which generated code calls directly.
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it, vi } from "vitest";
-import { BLOCKED, Runtime, SLEEP, WAIT } from "../src/index.js";
+import { BLOCKED, Runtime, SLEEP, turbowarpCompat, WAIT, type RuntimeOptions } from "../src/index.js";
 import { Target } from "../src/target.js";
 import { RUNTIME_MODULES } from "../src/modules.js";
 import { bounce, coord, glide, glideTo, goTo, goToRandom, move, pointAt, pointTowards, setDirection, setXY } from "../src/lib/motion.js";
@@ -33,8 +33,12 @@ const project = {
   ],
 } as unknown as ProjectJson;
 
-function make() {
-  const rt = new Runtime(project, () => [], { clock: "virtual", turbo: true });
+/** Every costume 48 by 48, with its rotation center (0, 0) at the top left corner. */
+const sizes = Object.fromEntries(["a", "b", "c"].map((n) => [`${n}.svg`, { width: 48, height: 48, x: 0, y: 0 }]));
+
+/** The runtime without costume sizes (no geometry, like TurboWarp without a renderer), or with them. */
+function make(costumeSizes?: typeof sizes, options: RuntimeOptions = {}) {
+  const rt = new Runtime(project, () => [], { clock: "virtual", turbo: true, costumeSizes, ...options });
   return { rt, one: rt.targets[1]!, two: rt.targets[2]! };
 }
 
@@ -48,11 +52,71 @@ describe("lib helpers", () => {
     expect(one.direction).toBe(-90);
     setDirection(rt, one, Infinity);
     expect(one.direction).toBe(-90);
+    // Without a geometry nothing is fenced and bounce does nothing.
     setXY(rt, one, 500, -500);
     bounce(rt, one);
-    expect([one.x, one.y]).toEqual([240, -180]);
+    expect([one.x, one.y, one.direction]).toEqual([500, -500, -90]);
     expect(coord(0.1 + 0.2 - 0.3)).toBe(0);
     expect(coord(0.5)).toBe(0.5);
+  });
+
+  it("fences, bounces and clamps the size with a geometry", () => {
+    const { rt, one } = make(sizes);
+    // The costume spans x .. x + 48 and y - 48 .. y: 15 pixels stay on the stage.
+    setXY(rt, one, 1000, 1000);
+    expect([one.x, one.y]).toEqual([225, 213]);
+    setXY(rt, one, -1000, -1000);
+    expect([one.x, one.y]).toEqual([-273, -165]);
+    // Bounce off the left edge: point right, then moved back onto the stage.
+    setXY(rt, one, -250, 0);
+    setDirection(rt, one, -90);
+    bounce(rt, one);
+    expect([one.x, one.y, one.direction]).toEqual([-240, 0, 90]);
+    // Away from every edge nothing happens.
+    setXY(rt, one, 0, 0);
+    bounce(rt, one);
+    expect([one.x, one.y, one.direction]).toEqual([0, 0, 90]);
+    // At most 1.5 stage heights (1125%) for a 48 pixel costume, and no minimum but 0 by default.
+    setSize(rt, one, 1);
+    expect(one.size).toBe(1);
+    setSize(rt, one, -20);
+    expect(one.size).toBe(0);
+    setSize(rt, one, 5000);
+    expect(one.size).toBe(1125);
+    setSize(rt, one, 50);
+    expect(one.size).toBe(50);
+  });
+
+  it("skips the geometry only where the fence would not move the sprite", () => {
+    const { rt, one } = make(sizes);
+    const fence = vi.spyOn(rt.geometry!, "fence");
+    // Well inside: the corners of the 48 pixel costume are at most 68 pixels from its center.
+    setXY(rt, one, 100, -50);
+    expect(fence).not.toHaveBeenCalled();
+    setXY(rt, one, 160, 0);
+    expect(fence).toHaveBeenCalledTimes(1);
+    // Wherever it is skipped, the result is what the fence gives.
+    let seed = 1;
+    const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+    for (let i = 0; i < 5000; i++) {
+      one.size = [100, 3, 250, 1125][i % 4]!;
+      one.direction = random() * 360 - 179;
+      one.rotationStyle = ["all around", "left-right", "don't rotate"][i % 3]!;
+      const x = (random() - 0.5) * 600;
+      const y = (random() - 0.5) * 450;
+      const expected = rt.geometry!.fence(one, x, y);
+      setXY(rt, one, x, y);
+      expect([one.x, one.y]).toEqual(expected);
+    }
+  });
+
+  it("keeps TurboWarp's minimum size with minSize", () => {
+    const { rt, one } = make(sizes, turbowarpCompat);
+    // At least 5 pixels: 10.42% of a 48 pixel costume.
+    setSize(rt, one, 1);
+    expect(one.size).toBeCloseTo(1041.67 / 100, 2);
+    setSize(rt, one, 5000);
+    expect(one.size).toBe(1125);
   });
 
   it("glide and wait yield WAIT until the virtual clock passes", () => {
@@ -208,7 +272,7 @@ describe("lib helpers", () => {
     switchCostume(rt, one, 2);
     expect(costumeName(one)).toBe("b");
     setSize(rt, one, 1);
-    expect(one.size).toBe(5);
+    expect(one.size).toBe(1);
     setVisible(rt, one, false);
     expect(one.visible).toBe(false);
     goToFront(rt, one);

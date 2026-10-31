@@ -195,6 +195,31 @@ describe("custom reporters", () => {
 });
 
 describe("reporter handlers", () => {
+  it("[property] of [object] reads a fixed object directly and a computed one through attributeOf", () => {
+    const of = (object: Ex, property: string, sprites: Record<string, number> = {}) => {
+      const g = { ...stubGen({ OBJECT: object }, { PROPERTY: property }) };
+      g.sprite = (name) => (name in sprites ? { index: sprites[name]!, target: { ...g.target, name, variables: { d1: ["mood", "ok"] } } } : undefined);
+      Object.assign(g, { stage: { ...g.stage, variables: { s1: ["score", 0] } } });
+      return reporters.sensing_of!(block("sensing_of"), g)!.c;
+    };
+    const stage = { ...lit("_stage_"), k: "_stage_" };
+    expect(of(stage, "backdrop name")).toBe("S.costumes[S.costume].name");
+    expect(of(stage, "backdrop #")).toBe("(S.costume + 1)");
+    expect(of(stage, "score")).toBe('t.v["s1"]');
+    expect(of(stage, "x position")).toBe('"0"');
+    expect(of(lit("Dog"), "x position", { Dog: 2 })).toBe("rt.targets[2].x");
+    expect(of(lit("Dog"), "mood", { Dog: 2 })).toBe('rt.targets[2].v["d1"]');
+    expect(of(lit("Dog"), "x position")).toBe('"0"');
+    expect(of(anyEx("v"), "mood")).toBe('attributeOf(rt, v, "mood")');
+  });
+
+  it('"is compiled?" and "is TurboWarp?" read true outside a custom block, like TurboWarp\'s compiler', () => {
+    const arg = (name: string) => reporters.argument_reporter_boolean!(block("argument_reporter_boolean"), stubGen({}, { VALUE: name }))!.c;
+    expect(arg("is compiled?")).toBe("true");
+    expect(arg("Is TurboWarp?")).toBe("true");
+    expect(arg("is scratch?")).toBe("false");
+  });
+
   it("counter reads the runtime's counter, typed like TurboWarp's non-negative integer", () => {
     const counter = reporters.control_get_counter!(block("control_get_counter"), stubGen())!;
     expect(counter.c).toBe("rt.counter");

@@ -63,7 +63,7 @@ sprite Player:          # a sprite; use quotes for names with spaces: sprite "Bi
 | --- | --- |
 | `var NAME = LITERAL` | Variable. In a sprite it is local ("for this sprite only"); in `stage:` or at top level it is global. `= LITERAL` is optional and defaults to `0`. |
 | `list NAME` / `list NAME = [LIT, ...]` | List, local or global by the same rule. |
-| `costume NAME` | Sprite costume drawn as a built-in shape named `NAME` (`circle`, `square` or `triangle`). |
+| `costume NAME` | Sprite costume drawn as a built-in shape named `NAME`: `circle`, `square` or `triangle` (48 by 48, rotation center in the middle), or `bar` (96 by 24, rotation center 24, 12). |
 | `costume NAME = SHAPE "COLOR"` | Costume called `NAME` using `SHAPE`, with an optional CSS color. The first costume is the starting one. |
 | `backdrop NAME "COLOR"` | Stage only: a solid-color 480x360 backdrop. |
 | `position X, Y` | Sprite only: starting position (default `0, 0`). |
@@ -262,6 +262,7 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `mouse_down()` | <mouse down?> (boolean) | `sensing_mousedown` | any |
 | `key_pressed(key_option)` | <key (name) pressed?> (boolean) | `sensing_keypressed` | any |
 | `touching(touchingobjectmenu)` | <touching (sprite name, `_edge_` or `_mouse_`)?> (boolean) | `sensing_touchingobject` | sprite |
+| `attribute_of(property, object)` | [property] of (sprite name or `_stage_`): `"x position"`, `"backdrop name"`, a variable name, ... | `sensing_of` | any |
 | `days_since_2000()` | days since 2000 | `sensing_dayssince2000` | any |
 | `username()` | username | `sensing_username` | any |
 
@@ -358,10 +359,13 @@ After that it compares the `log` with `NAME.expected` and checks every probe. A 
 `.input` file must end itself (for example with `stop("all")`) once it has received the input; the
 node-only test suites skip these examples because they would wait for input forever.
 
-The headless reference VM has no renderer, so anything that needs one (size limits, touching,
-pen, costume bounds) does not behave like the real editor there. Keep those out of `.expected`
-checks, and check them with the browser oracle instead (`tests/oracle/`, see
-[testing.md](testing.md#the-browser-oracle)).
+Headless, the reference VMs get a stand-in renderer and Bytecat measures the costumes, so
+fencing, the size limits and `bounce()` work there as in the editor, except that the bounds of a
+visible sprite are its costume's box rather than its drawn pixels
+([deviations.md](deviations.md#headless-geometry)). Keep touching and pen out of `.expected`
+checks. A log that depends on where a visible sprite bounces holds the headless result (as in
+`examples/boids`); the browser oracle checks those against TurboWarp with its renderer
+(`tests/oracle/`, see [testing.md](testing.md#the-browser-oracle)).
 
 ## Errors
 
@@ -379,5 +383,5 @@ Unknown builtins suggest the closest name (`mvoe` → `move`).
 
 Sounds, pen, extensions, sensing that needs a renderer (`touching`, `distance to`,
 colors), graphic effects, layers beyond `go_to_front()`, `when backdrop switches`, `when timer >`,
-variable and list monitors, comments, and sprite-to-sprite property access (`[x position] of [Cat]`).
+variable and list monitors, and comments.
 New blocks are added in `packages/pseudo/src/builtins.ts`; see `AGENTS.md`.

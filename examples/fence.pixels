@@ -1,0 +1,12 @@
+// X Y #rrggbb, in Scratch stage coordinates
+// the backdrop where no sprite is left
+0 0 #224488
+200 0 #224488
+// Box glided to x 1000 and stopped at 249: the left 15 pixels of the square stay on the stage
+233 0 #ff0000
+// Bar (rotation center 24 pixels from its left end) at x -300, y -180: a 12 by 12 corner shows
+-236 -176 #00cc00
+-220 -176 #224488
+// Ball at 150% sent to y 1000 and stopped at 201: the bottom of the circle shows
+0 176 #ffff00
+0 160 #224488

@@ -1,0 +1,18 @@
+bar right 252
+bar left -300
+bar up top 192
+bar up bottom -240
+bar 30 247 191
+bar flipped right 300
+bar flipped left -252
+bar don't rotate -300 -180
+box goto 249 189
+box goto -249 -189
+box set x, change y 249 189
+box change x, set y -249 -189
+box move 258 198
+box 250% 0 -249
+box 20% -240 0
+ball move -274 214
+ball top 201
+box glide 249 0
