@@ -1,10 +1,11 @@
 // The plain functions in src/lib/, which generated code calls directly.
 import type { ProjectJson } from "@bytecat/sb3";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BLOCKED, Runtime, SLEEP, WAIT } from "../src/index.js";
+import { Target } from "../src/target.js";
 import { RUNTIME_MODULES } from "../src/modules.js";
-import { bounce, coord, glide, move, setDirection, setXY } from "../src/lib/motion.js";
-import { costumeName, goToFront, nextCostume, say, setSize, setVisible, switchCostume } from "../src/lib/looks.js";
+import { bounce, coord, glide, glideTo, goTo, goToRandom, move, pointAt, pointTowards, setDirection, setXY } from "../src/lib/motion.js";
+import { costumeName, goToBack, goToFront, moveLayers, nextCostume, say, setSize, setVisible, switchCostume } from "../src/lib/looks.js";
 import { ask, keyPressed } from "../src/lib/sensing.js";
 import { wait } from "../src/lib/control.js";
 
@@ -62,6 +63,134 @@ describe("lib helpers", () => {
     const w = wait(rt, 0);
     expect(w.next().value).toBe(WAIT);
     expect(w.next().done).toBe(true);
+  });
+
+  describe("go to, glide to and point towards", () => {
+    it("go to a sprite, the mouse or a random position; an unknown name does nothing", () => {
+      const { rt, one, two } = make();
+      setXY(rt, two, 30, -40);
+      goTo(rt, one, "Two");
+      expect([one.x, one.y]).toEqual([30, -40]);
+      rt.mouse.x = 7;
+      rt.mouse.y = -8;
+      goTo(rt, one, "_mouse_");
+      expect([one.x, one.y]).toEqual([7, -8]);
+      goTo(rt, one, "Nobody");
+      goTo(rt, one, "Stage");
+      goTo(rt, one, "_edge_");
+      expect([one.x, one.y]).toEqual([7, -8]);
+      goTo(rt, one, 3);
+      expect([one.x, one.y]).toEqual([7, -8]);
+    });
+
+    it("a random position is rounded to the stage, x drawn before y", () => {
+      const { rt, one } = make();
+      const draws = [0, 1, 0.5, 0.25];
+      const random = vi.spyOn(Math, "random").mockImplementation(() => draws.shift()!);
+      goToRandom(rt, one);
+      expect([one.x, one.y]).toEqual([-240, 180]);
+      goTo(rt, one, "_random_");
+      expect([one.x, one.y]).toEqual([0, -90]);
+      random.mockRestore();
+    });
+
+    it("glide to takes its place when it starts, and an unknown name does not yield", () => {
+      const { rt, one, two } = make();
+      setXY(rt, two, 10, 20);
+      const g = glideTo(rt, one, 0, "Two");
+      expect(g.next().done).toBe(true);
+      expect([one.x, one.y]).toEqual([10, 20]);
+      setXY(rt, one, 0, 0);
+      expect(glideTo(rt, one, 5, "Nobody").next().done).toBe(true);
+      expect([one.x, one.y]).toEqual([0, 0]);
+      expect(glideTo(rt, one, 5, "Two").next().value).toBe(WAIT);
+    });
+
+    it("point towards turns to face the place", () => {
+      const { rt, one, two } = make();
+      setXY(rt, two, 0, 10);
+      pointTowards(rt, one, "Two");
+      expect(one.direction).toBe(0);
+      pointAt(rt, one, 10, 0);
+      expect(one.direction).toBe(90);
+      pointAt(rt, one, 0, -10);
+      expect(one.direction).toBe(180);
+      pointTowards(rt, one, "Nobody");
+      expect(one.direction).toBe(180);
+      rt.mouse.x = -5;
+      rt.mouse.y = 0;
+      pointTowards(rt, one, "_mouse_");
+      expect(one.direction).toBe(-90);
+      const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+      pointTowards(rt, one, "_random_");
+      expect(one.direction).toBe(0);
+      random.mockRestore();
+    });
+  });
+
+  describe("layers", () => {
+    // The stage, then One, Two and Three from the back to the front.
+    const three = () => {
+      const { rt, one, two } = make();
+      const clone = new Target(one);
+      rt.addClone(clone, one);
+      return { rt, one, two, clone };
+    };
+    const order = (rt: Runtime) => [...rt.targets].sort((a, b) => a.layer - b.layer).map((t) => (t.isStage ? "S" : t.isOriginal ? t.name : `${t.name}'`));
+
+    it("moves forward and backward by n layers and stops at the ends", () => {
+      const { rt, one, two, clone } = three();
+      // A clone is just behind its parent.
+      expect(order(rt)).toEqual(["S", "One'", "One", "Two"]);
+      moveLayers(rt, one, 1);
+      expect(order(rt)).toEqual(["S", "One'", "Two", "One"]);
+      moveLayers(rt, one, -2);
+      expect(order(rt)).toEqual(["S", "One", "One'", "Two"]);
+      moveLayers(rt, clone, 10);
+      expect(order(rt)).toEqual(["S", "One", "Two", "One'"]);
+      moveLayers(rt, two, -10);
+      expect(order(rt)).toEqual(["S", "Two", "One", "One'"]);
+      moveLayers(rt, two, Infinity);
+      expect(order(rt)).toEqual(["S", "One", "One'", "Two"]);
+      moveLayers(rt, two, -Infinity);
+      expect(order(rt)).toEqual(["S", "Two", "One", "One'"]);
+      // Going forward by a negative number goes backward, and 0 or a fraction below 1 stays.
+      moveLayers(rt, one, -1);
+      expect(order(rt)).toEqual(["S", "One", "Two", "One'"]);
+      moveLayers(rt, one, 0);
+      expect(order(rt)).toEqual(["S", "One", "Two", "One'"]);
+      expect(rt.stage.layer).toBe(0);
+    });
+
+    it("go to back stays in front of the stage, go to front goes past everything", () => {
+      const { rt, one, two } = three();
+      goToBack(rt, two);
+      expect(order(rt)).toEqual(["S", "Two", "One'", "One"]);
+      goToFront(rt, two);
+      expect(order(rt)).toEqual(["S", "One'", "One", "Two"]);
+      goToFront(rt, one);
+      expect(order(rt)).toEqual(["S", "One'", "Two", "One"]);
+      // Distinct layers, renumbered by a move.
+      moveLayers(rt, one, -1);
+      expect(rt.targets.map((t) => t.layer).sort()).toEqual([0, 1, 2, 3]);
+    });
+
+    it("the stage never moves", () => {
+      const { rt } = three();
+      const before = order(rt);
+      goToFront(rt, rt.stage);
+      goToBack(rt, rt.stage);
+      moveLayers(rt, rt.stage, 2);
+      expect(order(rt)).toEqual(before);
+    });
+
+    it("never redraws", () => {
+      const { rt, one, two } = three();
+      rt.redraw = false;
+      moveLayers(rt, one, 1);
+      goToBack(rt, two);
+      expect(rt.redraw).toBe(false);
+    });
   });
 
   it("looks", () => {

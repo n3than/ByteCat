@@ -182,7 +182,10 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `turn_right(degrees)` | turn right (degrees) | `motion_turnright` | sprite |
 | `turn_left(degrees)` | turn left (degrees) | `motion_turnleft` | sprite |
 | `goto(x, y)` | go to x: (x) y: (y) | `motion_gotoxy` | sprite |
+| `goto(to)` | go to (`_random_`, `_mouse_` or a sprite name) | `motion_goto` | sprite |
 | `glide(secs, x, y)` | glide (secs) secs to x: (x) y: (y) | `motion_glidesecstoxy` | sprite |
+| `glide(secs, to)` | glide (secs) secs to (`_random_`, `_mouse_` or a sprite name) | `motion_glideto` | sprite |
+| `point_towards(towards)` | point towards (`_mouse_` or a sprite name) | `motion_pointtowards` | sprite |
 | `point(direction)` | point in direction (degrees) | `motion_pointindirection` | sprite |
 | `change_x(dx)` | change x by (n) | `motion_changexby` | sprite |
 | `set_x(x)` | set x to (n) | `motion_setx` | sprite |
@@ -203,6 +206,9 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `show()` | show | `looks_show` | sprite |
 | `hide()` | hide | `looks_hide` | sprite |
 | `go_to_front()` | go to front layer | `looks_gotofrontback` | sprite |
+| `go_to_back()` | go to back layer | `looks_gotofrontback` | sprite |
+| `go_forward(num)` | go forward (n) layers | `looks_goforwardbackwardlayers` | sprite |
+| `go_backward(num)` | go backward (n) layers | `looks_goforwardbackwardlayers` | sprite |
 | `broadcast(broadcast_input)` | broadcast (message) | `event_broadcast` | any |
 | `broadcast_wait(broadcast_input)` | broadcast (message) and wait | `event_broadcastandwait` | any |
 | `wait(duration)` | wait (secs) seconds | `control_wait` | any |

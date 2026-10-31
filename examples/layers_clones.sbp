@@ -1,0 +1,40 @@
+# Layers with clones: a clone starts just behind its parent, then moves like any sprite. The order is
+# read through who hears a broadcast first (the top layer), and a clone with its own variable "k".
+var order = ""
+
+stage:
+  when receive "order":
+    log(join("order: ", order))
+
+sprite A:
+  costume c = circle "#ff0000"
+  var k = 0
+  when receive "order":
+    order = join(order, join("A", k))
+
+sprite B:
+  costume c = circle "#00ff00"
+  var k = 0
+  when receive "order":
+    order = join(order, join("B", k))
+
+  when cloned:
+    k = 1
+    go_forward(1)
+    broadcast_wait("order")
+    order = ""
+    go_to_back()
+    broadcast_wait("order")
+    order = ""
+    go_to_front()
+    broadcast_wait("order")
+    order = ""
+    delete_clone()
+
+  when flag:
+    broadcast_wait("order")
+    order = ""
+    create_clone()
+    wait(0.2)
+    broadcast_wait("order")
+    stop("all")

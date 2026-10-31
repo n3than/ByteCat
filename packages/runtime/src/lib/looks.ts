@@ -86,10 +86,34 @@ export function setVisible(rt: Runtime, t: Target, visible: boolean): void {
 }
 
 export function goToFront(rt: Runtime, t: Target): void {
+  if (t.isStage) return;
   const top = Math.max(...rt.targets.map((x) => x.layer));
   if (t.layer !== top) {
     t.layer = top + 1;
     rt.layersChanged();
   }
   // No redraw: TurboWarp's layer changes never request one, so they do not end a frame.
+}
+
+/** "go to back layer": behind every sprite, in front of the stage. */
+export function goToBack(rt: Runtime, t: Target): void {
+  moveLayers(rt, t, -Infinity);
+}
+
+/**
+ * "go forward (n) layers" (a negative n goes backward): the sprite swaps places with the n targets
+ * in its way, stopping in front of the stage at the back and at the front layer at the top, as
+ * TurboWarp's `moveExecutable` does. The layers are renumbered to stay distinct (see `Target.all`).
+ */
+export function moveLayers(rt: Runtime, t: Target, delta: number): void {
+  if (t.isStage) return;
+  const order = [...rt.targets].sort((a, b) => a.layer - b.layer);
+  const old = order.indexOf(t);
+  order.splice(old, 1);
+  // The stage is always the first, and no sprite goes behind it.
+  const to = Math.min(Math.max(Math.trunc(old + delta), 1), order.length);
+  if (to === old) return;
+  order.splice(to, 0, t);
+  order.forEach((x, i) => (x.layer = i));
+  rt.layersChanged();
 }

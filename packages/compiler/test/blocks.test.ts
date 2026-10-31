@@ -55,9 +55,47 @@ describe("statement handlers", () => {
     ]);
   });
 
-  it("go to back is unsupported, front is not", () => {
-    expect(statements.looks_gotofrontback!(block("looks_gotofrontback"), stubGen({}, { FRONT_BACK: "front" }))).toEqual(["goToFront(rt, t);"]);
-    expect(statements.looks_gotofrontback!(block("looks_gotofrontback"), stubGen({}, { FRONT_BACK: "back" }))).toBeUndefined();
+  it("go to front and back call the layer functions", () => {
+    const go = (option: string) => statements.looks_gotofrontback!(block("looks_gotofrontback"), stubGen({}, { FRONT_BACK: option }));
+    expect(go("front")).toEqual(["goToFront(rt, t);"]);
+    expect(go("back")).toEqual(["goToBack(rt, t);"]);
+  });
+
+  it("go forward and backward n layers negate the number for backward", () => {
+    const go = (dir: string, n: Ex) =>
+      statements.looks_goforwardbackwardlayers!(block("looks_goforwardbackwardlayers"), stubGen({ NUM: n }, { FORWARD_BACKWARD: dir }));
+    expect(go("forward", lit("3"))).toEqual(["moveLayers(rt, t, 3);"]);
+    expect(go("backward", lit("3"))).toEqual(["moveLayers(rt, t, -3);"]);
+    expect(go("backward", numEx("n", NUM))).toEqual(["moveLayers(rt, t, -(n));"]);
+  });
+
+  it("go to emits the mouse and random positions inline and resolves anything else when it runs", () => {
+    const goto = (to: Ex) => statements.motion_goto!(block("motion_goto"), stubGen({ TO: to }));
+    expect(goto(lit("_mouse_"))).toEqual(["setXY(rt, t, rt.mouse.x, rt.mouse.y);"]);
+    expect(goto(lit("_random_"))).toEqual(["goToRandom(rt, t);"]);
+    expect(goto(lit("Dog"))).toEqual(['goTo(rt, t, "Dog");']);
+    expect(goto(anyEx("v"))).toEqual(["goTo(rt, t, v);"]);
+  });
+
+  it("glide to yields, with the same split between fixed and run-time menus", () => {
+    const glideto = (to: Ex) => {
+      const g = stubGen({ SECS: lit("2"), TO: to });
+      const lines = statements.motion_glideto!(block("motion_glideto"), g);
+      expect(g.yielded).toBe(true);
+      return lines;
+    };
+    expect(glideto(lit("_mouse_"))).toEqual(["yield* glide(rt, t, 2, rt.mouse.x, rt.mouse.y);"]);
+    expect(glideto(lit("_random_"))).toEqual(["yield* glideToRandom(rt, t, 2);"]);
+    expect(glideto(lit("Dog"))).toEqual(['yield* glideTo(rt, t, 2, "Dog");']);
+    expect(glideto(anyEx("v"))).toEqual(["yield* glideTo(rt, t, 2, v);"]);
+  });
+
+  it("point towards emits the mouse inline and resolves anything else when it runs", () => {
+    const point = (to: Ex) => statements.motion_pointtowards!(block("motion_pointtowards"), stubGen({ TOWARDS: to }));
+    expect(point(lit("_mouse_"))).toEqual(["pointAt(rt, t, rt.mouse.x, rt.mouse.y);"]);
+    expect(point(lit("_random_"))).toEqual(['pointTowards(rt, t, "_random_");']);
+    expect(point(lit("Dog"))).toEqual(['pointTowards(rt, t, "Dog");']);
+    expect(point(anyEx("v"))).toEqual(["pointTowards(rt, t, v);"]);
   });
 
   it("stop options", () => {
