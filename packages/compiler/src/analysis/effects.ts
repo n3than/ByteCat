@@ -34,6 +34,11 @@ export function analyzeEffects(
   blocks: Record<string, Block>,
   table: ProcedureTable,
   variable: (field: FieldRef) => string,
+  /**
+   * The variables `[x] of [object]` may read for a property that names a variable: every one with
+   * that name the target or the stage owns. More than it reads, which only stores more locals.
+   */
+  named: (name: string) => string[] = () => [],
 ): Map<string, Effects> {
   const direct = new Map<string, Effects & { calls: Set<string> }>();
   for (const { proccode, definition } of table.defs) {
@@ -46,6 +51,7 @@ export function analyzeEffects(
         if (!b) return;
         if (READS.has(b.opcode)) e.reads.add(variable(b.fields.VARIABLE));
         if (ASSIGNS.has(b.opcode)) e.writes.add(variable(b.fields.VARIABLE));
+        if (b.opcode === "sensing_of") for (const ref of named(String(b.fields.PROPERTY?.[0] ?? ""))) e.reads.add(ref);
         if (STOPS.has(b.opcode) || (b.opcode === "control_stop" && b.fields.STOP_OPTION?.[0] === "all")) e.stops = true;
         if (b.opcode === "procedures_call" && b.mutation?.proccode) e.calls.add(b.mutation.proccode);
         for (const input of Object.values(b.inputs)) {
