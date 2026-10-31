@@ -1,4 +1,4 @@
-import { POS_INT, ZERO } from "../analysis/typeset.js";
+import { POS_INT, typeOfValue, ZERO } from "../analysis/typeset.js";
 import { asAny, notCode, numEx, unindent } from "../cast.js";
 import { hat, menu, reporter, statement, type Extension } from "./api.js";
 
@@ -44,7 +44,12 @@ export const control: Extension = {
         const option = g.field(b, "STOP_OPTION");
         if (option === "all") return [g.store(), "throw STOP_ALL;"];
         // In Scratch 3, "stop this script" inside a custom block returns from that block only.
-        if (option === "this script") return [g.store(), "return;"];
+        // A custom reporter called this way reports "" (TurboWarp's `stopScript`).
+        if (option === "this script") {
+          if (!g.procedure?.reporter) return [g.store(), "return;"];
+          g.noteReturn(typeOfValue(""));
+          return [g.store(), 'return "";'];
+        }
         return ["stopOthers(rt, t, th);"];
       },
       { uses: ["STOP_ALL", "stopOthers"] },

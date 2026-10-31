@@ -42,5 +42,22 @@ function statementYields(ctx: YieldContext, b: Block): boolean {
     const v = b.inputs[name]?.[1];
     if (typeof v === "string" && stackYields(ctx, v)) return true;
   }
+  return inputsYield(ctx, b, spec.substacks ?? []);
+}
+
+/**
+ * True when an input of `b` (other than its substacks), or an input of a reporter in it, holds an
+ * expression that can yield: a custom reporter call whose `yields` rule says so.
+ */
+function inputsYield(ctx: YieldContext, b: Block, skip: readonly string[]): boolean {
+  for (const [name, input] of Object.entries(b.inputs)) {
+    if (skip.includes(name)) continue;
+    const v = input[1] ?? (input.length > 2 ? input[2] : null);
+    const r = typeof v === "string" ? ctx.blocks[v] : undefined;
+    if (!r) continue;
+    const spec = ctx.registry.statement(r.opcode);
+    if (spec?.reporter && typeof spec.yields === "function" && spec.yields(r, ctx)) return true;
+    if (inputsYield(ctx, r, [])) return true;
+  }
   return false;
 }

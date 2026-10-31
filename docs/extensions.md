@@ -78,6 +78,9 @@ A statement also declares how it can yield, which is all `analysis/yields.ts` kn
 - a function `(block, ctx) => boolean`, for a block whose answer depends on the project; only
   `procedures_call` needs one (a call yields when its callee can).
 - `substacks`: the substack inputs it runs, which the analysis follows.
+- `reporter`: the statement's form as an expression, for a statement that can also sit in an
+  input. Only `procedures_call` has one (TurboWarp custom reporters); the analysis asks its
+  `yields` function about a call in any input too.
 
 A test runs every handler against the stub and fails if it yields when its spec says it cannot,
 or the other way round, or compiles a substack it does not declare. That is what lets a

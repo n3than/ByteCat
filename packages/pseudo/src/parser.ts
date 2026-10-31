@@ -7,7 +7,7 @@ import { tokenize, type Token, type TokenKind } from "./lexer.js";
 /** Words that cannot be used as variable, list or parameter names. */
 export const RESERVED = new Set([
   "if", "elif", "else", "repeat", "until", "while", "forever", "for", "to",
-  "and", "or", "not", "true", "false",
+  "and", "or", "not", "true", "false", "return",
 ]);
 
 export function parse(source: string, file?: string): ProgramNode {
@@ -248,7 +248,13 @@ class Parser {
       if (!this.accept("op", ",")) break;
     }
     this.expect("op", ")");
-    return { kind: "define", name, params, warp, body: this.statements(), pos: kw.pos };
+    let returns: "value" | "bool" | undefined;
+    if (this.accept("op", "->")) {
+      const type = this.expect("ident", undefined, "a return type (value or bool)");
+      if (type.value !== "value" && type.value !== "bool") throw this.error(`unknown return type '${type.value}', expected value or bool`, type.pos);
+      returns = type.value;
+    }
+    return { kind: "define", name, params, warp, ...(returns ? { returns } : {}), body: this.statements(), pos: kw.pos };
   }
 
   // ---- statements ----
@@ -293,6 +299,12 @@ class Parser {
         this.expect("ident", "to", "'to'");
         const to = this.expr();
         return { kind: "for", variable, from, to, body: this.statements(), pos: t.pos };
+      }
+      case "return": {
+        this.next();
+        const value = this.expr();
+        this.endLine();
+        return { kind: "return", value, pos: t.pos };
       }
       case "elif":
       case "else":

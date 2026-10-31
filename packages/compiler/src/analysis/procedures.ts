@@ -1,4 +1,5 @@
 import type { Block, Target } from "@bytecat/sb3";
+import { builtins } from "../extensions/index.js";
 import type { ExtensionRegistry } from "../extensions/registry.js";
 import type { Proc } from "../types.js";
 import { stackYields } from "./yields.js";
@@ -10,8 +11,11 @@ export interface ProcedureTable {
   defs: { proc: Proc; proccode: string; definition: Block }[];
 }
 
-/** Finds the custom blocks a target defines. Every procedure starts out sync. */
-export function collectProcedures(target: Target, index: number): ProcedureTable {
+/**
+ * Finds the custom blocks a target defines. Every procedure starts out sync, and is a reporter
+ * when a call to it sits in an input of another block.
+ */
+export function collectProcedures(target: Target, index: number, registry: ExtensionRegistry = builtins): ProcedureTable {
   const procs = new Map<string, Proc>();
   let n = 0;
   for (const block of Object.values(target.blocks)) {
@@ -23,7 +27,18 @@ export function collectProcedures(target: Target, index: number): ProcedureTable
       params: names,
       warp: block.mutation.warp === "true" || (block.mutation.warp as unknown) === true,
       sync: true,
+      reporter: false,
     });
+  }
+  for (const block of Object.values(target.blocks)) {
+    const substacks = registry.statement(block.opcode)?.substacks ?? [];
+    for (const [name, input] of Object.entries(block.inputs)) {
+      if (substacks.includes(name)) continue;
+      const v = input[1];
+      const call = typeof v === "string" ? target.blocks[v] : undefined;
+      const proc = call?.opcode === "procedures_call" ? procs.get(call.mutation?.proccode ?? "") : undefined;
+      if (proc) proc.reporter = true;
+    }
   }
   const defs: ProcedureTable["defs"] = [];
   for (const block of Object.values(target.blocks)) {

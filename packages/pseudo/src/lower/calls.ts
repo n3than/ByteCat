@@ -20,6 +20,9 @@ export function callStatement(b: TargetBuilder, stmt: Extract<Stmt, { kind: "cal
     return [id, id];
   }
   const proc = b.procedures.get(stmt.callee);
+  if (proc?.returns) {
+    throw b.error(`${stmt.callee}() reports a value and cannot be used as a statement. Use it in an expression, like log(${stmt.callee}(...))`, stmt.pos);
+  }
   if (proc) return callProcedure(b, proc, stmt, parent);
   if (REPORTERS[stmt.callee]) {
     throw b.error(`${stmt.callee}() is a reporter and cannot be used as a statement`, stmt.pos);
@@ -36,8 +39,13 @@ export function callStatement(b: TargetBuilder, stmt: Extract<Stmt, { kind: "cal
 
 /** Lowers a call used as a value: `join` or a builtin reporter. */
 export function callReporter(b: TargetBuilder, expr: Extract<Expr, { kind: "call" }>, parent: string): Value {
-  if (b.procedures.has(expr.callee)) {
-    throw b.error(`${expr.callee}() is a procedure and returns nothing. Store results in a variable instead`, expr.pos);
+  const proc = b.procedures.get(expr.callee);
+  if (proc?.returns) return { kind: "block", id: callProcedure(b, proc, expr, parent)[0], bool: proc.returns === "bool" };
+  if (proc) {
+    throw b.error(
+      `${expr.callee}() is a procedure and returns nothing. Define it with '-> value' to return a value, or store results in a variable`,
+      expr.pos,
+    );
   }
   if (expr.callee === "join") return join(b, expr.args, parent, expr.pos);
   if (STATEMENTS[expr.callee] || expr.callee === "log") {

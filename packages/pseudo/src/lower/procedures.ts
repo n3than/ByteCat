@@ -1,4 +1,5 @@
-import type { ScriptNode, Stmt } from "../ast.js";
+import type { Expr, ScriptNode, Stmt } from "../ast.js";
+import type { SourcePos } from "../errors.js";
 import { REPORTERS, STATEMENTS } from "../builtins.js";
 import type { TargetBuilder } from "../lower.js";
 import type { Procedure } from "./types.js";
@@ -15,6 +16,7 @@ export function registerProcedure(b: TargetBuilder, def: Extract<ScriptNode, { k
     argumentIds: def.params.map(() => b.scope.ids.id("arg")),
     params: def.params,
     warp: def.warp,
+    ...(def.returns ? { returns: def.returns } : {}),
   });
 }
 
@@ -37,13 +39,14 @@ export function defineHat(b: TargetBuilder, script: Extract<ScriptNode, { kind: 
     argumentnames: JSON.stringify(proc.params.map((p) => p.name)),
     argumentdefaults: JSON.stringify(proc.params.map((p) => (p.boolean ? "false" : ""))),
     warp: String(proc.warp),
+    ...(proc.returns ? { return: "1" } : {}),
   };
   b.params = proc.params;
   return hat;
 }
 
-/** Lowers a call to a user-defined procedure. */
-export function callProcedure(b: TargetBuilder, proc: Procedure, stmt: Extract<Stmt, { kind: "call" }>, parent: string): [string, string] {
+/** Lowers a call to a user-defined procedure, as a statement or (for a custom reporter) in an input. */
+export function callProcedure(b: TargetBuilder, proc: Procedure, stmt: { args: Expr[]; pos: SourcePos }, parent: string): [string, string] {
   if (stmt.args.length !== proc.params.length) {
     throw b.error(`${proc.name}() takes ${proc.params.length} argument(s), got ${stmt.args.length}`, stmt.pos);
   }
@@ -54,10 +57,18 @@ export function callProcedure(b: TargetBuilder, proc: Procedure, stmt: Extract<S
     proccode: proc.proccode,
     argumentids: JSON.stringify(proc.argumentIds),
     warp: String(proc.warp),
+    ...(proc.returns ? { return: "1" } : {}),
   };
   proc.params.forEach((p, i) => {
     if (p.boolean) b.boolInput(id, proc.argumentIds[i]!, stmt.args[i]!);
     else b.valueInput(id, proc.argumentIds[i]!, 10, "", stmt.args[i]!);
   });
+  return [id, id];
+}
+
+/** Lowers `return expr`: TurboWarp's return block, which leaves a custom block with a value. */
+export function returnStatement(b: TargetBuilder, stmt: Extract<Stmt, { kind: "return" }>, parent: string): [string, string] {
+  const id = b.block("procedures_return", parent, stmt.pos);
+  b.valueInput(id, "VALUE", 10, "", stmt.value);
   return [id, id];
 }

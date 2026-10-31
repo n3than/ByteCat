@@ -58,3 +58,23 @@ export function deleteClone(rt: Runtime, t: Target): boolean {
   rt.removeClone(t);
   return true;
 }
+
+/**
+ * A direct recursive call of a custom reporter outside warp mode. Its arguments are already
+ * evaluated in `call`, a generator that has not started; the thread yields unless it is in warp
+ * mode, then the call runs. TurboWarp's `yieldThenCallGenerator`.
+ */
+export function* yieldThenCall<T>(th: Thread, call: Generator<unknown, T, unknown>): Generator<unknown, T, unknown> {
+  if (th.warp === 0) yield;
+  return yield* call;
+}
+
+/** A call of a warp custom reporter that may yield: it runs in warp mode, so its loops never yield. */
+export function* callInWarp<T>(th: Thread, call: Generator<unknown, T, unknown>): Generator<unknown, T, unknown> {
+  th.warp++;
+  try {
+    return yield* call;
+  } finally {
+    th.warp--;
+  }
+}

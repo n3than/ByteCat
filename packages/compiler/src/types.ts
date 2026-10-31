@@ -33,6 +33,11 @@ export interface Proc {
   warp: boolean;
   /** True when the body can never yield, so it compiles to a plain function instead of a generator. */
   sync: boolean;
+  /**
+   * True when some call to it sits in an input (a TurboWarp custom reporter), so its value is
+   * used: every way out of the body returns a value, `""` when no `return` block runs.
+   */
+  reporter: boolean;
 }
 
 /** Runtime functions a program imports from one module. */
@@ -105,6 +110,17 @@ export interface Gen {
   paramType(name: string): TypeSet;
   /** Records the types of the arguments passed in a call. */
   noteCall(proc: Proc, args: TypeSet[]): void;
+  /** Records a value of this type returned from the current procedure (`procedures_return`, or `""` on another way out). */
+  noteReturn(type: TypeSet): void;
+  /** Every type a call to the procedure can report. */
+  returnType(proc: Proc): TypeSet;
+  /**
+   * A call used as an expression, `code` being the whole call. The cached variables the callee
+   * can see are stored before it and the ones it may change reloaded after it (`store` and
+   * `load` for an expression); with nothing to store or reload, the call is left as it is. A
+   * sync callee only needs its own variables; any other call may yield, so it needs every one.
+   */
+  callExpr(code: string, proc: Proc): string;
   /** The custom block with this proccode, if the target defines it. */
   proc(proccode: string | undefined): Proc | undefined;
   /** Compiles the stack starting at a block id. */

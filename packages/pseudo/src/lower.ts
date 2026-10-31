@@ -11,7 +11,7 @@ import { controlStatement } from "./lower/control.js";
 import { assign, itemOf, listField, listMember, listMethod, setItem } from "./lower/data.js";
 import { whenHat } from "./lower/events.js";
 import { binary, unary } from "./lower/operators.js";
-import { defineHat, registerProcedure } from "./lower/procedures.js";
+import { defineHat, registerProcedure, returnStatement } from "./lower/procedures.js";
 import type { Procedure, Symbol, Value } from "./lower/types.js";
 
 // Lowering is split by block family. This file is the core: the project and target scopes,
@@ -298,6 +298,8 @@ export class TargetBuilder {
         return listMethod(this, stmt, parent);
       case "call":
         return callStatement(this, stmt, parent);
+      case "return":
+        return returnStatement(this, stmt, parent);
       case "if":
       case "repeat":
       case "forever":

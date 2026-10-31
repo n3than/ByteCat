@@ -87,11 +87,18 @@ Names must be unique across a sprite's locals and all globals.
 | `define NAME(a, b):` | custom block (`define NAME %s %s`) |
 | `define warp NAME(a):` | custom block with "run without screen refresh" |
 | `define NAME(n, flag: bool):` | parameters are values by default; `: bool` makes a boolean parameter |
+| `define NAME(a) -> value:` | custom reporter (TurboWarp only): `return expr` gives the value of a call |
+| `define NAME(a) -> bool:` | custom boolean (TurboWarp only), which can be used as a condition |
 
 Procedures are local to the sprite that defines them and can be called before their definition.
-Scratch custom blocks cannot return values: store results in a variable or list. Recursion works,
-but variables are shared between calls, so keep per-call state on a list used as a stack
-(see `examples/factorial.sbp`).
+Recursion works, but variables are shared between calls, so keep per-call state on a list used
+as a stack (see `examples/factorial.sbp`), or in the arguments of a custom reporter.
+
+Custom reporters are a TurboWarp extension of Scratch (the "return" block); scratch-vm cannot run
+them. A call to one is an expression, `fib(n - 1) + fib(n - 2)`, and a call to an ordinary
+`define` is only a statement. A call reports `""` when its block ends without a `return`. `return`
+also works in an ordinary `define`, where it stops the block and the value is dropped, and in a
+`when` script, where it stops the script, as in TurboWarp. See `examples/custom_reporters.sbp`.
 
 ## Statements
 
@@ -115,6 +122,7 @@ but variables are shared between calls, so keep per-call state on a list used as
 | `for i = a to b:` | counting loop, see [Desugaring](#desugaring) |
 | `name(args)` | a builtin statement (table below) or a call to a `define`d procedure |
 | `log(expr)` | add (expr) to the global list `log`; see [Output](#output-and-testing) |
+| `return expr` | return (expr) (TurboWarp): leaves a custom block with a value, or stops a `when` script |
 
 `i` in `items[i]` is 1-based, like Scratch. Scratch also accepts `"last"` and `"random"` as indexes.
 
@@ -132,7 +140,7 @@ From lowest to highest precedence:
 | `a + b`, `a - b` | (a + b), (a - b) |
 | `a * b`, `a / b`, `a % b` | (a * b), (a / b), (a mod b) |
 | `-a` | (0 - a), or a negative literal |
-| `f(args)`, `items[i]`, `items.length`, `( ... )` | reporters, list item, length of list, grouping |
+| `f(args)`, `items[i]`, `items.length`, `( ... )` | reporters (builtin or `->` procedures), list item, length of list, grouping |
 
 Comparisons cannot be chained (`1 < x < 5` is an error, write `1 < x and x < 5`).
 
@@ -282,7 +290,9 @@ Examples live in `examples/NAME.sbp` with the expected `log` output in `examples
 `pnpm test` builds each example, validates it against the official sb3 schema, runs it in
 scratch-vm and in TurboWarp (compiler on), and compares the output. To add a test project, add both files.
 Bytecat follows TurboWarp: where scratch-vm knowingly differs, put scratch-vm's output in
-`examples/NAME.scratch.expected` and list the example in `docs/deviations.md`.
+`examples/NAME.scratch.expected` and list the example in `docs/deviations.md`. An example that uses
+a TurboWarp-only block scratch-vm cannot run (custom reporters) gets `examples/NAME.scratch.skip`,
+a line saying why, instead: it is not run in scratch-vm, and is listed in `docs/deviations.md` too.
 
 Two more optional files test what the canvas shows and how a project reacts to input. They run in
 a real browser (`tests/browser.test.ts`: the standalone HTML from `bytecat bundle`, opened with

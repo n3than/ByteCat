@@ -258,13 +258,13 @@ below but not counted.
 
 ## My Blocks (`procedures`)
 
-2 compiled, 0 partial, 1 missing, counting hidden blocks.
+3 compiled, 0 partial, 0 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
 | `procedures_definition` | hat, defines a block | Compiled | yes |  |
 | `procedures_call` | statement | Compiled | yes |  |
-| `procedures_return` | statement | Missing | hidden | TurboWarp custom reporters; calls become expressions that may yield |
+| `procedures_return` | statement | Compiled | hidden |  |
 
 <a id="argument"></a>
 

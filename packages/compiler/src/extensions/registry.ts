@@ -26,6 +26,7 @@ export class ExtensionRegistry {
         if (this.specs.has(opcode)) problems.push(`${opcode} is declared by both ${this.specs.get(opcode)!.extension.id} and ${extension.id}`);
         this.specs.set(opcode, { extension, spec });
         if (spec.kind === "statement" && spec.compile) statements[opcode] = spec.compile;
+        if (spec.kind === "statement" && spec.reporter) reporters[opcode] = spec.reporter;
         if ((spec.kind === "reporter" || spec.kind === "boolean") && spec.compile) reporters[opcode] = spec.compile;
       }
     }
