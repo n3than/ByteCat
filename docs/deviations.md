@@ -4,6 +4,25 @@ Bytecat matches TurboWarp's behaviour (compiler on), not the exact Scratch speci
 file lists every known place where the engines Bytecat is checked against disagree, so a
 difference is always a decision, never an accident.
 
+## Intended Bytecat differences
+
+Limits TurboWarp has and Bytecat leaves out by default, on purpose. Each one has a compat preset
+behaviour: the `TURBOWARP` preset in `@bytecat/runtime` (`--compat turbowarp` on the CLI,
+`compat: TURBOWARP` or `?compat=turbowarp` in the player) copies TurboWarp. The exact checks (the
+frame-by-frame trace, the fuzzer and the log comparisons in `tests/compiler.test.ts`) run with
+that preset (`EXACT_COMPAT` in `packages/trace/src/bytecat.ts`), and the relaxed comparison lets
+each difference through by a named allowance (`ALLOWANCES` in `packages/trace/src/compare.ts`). An
+example whose log shows a difference keeps TurboWarp's log in `examples/NAME.turbowarp.expected`,
+which both reference engines are checked against; `tests/examples.test.ts` checks that every such
+file is listed here.
+
+| Difference | Default | Compat preset (`turbowarp`) | Allowance | Pinned by |
+| --- | --- | --- | --- | --- |
+| Clone limit. TurboWarp (and scratch-vm) let at most 300 clones exist at once, counted across all sprites, and `create clone` does nothing beyond that. | No limit (`cloneLimit: Infinity`). | `cloneLimit: 300`. | `clone-limit`: once TurboWarp has 300 clones and Bytecat more, the clones' fields, the clone count and the layer order are not compared. | `examples/clones_limit.expected` and `examples/clones_limit.turbowarp.expected`, `examples/clones_trace.turbowarp.expected`, "has no clone limit by default" in `packages/runtime/test/clones.test.ts`, "clone limit" in `tests/compiler.test.ts`. |
+
+The relaxed comparison also has a `min-size` allowance (Bytecat smaller than TurboWarp, which
+keeps a costume at least 5 pixels wide or tall) for the minimum size, which Bytecat does not force.
+
 ## From scratch-vm
 
 Bytecat and TurboWarp agree here; only the official scratch-vm differs. An example that shows the

@@ -14,7 +14,24 @@ export interface RuntimeOptions {
   answers?: string[];
   /** The clock the scheduler reads, in milliseconds, to end frames on time. Tests inject one. */
   schedulerClock?: () => number;
+  /**
+   * The most clones that can exist at once, across all sprites. Default `Infinity`: no limit.
+   * TurboWarp's is 300 (the `TURBOWARP` preset).
+   */
+  cloneLimit?: number;
 }
+
+/**
+ * Compat presets: the options that make Bytecat copy a limit TurboWarp has where Bytecat's default
+ * differs on purpose ("Intended Bytecat differences" in docs/deviations.md). Spread one into the
+ * options: `new Runtime(json, program, { clock: "virtual", ...TURBOWARP })`.
+ */
+export const TURBOWARP: Readonly<RuntimeOptions> = {
+  cloneLimit: 300,
+};
+
+/** The compat presets by name, for `--compat NAME` and the player's `?compat=NAME`. */
+export const COMPAT_PRESETS: Readonly<Record<string, Readonly<RuntimeOptions>>> = { turbowarp: TURBOWARP };
 
 export interface SayEvent {
   target: string;
@@ -28,9 +45,6 @@ export interface Timeout {
   ms: number;
   fn: () => void;
 }
-
-/** The most clones that can exist at once, across all sprites: TurboWarp's default `maxClones`. */
-export const MAX_CLONES = 300;
 
 /** The hats one event starts, each with the target it runs for, in start order (`startHats`). */
 interface StartList {
@@ -50,7 +64,7 @@ export class Runtime {
    */
   readonly targets: Target[];
   readonly stage: Target;
-  /** How many clones exist. `create clone` makes none while there are MAX_CLONES. */
+  /** How many clones exist. `create clone` makes none while there are `options.cloneLimit`. */
   cloneCount = 0;
   readonly hats: Hat[];
   threads: Thread[] = [];
@@ -123,7 +137,13 @@ export class Runtime {
   private topDown: Target[] | null = null;
 
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
-    this.options = { turbo: false, fps: 30, clock: "real", ...options };
+    this.options = {
+      turbo: false,
+      fps: 30,
+      clock: "real",
+      ...options,
+      cloneLimit: options.cloneLimit ?? Infinity,
+    };
     this.answers = [...(options.answers ?? [])];
     this.schedulerClock = options.schedulerClock ?? (() => performance.now());
     this.targets = Target.all(project);

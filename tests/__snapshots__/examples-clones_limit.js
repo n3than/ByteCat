@@ -24,7 +24,7 @@ return [
     t.l["list_c"].push(("after the stage: " + ("" + t.v["var_0"])));
     broadcast(rt, "spawn");
     yield* wait(rt, 0);
-    t.l["list_c"].push(("alive at the limit: " + ("" + t.v["var_0"])));
+    t.l["list_c"].push(("alive after spawning: " + ("" + t.v["var_0"])));
     t.l["list_c"].push(("clones made: " + ("" + t.v["var_1"])));
     yield* broadcastAndWait(rt, "thin out");
     t.l["list_c"].push(("alive after thinning: " + ("" + t.v["var_0"])));

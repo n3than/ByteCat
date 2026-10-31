@@ -1,6 +1,6 @@
 import * as ops from "../ops.js";
 import type { Value } from "../ops.js";
-import { MAX_CLONES, type Runtime } from "../runtime.js";
+import type { Runtime } from "../runtime.js";
 import { Target } from "../target.js";
 import { SLEEP, WAIT, type Thread } from "../thread.js";
 
@@ -29,11 +29,11 @@ export function stopOthers(rt: Runtime, t: Target, self: Thread): void {
 
 /**
  * "create clone of": a clone of `parent` (a sprite or a clone), unless `parent` is the stage or
- * MAX_CLONES clones exist. It copies the variables, lists, position, look and layer, as
+ * `cloneLimit` clones exist (no limit by default; 300 with the TURBOWARP preset). It copies the variables, lists, position, look and layer, as
  * TurboWarp's `makeClone` does, and its "when I start as a clone" scripts start.
  */
 export function createClone(rt: Runtime, parent: Target): void {
-  if (parent.isStage || rt.cloneCount >= MAX_CLONES) return;
+  if (parent.isStage || rt.cloneCount >= rt.options.cloneLimit) return;
   rt.addClone(new Target(parent), parent);
 }
 

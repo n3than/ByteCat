@@ -1,17 +1,27 @@
-// The trace oracle (docs/testing.md): every example and benchmark runs on Bytecat and TurboWarp in
-// lockstep and must show the same state after every frame, with its scripted input. Small pass
-// budgets move the frame boundaries around, so the comparison also covers frames that the budget
-// (not a redraw) ends. The other tests check that the oracle can fail and that its determinism
-// holds.
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+// Every example and benchmark against TurboWarp (docs/testing.md, "Relaxed and exact checks").
+// Most get the relaxed comparison: Bytecat with its own defaults, compared at checkpoints with
+// tolerances, a frame window and the allowed differences. The scheduler-sensitive ones in EXACT get
+// the exact trace: Bytecat with EXACT_COMPAT must show the same state after every frame, with
+// small pass budgets that move the frame boundaries around, so the comparison also covers frames
+// that the budget (not a redraw) ends. The other tests check that the oracles can fail and that
+// their determinism holds.
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compile, compileToSb3 } from "@bytecat/pseudo";
 import { TurboWarpLockstep, turbowarpUsesCounterIds } from "@bytecat/reference";
 import { readSb3 } from "@bytecat/sb3";
 import {
   BytecatLockstep,
+  compareEngines,
+  compareFile,
+  compareProject,
+  describeCompare,
   describeTrace,
   parseInput,
+  projectFiles,
+  projectsIn,
   traceEngines,
   traceProject,
   TurboWarpEngine,
@@ -30,11 +40,48 @@ const projects = ["examples", "bench"].flatMap((dir) =>
 
 const sb3Of = (source: string, name = "test.sbp") => compileToSb3(source, name);
 
-describe("trace oracle agrees with TurboWarp", () => {
-  // 300 frames is 10 seconds at 30 fps: every example ends sooner; pingpong and yield_loop run on.
+/**
+ * The scheduler-sensitive examples: traced exactly, frame by frame, so they catch timing bugs.
+ * Everything else gets the relaxed comparison. Add an example here when the frame its effects
+ * show up in is what it tests.
+ */
+const EXACT = new Set([
+  "examples/broadcast_wait_listed",
+  "examples/clones_stop_all",
+  "examples/clones_trace",
+  "examples/custom_reporters_yield",
+  "examples/interleave",
+  "examples/paced_move",
+  "examples/pacing",
+  "examples/recursion_yield",
+  "examples/restart_order",
+  "examples/say_for",
+  "examples/script_order",
+  "examples/stop_all_pass",
+  "examples/wait_recheck",
+]);
+
+// 300 frames is 10 seconds at 30 fps: every example ends sooner; pingpong and yield_loop run on.
+describe("relaxed comparison agrees with TurboWarp", () => {
+  for (const p of projects.filter((p) => !EXACT.has(`${p.dir}/${p.name}`))) {
+    it(`${p.dir}/${p.name}`, async () => {
+      const { input, config } = projectFiles(p.path);
+      const r = await compareProject(sb3Of(readFileSync(p.path, "utf8"), p.name), { frames: 300, input, ...config });
+      expect(r.problems, describeCompare(r)).toEqual([]);
+      expect(r.mismatch, describeCompare(r)).toBeNull();
+      expect(r.frames).toBeGreaterThan(0);
+    });
+  }
+});
+
+describe("exact trace agrees with TurboWarp", () => {
+  it("lists only examples that exist", () => {
+    for (const name of EXACT) expect(existsSync(join(root, `${name}.sbp`)), name).toBe(true);
+  });
+
   for (const passes of [50, 7, 1]) {
     describe(`with ${passes} passes per frame`, () => {
-      for (const p of projects) {
+      for (const p of projects.filter((p) => EXACT.has(`${p.dir}/${p.name}`))) {
         it(`${p.dir}/${p.name}`, async () => {
           const inputPath = p.path.replace(/\.sbp$/, ".input");
           const input = existsSync(inputPath) ? parseInput(readFileSync(inputPath, "utf8"), inputPath) : [];
@@ -91,6 +138,17 @@ describe("trace oracle", () => {
       expect(r.diff, describeTrace(r)).toBeNull();
     });
 
+    it("lets Bytecat make every clone in the relaxed comparison, as its default has no limit", async () => {
+      const sb3 = sb3Of(swarm);
+      const bytecat = new BytecatLockstep(readSb3(sb3).json, { compat: {} });
+      bytecat.step();
+      expect(cloneXs(bytecat.snapshot(1).fields)).toHaveLength(310);
+      bytecat.dispose();
+      const r = await compareProject(sb3, { frames: 20 });
+      expect(r.mismatch, describeCompare(r)).toBeNull();
+      expect(r.allowed).toEqual(["clone-limit"]);
+    });
+
     it("catches a planted difference in a clone", async () => {
       const sb3 = sb3Of(swarm);
       const bytecat = new BytecatLockstep(readSb3(sb3).json);
@@ -106,6 +164,52 @@ describe("trace oracle", () => {
       expect(r.diff).toEqual({ frame: 1, field: "S#300.x", actual: "301", expected: "300" });
     });
   });
+
+  it("lets the relaxed comparison through a lag of a frame, but not a wrong position", async () => {
+    const sb3 = sb3Of(moving);
+    /** Bytecat with `plant` changing what its snapshots show. */
+    const planted = (plant: (fields: Record<string, unknown>, frame: number) => void) => {
+      const bytecat = new BytecatLockstep(readSb3(sb3).json, { compat: {} });
+      return Object.assign(Object.create(bytecat) as BytecatLockstep, {
+        step: () => bytecat.step(),
+        snapshot(f: number) {
+          const s = bytecat.snapshot(f);
+          plant(s.fields, f);
+          return s;
+        },
+      });
+    };
+    const shift = (by: number) => (fields: Record<string, unknown>) => (fields["Mover.x"] = String(Number(fields["Mover.x"]) + by));
+    // One move behind from frame 5 to 20: within the 2 frame window.
+    const late = await compareEngines(planted((fields, f) => f >= 5 && f <= 20 && shift(-10)(fields)), await TurboWarpEngine.load(sb3), { frames: 50 });
+    expect(late.mismatch, describeCompare(late)).toBeNull();
+    // One pixel off at frame 10: no frame of TurboWarp's shows it.
+    const off = await compareEngines(planted((fields, f) => f === 10 && shift(1)(fields)), await TurboWarpEngine.load(sb3), { frames: 50 });
+    expect(describeCompare(off)).toContain('first mismatch at frame 10, Mover.x: bytecat "1" but turbowarp "0"; no match in frames 8..12');
+  });
+
+  it("compares a folder of .sb3 files with their sidecars, in a test and with bytecat compare", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bytecat-compare-"));
+    try {
+      writeFileSync(join(dir, "a.sb3"), sb3Of(moving));
+      writeFileSync(join(dir, "b.sb3"), sb3Of(`var n = 0\nstage:\n  when key "space":\n    n = 1.5\n`));
+      writeFileSync(join(dir, "b.input"), "press space\n");
+      writeFileSync(join(dir, "b.compare.json"), JSON.stringify({ every: 1, ignore: ["Stage.var.n"] }));
+      const found = projectsIn(dir);
+      expect(found.map((p) => [p.name, p.input.length, p.config.every])).toEqual([["a", 0, undefined], ["b", 1, 1]]);
+      for (const p of found) {
+        const r = await compareFile(p.path);
+        expect(r.mismatch, describeCompare(r)).toBeNull();
+      }
+      // `every: 1` from the sidecar makes frames 0, 1 and 2 checkpoints; the input ends the run at frame 2.
+      expect((await compareFile(join(dir, "b.sb3"), { frames: 5 })).checkpoints).toBe(3);
+      const out = execFileSync("pnpm", ["exec", "tsx", "packages/cli/src/main.ts", "compare", dir], { cwd: root, stdio: "pipe" }).toString();
+      expect(out).toContain(`${join(dir, "a.sb3")}: agree at 4 checkpoint(s) over 21 frame(s) (every script finished)`);
+      expect(out).toContain(`${join(dir, "b.sb3")}: agree at 3 checkpoint(s) over 2 frame(s)`);
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  }, 60_000);
 
   it("paces a drawing loop at one iteration per frame on both engines", async () => {
     const r = await traceProject(sb3Of(moving), { frames: 50 });

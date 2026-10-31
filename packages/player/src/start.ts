@@ -1,6 +1,6 @@
 // Starts the player on a standalone page. The page defines `window.BYTECAT` with the project and
 // its assets before the player script runs; the script brings the program (`bundle.ts`).
-import type { ProgramFactory } from "@bytecat/runtime";
+import { COMPAT_PRESETS, type ProgramFactory } from "@bytecat/runtime";
 import type { ProjectJson } from "@bytecat/sb3";
 import { createPlayer, type Player } from "./player.js";
 
@@ -29,10 +29,12 @@ export function start(program: ProgramFactory): void {
   // live player, so a test can check what is on the canvas after a given number of frames.
   const turbo = test && params.get("turbo") !== "off";
   const answers = params.getAll("answer");
+  // `?compat=turbowarp` copies TurboWarp's limits (the clone limit); unknown names are ignored.
+  const compat = COMPAT_PRESETS[params.get("compat") ?? ""];
   const canvas = document.getElementById("stage") as HTMLCanvasElement;
   const data = window.BYTECAT;
 
-  createPlayer({ canvas, project: data.project, program, assets: data.assets, test, turbo, answers }).then((player) => {
+  createPlayer({ canvas, project: data.project, program, assets: data.assets, test, turbo, answers, ...(compat ? { compat } : {}) }).then((player) => {
     window.bytecat = player;
     document.getElementById("flag")?.addEventListener("click", () => player.greenFlag());
     document.getElementById("stop")?.addEventListener("click", () => player.stop());

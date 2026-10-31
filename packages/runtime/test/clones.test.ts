@@ -2,7 +2,7 @@
 // and how it is removed (delete this clone, stop all, the green flag).
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { MAX_CLONES, RETIRE, Runtime, WAIT, type Hat, type Target } from "../src/index.js";
+import { RETIRE, Runtime, TURBOWARP, WAIT, type Hat, type RuntimeOptions, type Target } from "../src/index.js";
 import { createClone, createCloneOf, deleteClone } from "../src/lib/control.js";
 import { broadcast } from "../src/lib/event.js";
 
@@ -21,9 +21,9 @@ const project = {
   ],
 } as unknown as ProjectJson;
 
-function setup(hats: (log: string[]) => Hat[] = () => []) {
+function setup(hats: (log: string[]) => Hat[] = () => [], options: RuntimeOptions = {}) {
   const log: string[] = [];
-  const rt = new Runtime(project, () => hats(log), { clock: "virtual", schedulerClock: () => 0 });
+  const rt = new Runtime(project, () => hats(log), { clock: "virtual", schedulerClock: () => 0, ...options });
   return { rt, log, a: rt.targets[1]!, b: rt.targets[2]! };
 }
 
@@ -66,16 +66,24 @@ describe("creating a clone", () => {
   });
 
   it("makes no clone of the stage, and none beyond the limit across all sprites", () => {
-    const { rt, a, b } = setup();
+    const { rt, a, b } = setup(undefined, TURBOWARP);
     createClone(rt, rt.stage);
     createCloneOf(rt, rt.stage, "_myself_");
     expect(rt.cloneCount).toBe(0);
     for (let i = 0; i < 200; i++) createClone(rt, a);
     for (let i = 0; i < 200; i++) createClone(rt, b);
-    expect([rt.cloneCount, rt.targets.length]).toEqual([MAX_CLONES, MAX_CLONES + 3]);
+    expect([rt.cloneCount, rt.targets.length]).toEqual([300, 303]);
     deleteClone(rt, rt.targets[3]!);
     createClone(rt, b);
-    expect(rt.cloneCount).toBe(MAX_CLONES);
+    expect(rt.cloneCount).toBe(300);
+  });
+
+  it("has no clone limit by default", () => {
+    const { rt, a, b } = setup();
+    expect(rt.options.cloneLimit).toBe(Infinity);
+    for (let i = 0; i < 200; i++) createClone(rt, a);
+    for (let i = 0; i < 200; i++) createClone(rt, b);
+    expect([rt.cloneCount, rt.targets.length]).toEqual([400, 403]);
   });
 
   it("clones a sprite by name, its original even when the caller is a clone", () => {

@@ -7,8 +7,8 @@ import { benchmark, engineNames, formatTable, getEngine, pickBaseline, type Benc
 import { bundleHtml } from "@bytecat/player/bundle";
 import { compile, PseudoError } from "@bytecat/pseudo";
 import { runProject } from "@bytecat/reference";
-import { Runtime } from "@bytecat/runtime";
-import { describeTrace, parseInput, traceProject } from "@bytecat/trace";
+import { COMPAT_PRESETS, Runtime, type RuntimeOptions } from "@bytecat/runtime";
+import { compareProject, describeCompare, describeTrace, parseInput, projectFiles, projectsIn, traceProject, type CompareResult } from "@bytecat/trace";
 import { buildWebApp } from "@bytecat/web";
 import { readSb3, writeSb3, type Project, type ProjectJson } from "@bytecat/sb3";
 
@@ -29,6 +29,7 @@ Commands:
         [--engine bytecat|reference|turbowarp]  bytecat (default) is the compiled runtime,
                                   reference is scratch-vm, turbowarp is TurboWarp's VM with its compiler
         [--timeout ms] [--json] [--answer text]...
+        [--compat turbowarp]          Copy TurboWarp's limits (a clone limit of 300) instead of Bytecat's defaults
   bench [names...]                Time bench/NAME.sbp (default: every bench/*.sbp) on each engine and check its output
         [--engines bytecat,scratch-vm,turbowarp] [--runs 5] [--warmup 1]   (default: every engine)
         [--runs-bytecat N] [--warmup-bytecat N]   Override --runs and --warmup for the Bytecat engine only: its runs
@@ -40,6 +41,12 @@ Commands:
         [--frames 300] [--input file.input] [--seed 1]   (docs/testing.md); exits with code 1 on a difference
         [--fps 30] [--passes 50] [--turbo] [--json]
         [--browser]                   Against TurboWarp with its renderer, in Chromium (fencing, touching, clicks)
+        [--compat turbowarp|none]     Bytecat's runtime options (default turbowarp: the exact trace copies its limits)
+  compare <file.sb3|file.sbp|dir> The relaxed check: run on Bytecat (its own defaults) and TurboWarp and compare
+                                  at checkpoints with tolerances (docs/testing.md); a directory compares every
+                                  .sb3 and .sbp in it. NAME.input and NAME.compare.json next to a project are used
+        [--frames 300] [--input file.input] [--every 10] [--window 2] [--seed 1]
+        [--fps 30] [--passes 50] [--turbo] [--compat turbowarp|none] [--json]   Exits with code 1 on a mismatch
 `;
 
 const { positionals, values } = parseArgs({
@@ -62,6 +69,9 @@ const { positionals, values } = parseArgs({
     passes: { type: "string" },
     turbo: { type: "boolean" },
     browser: { type: "boolean" },
+    compat: { type: "string" },
+    every: { type: "string" },
+    window: { type: "string" },
     "runs-bytecat": { type: "string" },
     "warmup-bytecat": { type: "string" },
     help: { type: "boolean", short: "h" },
@@ -109,6 +119,28 @@ function sbpFiles(path: string): string[] {
     .filter((f) => f.endsWith(".sbp"))
     .sort()
     .map((f) => join(path, f));
+}
+
+/** `--compat NAME`: a preset from COMPAT_PRESETS, `none` for Bytecat's defaults, or `fallback`. */
+function compatOption(fallback?: Readonly<RuntimeOptions>): Readonly<RuntimeOptions> | undefined {
+  if (values.compat === undefined) return fallback;
+  if (values.compat === "none") return {};
+  const preset = COMPAT_PRESETS[values.compat];
+  if (!preset) {
+    console.error(`unknown --compat "${values.compat}" (expected ${[...Object.keys(COMPAT_PRESETS), "none"].join(", ")})`);
+    process.exit(2);
+  }
+  return preset;
+}
+
+/** `--name N`: an integer of at least `min`, or `fallback`. */
+function int(name: string, text: string | undefined, fallback: number, min = 1): number {
+  const n = text === undefined ? fallback : Number(text);
+  if (!Number.isInteger(n) || n < min) {
+    console.error(`--${name} must be an integer of at least ${min}`);
+    process.exit(2);
+  }
+  return n;
 }
 
 function need(n: number): void {
@@ -204,7 +236,7 @@ switch (command) {
       const json = loadJson(files[0]!);
       const compiled = compileToJs(json);
       const { program, warnings } = compiled;
-      const rt = new Runtime(json, program, { clock: "virtual", turbo: true, answers });
+      const rt = new Runtime(json, program, { ...compatOption(), clock: "virtual", turbo: true, answers });
       const { finished, elapsedMs, frames } = rt.runUntilDone(timeoutMs);
       const log = rt.log();
       if (values.json) {
@@ -299,14 +331,6 @@ switch (command) {
   }
   case "trace": {
     need(1);
-    const int = (name: string, text: string | undefined, fallback: number, min = 1): number => {
-      const n = text === undefined ? fallback : Number(text);
-      if (!Number.isInteger(n) || n < min) {
-        console.error(`--${name} must be an integer of at least ${min}`);
-        process.exit(2);
-      }
-      return n;
-    };
     const input = values.input ? parseInput(readFileSync(values.input, "utf8"), values.input) : [];
     const options = {
       frames: int("frames", values.frames, 300),
@@ -315,6 +339,7 @@ switch (command) {
       fps: int("fps", values.fps, 30),
       passes: int("passes", values.passes, 50),
       turbo: values.turbo ?? false,
+      ...(values.compat === undefined ? {} : { compat: compatOption() }),
     };
     const sb3 = load(files[0]!);
     let result;
@@ -333,6 +358,33 @@ switch (command) {
     if (values.json) console.log(JSON.stringify(result, null, 2));
     else console.log(describeTrace(result));
     if (result.diff || result.problems.length) process.exitCode = 1;
+    break;
+  }
+  case "compare": {
+    need(1);
+    const target = files[0]!;
+    const paths = statSync(target).isDirectory() ? projectsIn(target, [".sb3", ".sbp"]).map((p) => p.path) : [target];
+    const results: { file: string; result: CompareResult }[] = [];
+    for (const path of paths) {
+      const sidecars = projectFiles(path);
+      const result = await compareProject(load(path), {
+        ...sidecars.config,
+        frames: int("frames", values.frames, 300),
+        input: values.input ? parseInput(readFileSync(values.input, "utf8"), values.input) : sidecars.input,
+        seed: int("seed", values.seed, 1, 0),
+        fps: int("fps", values.fps, 30),
+        passes: int("passes", values.passes, 50),
+        turbo: values.turbo ?? false,
+        ...(values.every === undefined ? {} : { every: int("every", values.every, 10) }),
+        ...(values.window === undefined ? {} : { window: int("window", values.window, 2, 0) }),
+        compat: compatOption({}),
+      });
+      results.push({ file: path, result });
+      const report = describeCompare(result);
+      if (!values.json) console.log(paths.length > 1 ? `${path}: ${report.split("\n").join("\n  ")}` : report);
+      if (result.mismatch || result.problems.length) process.exitCode = 1;
+    }
+    if (values.json) console.log(JSON.stringify(paths.length > 1 ? results : results[0]!.result, null, 2));
     break;
   }
   default:

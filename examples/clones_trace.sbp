@@ -1,6 +1,7 @@
-# Clone-heavy run for the trace oracle (tests/trace.test.ts compares it with TurboWarp frame by
-# frame): bursts of clones up to the 300 limit, clones that move, turn and delete themselves,
-# broadcasts that reach every clone, and a stop all that removes the rest.
+# Clone-heavy run, traced frame by frame (EXACT in tests/trace.test.ts) with TurboWarp's clone limit
+# of 300 (clones_trace.turbowarp.expected): bursts of clones past the limit, clones that move, turn
+# and delete themselves, broadcasts that reach every clone, and a stop all that removes the rest.
+# Bytecat's own default has no limit, so every clone is made (clones_trace.expected).
 var heard = 0
 var made = 0
 

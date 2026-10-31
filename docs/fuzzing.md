@@ -28,7 +28,7 @@ seeds compile without a `PseudoError` and that the generator is deterministic.
 | File | Role |
 | --- | --- |
 | `tests/fuzz/generate.ts` | `generateProgram(seed)` returns pseudocode. A seeded PRNG (mulberry32); no `Math.random`, no clock. |
-| `tests/fuzz/run.ts` | `fuzzOne(seed)` compiles the program, runs it on Bytecat (virtual clock, turbo) and TurboWarp, returns `{ seed, source, bytecat, turbowarp, firstDiff, problems }`. |
+| `tests/fuzz/run.ts` | `fuzzOne(seed)` compiles the program, runs it on Bytecat (virtual clock, turbo, `EXACT_COMPAT`: TurboWarp's limits, see [testing.md](testing.md#relaxed-and-exact-checks)) and TurboWarp, returns `{ seed, source, bytecat, turbowarp, firstDiff, problems }`. |
 | `tests/fuzz/main.ts` | The `pnpm fuzz` command. |
 | `tests/fuzz.test.ts` | The vitest check. |
 
