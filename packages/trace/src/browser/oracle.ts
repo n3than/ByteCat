@@ -97,6 +97,12 @@ export class BrowserOracle {
     return this.page.evaluate(([data, n]) => window.bytecatOracle!.compareBackend(data, n), [base64, frames] as const);
   }
 
+  /** Runs both engines `frames` frames and lists the grid points (every `step` pixels) where their renderers differ. */
+  comparePixels(sb3: Uint8Array, frames: number, step = 5): Promise<string[]> {
+    const base64 = Buffer.from(sb3).toString("base64");
+    return this.page.evaluate(([data, n, s]) => window.bytecatOracle!.comparePixels(data, n, s), [base64, frames, step] as const);
+  }
+
   /** Whether TurboWarp's ids in the page come from the counter, not Math.random. */
   turbowarpUsesCounterIds(): Promise<boolean> {
     return this.page.evaluate(() => window.bytecatOracle!.turbowarpUsesCounterIds());

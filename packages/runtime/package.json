@@ -11,6 +11,7 @@
     "./looks": "./src/lib/looks.ts",
     "./motion": "./src/lib/motion.ts",
     "./ops": "./src/ops.ts",
+    "./pen": "./src/lib/pen.ts",
     "./sensing": "./src/lib/sensing.ts",
     "./modules": "./src/modules.ts"
   },

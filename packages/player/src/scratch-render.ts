@@ -5,7 +5,7 @@
 // speech bubbles placed by the rules of `_positionBubble`.
 //
 // Bundling it needs the esbuild options in scratch-esbuild.ts.
-import type { Runtime, Target } from "@bytecat/runtime";
+import type { PenLayer, PenState, Runtime, Target } from "@bytecat/runtime";
 import { BitmapAdapter } from "@turbowarp/scratch-svg-renderer";
 import RenderWebGL from "turbowarp-render";
 import type { Bounds, RenderBackend, RGB } from "./backend.js";
@@ -33,6 +33,7 @@ export async function skinsLoaded(renderer: RenderWebGL, timeoutMs = 10_000): Pr
 const LAYER_GROUPS = ["background", "video", "pen", "sprite"];
 const STAGE_LAYER = "background";
 const SPRITE_LAYER = "sprite";
+const PEN_LAYER = "pen";
 
 interface Bubble {
   drawable: number;
@@ -77,8 +78,10 @@ async function loadSkins(renderer: RenderWebGL, target: Target, assets: Record<s
   );
 }
 
-export class ScratchRenderBackend implements RenderBackend {
+export class ScratchRenderBackend implements RenderBackend, PenLayer {
   readonly renderer: RenderWebGL;
+  /** The pen skin, made on first use as TurboWarp's pen extension does, or -1. */
+  private penSkin = -1;
   private readonly drawables = new Map<Target, TargetDrawable>();
   private order: Target[] = [];
 
@@ -88,6 +91,7 @@ export class ScratchRenderBackend implements RenderBackend {
   ) {
     this.renderer = new RenderWebGL(canvas);
     this.renderer.setLayerGroupOrdering(LAYER_GROUPS);
+    rt.pen = this;
   }
 
   /** Creates the renderer on `canvas` and loads every costume. `assets`: data or blob URLs by md5ext. */
@@ -109,24 +113,7 @@ export class ScratchRenderBackend implements RenderBackend {
   sync(): void {
     const { renderer } = this;
     if (this.rt.cloneCount > 0 || this.drawables.size !== this.rt.targets.length) this.syncClones();
-    for (const [t, d] of this.drawables) {
-      const skinId = d.skins[t.costume] ?? d.skins[0];
-      // RenderedTarget._getRenderedDirectionAndScale.
-      let direction = t.direction;
-      let scale: [number, number] = [t.size, t.size];
-      if (t.rotationStyle === "don't rotate") direction = 90;
-      else if (t.rotationStyle === "left-right") {
-        direction = 90;
-        scale = [(t.direction < 0 ? -1 : 1) * t.size, t.size];
-      }
-      renderer.updateDrawableProperties(d.drawable, {
-        ...(skinId === undefined ? {} : { skinId }),
-        position: [t.x, t.y],
-        direction: t.isStage ? 90 : direction,
-        scale: t.isStage ? [100, 100] : scale,
-        visible: t.visible,
-      });
-    }
+    for (const [t, d] of this.drawables) this.syncDrawable(t, d);
     // Layer order of the sprites, back to front; only touched when it changed.
     const order = this.rt.targets.filter((t) => !t.isStage).sort((a, b) => a.layer - b.layer);
     if (order.length !== this.order.length || order.some((t, i) => t !== this.order[i])) {
@@ -135,6 +122,56 @@ export class ScratchRenderBackend implements RenderBackend {
       this.order = order;
     }
     for (const [t, d] of this.drawables) this.syncBubble(t, d);
+  }
+
+  /** Copies one target's position, direction, scale, costume and visibility to its drawable. */
+  private syncDrawable(t: Target, d: TargetDrawable): void {
+    const skinId = d.skins[t.costume] ?? d.skins[0];
+    // RenderedTarget._getRenderedDirectionAndScale.
+    let direction = t.direction;
+    let scale: [number, number] = [t.size, t.size];
+    if (t.rotationStyle === "don't rotate") direction = 90;
+    else if (t.rotationStyle === "left-right") {
+      direction = 90;
+      scale = [(t.direction < 0 ? -1 : 1) * t.size, t.size];
+    }
+    this.renderer.updateDrawableProperties(d.drawable, {
+      ...(skinId === undefined ? {} : { skinId }),
+      position: [t.x, t.y],
+      direction: t.isStage ? 90 : direction,
+      scale: t.isStage ? [100, 100] : scale,
+      visible: t.visible,
+    });
+  }
+
+  // ---- pen layer, as TurboWarp's pen extension drives it ----
+
+  /** The pen skin, with its drawable in the pen layer group, made the first time a pen block draws. */
+  private penLayer(): number {
+    if (this.penSkin < 0) {
+      this.penSkin = this.renderer.createPenSkin();
+      const drawable = this.renderer.createDrawable(PEN_LAYER);
+      this.renderer.updateDrawableSkinId(drawable, this.penSkin);
+    }
+    return this.penSkin;
+  }
+
+  line(pen: PenState, x0: number, y0: number, x1: number, y1: number): void {
+    this.renderer.penLine(this.penLayer(), { color4f: pen.color4f, diameter: pen.size }, x0, y0, x1, y1);
+  }
+
+  stamp(t: Target): void {
+    const skin = this.penLayer();
+    if (!this.drawables.has(t)) this.syncClones();
+    const d = this.drawables.get(t);
+    if (!d) return;
+    // The drawable must show the target as it is now, not as of the last sync.
+    this.syncDrawable(t, d);
+    this.renderer.penStamp(skin, d.drawable);
+  }
+
+  clear(): void {
+    this.renderer.penClear(this.penLayer());
   }
 
   /**
@@ -263,6 +300,7 @@ export class ScratchRenderBackend implements RenderBackend {
   }
 
   dispose(): void {
+    if (this.rt.pen === this) this.rt.pen = null;
     this.renderer._gl.getExtension("WEBGL_lose_context")?.loseContext();
   }
 }

@@ -194,9 +194,12 @@ the page still sees every item.
 
 ## What the browser oracle cannot judge
 
-- **Pixels.** The oracle compares state, not what is drawn. `.pixels` probes in
-  `tests/browser.test.ts` check Bytecat's own canvas.
+- **Pixels.** The trace compares state, not what is drawn. `.pixels` probes in
+  `tests/browser.test.ts` check Bytecat's own canvas. One pixel check does compare with TurboWarp:
+  `comparePixels` runs a project on both engines, each drawing with scratch-render, and compares a
+  grid of pixels. `tests/browser-oracle.test.ts` uses it for `examples/pen.sbp`, so the pen layer
+  and stamps draw as TurboWarp's pen extension does.
 - **Speech bubble layout.** A bubble is compared by its text, not by where it is drawn.
-- **Sound and pen.** The page has no audio, and Bytecat has neither yet.
+- **Sound.** The page has no audio, and Bytecat has no sound yet.
 - **The GPU.** SwiftShader renders as a GPU would, but `touching color` on a real GPU can differ
   by a shade at antialiased edges.

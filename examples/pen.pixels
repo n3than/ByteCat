@@ -1,0 +1,16 @@
+// erased line
+0 -150 #ffffff
+// red line drawn with the pen down, none with it up
+-150 100 #ff0000
+-150 50 #ffffff
+// black dot of size 20
+0 -100 #000000
+6 -100 #000000
+// blue turned a third of the way round the hue circle: red
+150 -100 #ff0000
+// blue at 50% transparency over white
+-150 -50 #8080ff
+// the stamped square
+100 50 #00aa00
+// the clone's line
+-160 0 #ffaa00

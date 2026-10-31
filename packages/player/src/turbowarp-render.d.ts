@@ -51,5 +51,10 @@ declare module "turbowarp-render" {
     drawableTouching(drawableID: number, centerX: number, centerY: number, touchWidth?: number, touchHeight?: number): boolean;
     pick(centerX: number, centerY: number, touchWidth?: number, touchHeight?: number, candidateIDs?: number[]): number;
     draw(): void;
+    createPenSkin(): number;
+    updateDrawableSkinId(drawableID: number, skinID: number): void;
+    penLine(penSkinID: number, penAttributes: { color4f: readonly number[]; diameter: number }, x0: number, y0: number, x1: number, y1: number): void;
+    penStamp(penSkinID: number, stampID: number): void;
+    penClear(penSkinID: number): void;
   }
 }

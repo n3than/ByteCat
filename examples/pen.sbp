@@ -1,0 +1,65 @@
+# Pen: lines drawn while the pen is down and none while it is up, a dot from pen down alone, erase
+# all, stamping a hidden sprite, the color and size blocks, and a clone that copies a down pen.
+stage:
+  backdrop white "#ffffff"
+
+sprite Pen:
+  costume box = square "#00aa00"
+
+  when flag:
+    hide()
+    # Drawn, then erased.
+    set_pen_size(20)
+    goto(-200, -150)
+    pen_down()
+    goto(200, -150)
+    pen_up()
+    pen_clear()
+
+    # A red line, then a move with the pen up.
+    set_pen_color("#ff0000")
+    set_pen_size(10)
+    goto(-200, 100)
+    pen_down()
+    goto(-100, 100)
+    pen_up()
+    goto(-200, 50)
+    goto(-100, 50)
+
+    # A dot from pen down alone, black from brightness 0, size changed to 20.
+    set_pen("brightness", 0)
+    change_pen_size(10)
+    goto(0, -100)
+    pen_down()
+    pen_up()
+
+    # Blue as a number, then the hue turned by a third (blue to red), and half transparent.
+    set_pen_color(255)
+    set_pen("brightness", 100)
+    change_pen("color", 33.4)
+    goto(150, -100)
+    pen_down()
+    pen_up()
+    set_pen_color("#0000ff")
+    set_pen("transparency", 50)
+    goto(-150, -50)
+    pen_down()
+    pen_up()
+
+    # A stamp of the hidden sprite stays after it moves away.
+    goto(100, 50)
+    stamp()
+    goto(0, 0)
+
+    # A clone copies the pen while it is down and draws its own move.
+    set_pen_color("#ffaa00")
+    set_pen_size(8)
+    goto(-200, 0)
+    pen_down()
+    create_clone("_myself_")
+    pen_up()
+    wait(0.1)
+    stop("all")
+
+  when cloned:
+    goto(-120, 0)

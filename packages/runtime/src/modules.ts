@@ -5,6 +5,7 @@ import * as control from "./lib/control.js";
 import * as event from "./lib/event.js";
 import * as looks from "./lib/looks.js";
 import * as motion from "./lib/motion.js";
+import * as pen from "./lib/pen.js";
 import * as sensing from "./lib/sensing.js";
 import * as ops from "./ops.js";
 
@@ -14,5 +15,6 @@ export const RUNTIME_MODULES: Readonly<Record<string, Readonly<Record<string, un
   "@bytecat/runtime/looks": looks,
   "@bytecat/runtime/motion": motion,
   "@bytecat/runtime/ops": ops,
+  "@bytecat/runtime/pen": pen,
   "@bytecat/runtime/sensing": sensing,
 };

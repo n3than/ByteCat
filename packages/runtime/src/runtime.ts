@@ -1,5 +1,5 @@
 import type { ProjectJson } from "@bytecat/sb3";
-import { Target } from "./target.js";
+import { Target, type PenState } from "./target.js";
 import { Thread, type Hat, type HatKind, type ProgramFactory } from "./thread.js";
 import { tick } from "./scheduler.js";
 
@@ -14,6 +14,18 @@ export interface RuntimeOptions {
   answers?: string[];
   /** The clock the scheduler reads, in milliseconds, to end frames on time. Tests inject one. */
   schedulerClock?: () => number;
+}
+
+/**
+ * The pen layer, between the backdrop and the sprites. A renderer that draws pen sets
+ * `Runtime.pen` to one; the pen blocks draw on it as they run.
+ */
+export interface PenLayer {
+  /** A line in stage coordinates with the pen's color and diameter; a point when both ends meet. */
+  line(pen: PenState, x0: number, y0: number, x1: number, y1: number): void;
+  /** Draws the target as it is now onto the layer, even when it is hidden. */
+  stamp(target: Target): void;
+  clear(): void;
 }
 
 export interface SayEvent {
@@ -79,6 +91,11 @@ export class Runtime {
   mouse = { x: 0, y: 0, down: false };
   readonly keys = new Set<string>();
   onAsk: ((question: string) => Promise<string>) | null = null;
+  /**
+   * Where the pen draws, set by the renderer. Without one (headless) the pen blocks only keep each
+   * target's pen state and ask for no redraw, as in TurboWarp without a renderer.
+   */
+  pen: PenLayer | null = null;
 
   /** @internal Read by the scheduler (`scheduler.ts`). */
   readonly options: Required<Omit<RuntimeOptions, "answers" | "schedulerClock">>;

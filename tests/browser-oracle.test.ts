@@ -119,4 +119,10 @@ describe("scratch-render backend", () => {
       expect(await oracle.compareBackend(sb3, 2)).toEqual([]);
     });
   }
+
+  // Pen lines, dots, colors, transparency, erase all and stamps, drawn through the backend's pen layer.
+  it("draws the pen layer like TurboWarp's pen extension: examples/pen.sbp", async () => {
+    const sb3 = compileToSb3(readFileSync(join(root, "examples/pen.sbp"), "utf8"), "examples/pen.sbp");
+    expect(await oracle.comparePixels(sb3, 15)).toEqual([]);
+  });
 });

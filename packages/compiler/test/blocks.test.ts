@@ -22,12 +22,21 @@ describe("block handler tables", () => {
 
   it("only handle real Scratch opcodes", () => {
     for (const op of [...Object.keys(statements), ...Object.keys(reporters)]) {
-      expect(op).toMatch(/^(motion|looks|event|control|sensing|operator|data|procedures|argument)_[a-z0-9_]+$/);
+      expect(op).toMatch(/^(motion|looks|event|control|sensing|operator|data|procedures|argument|pen)_[a-zA-Z0-9_]+$/);
     }
   });
 });
 
 describe("statement handlers", () => {
+  it("pen blocks call the pen runtime with the target", () => {
+    const g = stubGen({ COLOR: lit("#ff0000", true), COLOR_PARAM: lit("brightness", true), VALUE: lit("5"), SIZE: anyEx("v") });
+    expect(statements.pen_penDown!(block("pen_penDown"), g)).toEqual(["penDown(rt, t);"]);
+    expect(statements.pen_stamp!(block("pen_stamp"), g)).toEqual(["stamp(rt, t);"]);
+    expect(statements.pen_setPenColorToColor!(block("pen_setPenColorToColor"), g)).toEqual(['setPenColor(t, "#ff0000");']);
+    expect(statements.pen_changePenColorParamBy!(block("pen_changePenColorParamBy"), g)).toEqual(['setPenParam(t, "brightness", 5, true);']);
+    expect(statements.pen_changePenSizeBy!(block("pen_changePenSizeBy"), g)).toEqual(["setPenSize(t, penOf(t).size + toNum(v));"]);
+  });
+
   it("motion casts inputs to numbers", () => {
     const g = stubGen({ X: lit("5"), Y: anyEx("v") });
     expect(statements.motion_gotoxy!(block("motion_gotoxy"), g)).toEqual(["setXY(rt, t, 5, toNum(v));"]);

@@ -187,9 +187,47 @@ async function compareBackend(sb3Base64: string, frames: number): Promise<string
   }
 }
 
+/** RGBA of a stage point as scratch-render last drew it (or draws it now). */
+function rendererPixel(renderer: RenderWebGL, x: number, y: number): [number, number, number, number] {
+  const gl = renderer._gl;
+  renderer.draw();
+  const out = new Uint8Array(4);
+  gl.readPixels(Math.floor(((x + 240) / 480) * gl.drawingBufferWidth), Math.floor(((y + 180) / 360) * gl.drawingBufferHeight), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+  return [out[0]!, out[1]!, out[2]!, out[3]!];
+}
+
+/**
+ * Runs the project `frames` frames on both engines and compares what each renderer shows on a grid
+ * every `step` stage pixels, which covers what the pen and stamps leave behind. Both draw with
+ * scratch-render, so the pixels must match exactly. Returns one line per mismatch.
+ */
+async function comparePixels(sb3Base64: string, frames: number, step: number): Promise<string[]> {
+  const s = await open(sb3Base64, {});
+  const { bytecat, backend, turbowarp } = s;
+  try {
+    for (let i = 0; i < frames; i++) {
+      bytecat.step();
+      await turbowarp.step();
+    }
+    backend.sync();
+    const problems: string[] = [];
+    for (let y = -175; y <= 175; y += step) {
+      for (let x = -235; x <= 235; x += step) {
+        const actual = backend.pixel(x, y);
+        const expected = rendererPixel(turbowarp.renderer, x, y);
+        if (!same(actual, expected)) problems.push(`pixel at ${x}, ${y}: backend ${JSON.stringify(actual)} but turbowarp ${JSON.stringify(expected)}`);
+      }
+    }
+    return problems;
+  } finally {
+    s.close();
+  }
+}
+
 export interface OraclePage {
   trace(sb3Base64: string, options: TraceOptions): Promise<TraceResult>;
   compareBackend(sb3Base64: string, frames: number): Promise<string[]>;
+  comparePixels(sb3Base64: string, frames: number, step: number): Promise<string[]>;
   turbowarpUsesCounterIds(): boolean;
 }
 
@@ -199,5 +237,5 @@ declare global {
   }
 }
 
-window.bytecatOracle = { trace, compareBackend, turbowarpUsesCounterIds };
+window.bytecatOracle = { trace, compareBackend, comparePixels, turbowarpUsesCounterIds };
 document.body.dataset.ready = "true";

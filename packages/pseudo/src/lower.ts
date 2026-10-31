@@ -90,7 +90,8 @@ export function lower(program: ProgramNode, file?: string): LowerResult {
   const json: ProjectJson = {
     targets: targets as ProjectJson["targets"],
     monitors: [],
-    extensions: [],
+    // Pen is an extension: a project that uses it lists it, as the Scratch editor saves it.
+    extensions: targets.some((t) => Object.values(t.blocks).some((b) => typeof b === "object" && !Array.isArray(b) && b.opcode.startsWith("pen_"))) ? ["pen"] : [],
     meta: { semver: "3.0.0", vm: "0.2.0", agent: "bytecat-pseudo" },
   };
   const stage = json.targets[0];
@@ -313,7 +314,7 @@ export class TargetBuilder {
 
   // ---- expressions ----
 
-  valueInput(id: string, input: string, prim: 4 | 5 | 6 | 7 | 8 | 10, def: string, expr: Expr): void {
+  valueInput(id: string, input: string, prim: 4 | 5 | 6 | 7 | 8 | 9 | 10, def: string, expr: Expr): void {
     const v = this.value(expr, id);
     const shadow = defaultShadow({ kind: "value", input, prim, default: def });
     const inp: Input = v.kind === "prim"
@@ -399,6 +400,8 @@ export class TargetBuilder {
 }
 
 /** Gives a literal the primitive code of the slot it sits in, so number slots get [4, ...] and text slots [10, ...]. */
-function retag(prim: CompactPrimitive, slotPrim: 4 | 5 | 6 | 7 | 8 | 10): CompactPrimitive {
+function retag(prim: CompactPrimitive, slotPrim: 4 | 5 | 6 | 7 | 8 | 9 | 10): CompactPrimitive {
+  // A color slot only holds `#rrggbb`; anything else goes in as text, which the block casts.
+  if (slotPrim === 9 && !/^#[0-9a-fA-F]{6}$/.test(String(prim[1]))) return [10, String(prim[1])];
   return [slotPrim, String(prim[1])];
 }

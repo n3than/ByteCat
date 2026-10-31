@@ -2,7 +2,7 @@ import type { CompactPrimitive } from "@bytecat/sb3";
 
 /** How one argument of a builtin maps onto a Scratch input or field. */
 export type Slot =
-  | { kind: "value"; input: string; prim: 4 | 5 | 6 | 7 | 8 | 10; default?: string }
+  | { kind: "value"; input: string; prim: 4 | 5 | 6 | 7 | 8 | 9 | 10; default?: string }
   | { kind: "bool"; input: string }
   | { kind: "menu"; input: string; shadow: string; field: string; default: string }
   | { kind: "broadcast"; input: string }
@@ -29,6 +29,7 @@ const whole = (input: string, def = "1"): Slot => ({ kind: "value", input, prim:
 const angle = (input: string, def = "90"): Slot => ({ kind: "value", input, prim: 8, default: def });
 const text = (input: string, def = ""): Slot => ({ kind: "value", input, prim: 10, default: def });
 const bool = (input: string): Slot => ({ kind: "bool", input });
+const colorParam: Slot = { kind: "menu", input: "COLOR_PARAM", shadow: "pen_menu_colorParam", field: "colorParam", default: "color" };
 
 /** Statement builtins, keyed by name. A name can have several overloads with different arity. */
 export const STATEMENTS: Record<string, Builtin[]> = {
@@ -97,6 +98,15 @@ export const STATEMENTS: Record<string, Builtin[]> = {
   set_size: [{ opcode: "looks_setsizeto", slots: [num("SIZE", "100")], spriteOnly: true, doc: "set size to (n) %" }],
   show: [{ opcode: "looks_show", slots: [], spriteOnly: true, doc: "show" }],
   hide: [{ opcode: "looks_hide", slots: [], spriteOnly: true, doc: "hide" }],
+  pen_clear: [{ opcode: "pen_clear", slots: [], doc: "erase all (pen)" }],
+  stamp: [{ opcode: "pen_stamp", slots: [], spriteOnly: true, doc: "stamp (pen)" }],
+  pen_down: [{ opcode: "pen_penDown", slots: [], spriteOnly: true, doc: "pen down" }],
+  pen_up: [{ opcode: "pen_penUp", slots: [], spriteOnly: true, doc: "pen up" }],
+  set_pen_color: [{ opcode: "pen_setPenColorToColor", slots: [{ kind: "value", input: "COLOR", prim: 9, default: "#0000ff" }], spriteOnly: true, doc: "set pen color to (`#rrggbb` or 0xAARRGGBB number)" }],
+  set_pen: [{ opcode: "pen_setPenColorParamTo", slots: [colorParam, num("VALUE", "50")], spriteOnly: true, doc: "set pen (color, saturation, brightness or transparency) to (n)" }],
+  change_pen: [{ opcode: "pen_changePenColorParamBy", slots: [colorParam, num("VALUE", "10")], spriteOnly: true, doc: "change pen (color, saturation, brightness or transparency) by (n)" }],
+  set_pen_size: [{ opcode: "pen_setPenSizeTo", slots: [num("SIZE", "1")], spriteOnly: true, doc: "set pen size to (n)" }],
+  change_pen_size: [{ opcode: "pen_changePenSizeBy", slots: [num("SIZE", "1")], spriteOnly: true, doc: "change pen size by (n)" }],
   go_to_front: [{ opcode: "looks_gotofrontback", slots: [], fixed: { FRONT_BACK: "front" }, spriteOnly: true, doc: "go to front layer" }],
   go_to_back: [{ opcode: "looks_gotofrontback", slots: [], fixed: { FRONT_BACK: "back" }, spriteOnly: true, doc: "go to back layer" }],
   go_forward: [{

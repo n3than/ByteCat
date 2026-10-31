@@ -1,4 +1,4 @@
-import type { Runtime, Target } from "@bytecat/runtime";
+import type { PenLayer, PenState, Runtime, Target } from "@bytecat/runtime";
 import { fenceFromBox, type Bounds, type RenderBackend } from "./backend.js";
 
 export const STAGE_WIDTH = 480;
@@ -15,9 +15,12 @@ export interface Costume {
  * `RenderBackend` without pixel-exact collision: `bounds` and `touching` use the costume's box, and
  * `touchingColor` is always false. ScratchRenderBackend (scratch-render.ts) is exact.
  */
-export class Renderer implements RenderBackend {
+export class Renderer implements RenderBackend, PenLayer {
   private readonly ctx: CanvasRenderingContext2D;
   readonly scale: number;
+  /** The pen layer, at the canvas's resolution, drawn over the backdrop and under the sprites. */
+  private readonly penCanvas: HTMLCanvasElement;
+  private readonly penCtx: CanvasRenderingContext2D;
 
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -29,6 +32,11 @@ export class Renderer implements RenderBackend {
     canvas.width = STAGE_WIDTH * scale;
     canvas.height = STAGE_HEIGHT * scale;
     this.ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    this.penCanvas = document.createElement("canvas");
+    this.penCanvas.width = canvas.width;
+    this.penCanvas.height = canvas.height;
+    this.penCtx = this.penCanvas.getContext("2d")!;
+    rt.pen = this;
   }
 
   /** Nothing to copy: `draw` and the queries read the runtime directly. */
@@ -40,6 +48,8 @@ export class Renderer implements RenderBackend {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
     this.drawTarget(this.rt.stage);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(this.penCanvas, 0, 0);
     const sprites = this.sprites();
     for (const t of sprites) if (t.visible) this.drawTarget(t);
     for (const t of sprites) if (t.visible && t.bubble) this.drawBubble(t);
@@ -63,11 +73,10 @@ export class Renderer implements RenderBackend {
     return m;
   }
 
-  private drawTarget(t: Target): void {
+  private drawTarget(t: Target, ctx = this.ctx): void {
     const info = t.costumes[t.costume];
     const costume = info && this.costumes.get(info.md5ext);
     if (!costume) return;
-    const { ctx } = this;
     ctx.save();
     const m = this.transform(t);
     ctx.setTransform(new DOMMatrix().scaleSelf(this.scale, this.scale).multiplySelf(m));
@@ -152,7 +161,47 @@ export class Renderer implements RenderBackend {
     return [d[0]!, d[1]!, d[2]!, d[3]!];
   }
 
-  dispose(): void {}
+  dispose(): void {
+    if (this.rt.pen === this) this.rt.pen = null;
+  }
+
+  // ---- pen layer ----
+
+  line(pen: PenState, x0: number, y0: number, x1: number, y1: number): void {
+    const ctx = this.penCtx;
+    const [r, g, b, a] = pen.color4f;
+    ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+    // Like scratch-render's PenSkin: lines of diameter 1 and 3 are shifted half a pixel so they fill whole pixels.
+    const offset = pen.size === 1 || pen.size === 3 ? 0.5 : 0;
+    const ax = STAGE_WIDTH / 2 + x0 + offset;
+    const ay = STAGE_HEIGHT / 2 - y0 - offset;
+    const bx = STAGE_WIDTH / 2 + x1 + offset;
+    const by = STAGE_HEIGHT / 2 - y1 - offset;
+    const color = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`;
+    if (ax === bx && ay === by) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(ax, ay, pen.size / 2, 0, 2 * Math.PI);
+      ctx.fill();
+      return;
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = pen.size;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+  }
+
+  stamp(t: Target): void {
+    this.drawTarget(t, this.penCtx);
+  }
+
+  clear(): void {
+    this.penCtx.setTransform(1, 0, 0, 1, 0, 0);
+    this.penCtx.clearRect(0, 0, this.penCanvas.width, this.penCanvas.height);
+  }
 
   private drawBubble(t: Target): void {
     const bubble = t.bubble!;

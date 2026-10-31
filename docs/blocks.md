@@ -25,8 +25,8 @@ below but not counted.
 | [Variables and lists](#data) | `data` | 13 | 4 | 0 |
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
-| [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **86** | **17** | **31** |
+| [Pen](#pen) | `pen` | 9 | 0 | 0 |
+| **All** | | **95** | **17** | **22** |
 
 <a id="motion"></a>
 
@@ -281,21 +281,21 @@ below but not counted.
 
 ## Pen (`pen`)
 
-0 compiled, 0 partial, 13 missing, counting hidden blocks.
+9 compiled, 0 partial, 4 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
-| `pen_clear` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_stamp` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_penDown` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_penUp` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_setPenColorToColor` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_changePenColorParamBy` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_setPenColorParamTo` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_changePenSizeBy` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_setPenSizeTo` | statement | Missing | yes | no pen layer yet (Phase 7) |
-| `pen_setPenShadeToNumber` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; no pen layer yet (Phase 7) |
-| `pen_changePenShadeBy` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; no pen layer yet (Phase 7) |
-| `pen_setPenHueToNumber` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; no pen layer yet (Phase 7) |
-| `pen_changePenHueBy` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; no pen layer yet (Phase 7) |
+| `pen_clear` | statement | Compiled | yes |  |
+| `pen_stamp` | statement | Compiled | yes |  |
+| `pen_penDown` | statement | Compiled | yes |  |
+| `pen_penUp` | statement | Compiled | yes |  |
+| `pen_setPenColorToColor` | statement | Compiled | yes |  |
+| `pen_changePenColorParamBy` | statement | Compiled | yes |  |
+| `pen_setPenColorParamTo` | statement | Compiled | yes |  |
+| `pen_changePenSizeBy` | statement | Compiled | yes |  |
+| `pen_setPenSizeTo` | statement | Compiled | yes |  |
+| `pen_setPenShadeToNumber` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; not written yet |
+| `pen_changePenShadeBy` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; not written yet |
+| `pen_setPenHueToNumber` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; not written yet |
+| `pen_changePenHueBy` | statement | Missing | hidden | Scratch 2 pen block, still in old projects; not written yet |
 | `pen_menu_colorParam` | menu (`colorParam`) | Compiled | yes |  |

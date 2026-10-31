@@ -9,9 +9,16 @@ const STAGE_WIDTH = 480;
 const STAGE_HEIGHT = 360;
 
 export function setXY(rt: Runtime, t: Target, x: number, y: number): void {
+  const x0 = t.x;
+  const y0 = t.y;
   t.x = x;
   t.y = y;
   if (t.visible) rt.requestRedraw();
+  // A pen that is down draws the move (TurboWarp's `_onTargetMoved`).
+  if (t.pen !== null && t.pen.down && rt.pen) {
+    rt.pen.line(t.pen, x0, y0, x, y);
+    rt.requestRedraw();
+  }
 }
 
 export function move(rt: Runtime, t: Target, steps: number): void {

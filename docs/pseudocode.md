@@ -205,6 +205,15 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `set_size(size)` | set size to (n) % | `looks_setsizeto` | sprite |
 | `show()` | show | `looks_show` | sprite |
 | `hide()` | hide | `looks_hide` | sprite |
+| `pen_clear()` | erase all (pen) | `pen_clear` | any |
+| `stamp()` | stamp (pen) | `pen_stamp` | sprite |
+| `pen_down()` | pen down | `pen_penDown` | sprite |
+| `pen_up()` | pen up | `pen_penUp` | sprite |
+| `set_pen_color(color)` | set pen color to (`#rrggbb` or 0xAARRGGBB number) | `pen_setPenColorToColor` | sprite |
+| `set_pen(color_param, value)` | set pen (color, saturation, brightness or transparency) to (n) | `pen_setPenColorParamTo` | sprite |
+| `change_pen(color_param, value)` | change pen (color, saturation, brightness or transparency) by (n) | `pen_changePenColorParamBy` | sprite |
+| `set_pen_size(size)` | set pen size to (n) | `pen_setPenSizeTo` | sprite |
+| `change_pen_size(size)` | change pen size by (n) | `pen_changePenSizeBy` | sprite |
 | `go_to_front()` | go to front layer | `looks_gotofrontback` | sprite |
 | `go_to_back()` | go to back layer | `looks_gotofrontback` | sprite |
 | `go_forward(num)` | go forward (n) layers | `looks_goforwardbackwardlayers` | sprite |
@@ -377,7 +386,7 @@ Unknown builtins suggest the closest name (`mvoe` → `move`).
 
 ## Not supported (yet)
 
-Sounds, pen, extensions, sensing that needs a renderer (`touching`, `distance to`,
+Sounds, the Scratch 2 pen shade and hue blocks, extensions other than pen, sensing that needs a renderer (`touching`, `distance to`,
 colors), graphic effects, layers beyond `go_to_front()`, `when backdrop switches`, `when timer >`,
 variable and list monitors, and comments.
 New blocks are added in `packages/pseudo/src/builtins.ts`; see `AGENTS.md`.

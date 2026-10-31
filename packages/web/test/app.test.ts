@@ -245,8 +245,8 @@ describe("web app", () => {
   it("warns about unsupported blocks and costumes it cannot decode", async () => {
     const project = example("hello");
     const stage = project.json.targets[0]!;
-    stage.blocks.hat = { opcode: "event_whenflagclicked", next: "pen", parent: null, inputs: {}, fields: {}, shadow: false, topLevel: true, x: 0, y: 0 };
-    stage.blocks.pen = { opcode: "pen_clear", next: null, parent: "hat", inputs: {}, fields: {}, shadow: false, topLevel: false };
+    stage.blocks.hat = { opcode: "event_whenflagclicked", next: "missing", parent: null, inputs: {}, fields: {}, shadow: false, topLevel: true, x: 0, y: 0 };
+    stage.blocks.missing = { opcode: "sound_stopallsounds", next: null, parent: "hat", inputs: {}, fields: {}, shadow: false, topLevel: false };
     const costume = project.json.targets[1]!.costumes[0]!;
     project.assets.set(costume.md5ext, new TextEncoder().encode("not an image"));
     // Files that are not costumes (sounds, here) are never decoded as images.
@@ -256,7 +256,7 @@ describe("web app", () => {
     await page.setInputFiles("#file", { name: "broken.sb3", mimeType: "application/octet-stream", buffer: Buffer.from(writeSb3(project)) });
     await until(page, () => document.getElementById("warning-count")!.textContent, "2");
     const warnings = await page.$$eval("#warnings li", (lis) => lis.map((li) => li.textContent!));
-    expect(warnings[0]).toContain("pen_clear");
+    expect(warnings[0]).toContain("sound_stopallsounds");
     expect(warnings[1]).toContain(costume.md5ext);
     // The rest of the project still runs.
     await page.click("#flag");

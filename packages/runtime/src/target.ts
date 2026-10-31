@@ -1,6 +1,21 @@
 import type { ProjectJson, Target as TargetJson } from "@bytecat/sb3";
 import type { Value } from "./ops.js";
 
+/**
+ * A target's pen (TurboWarp's `Scratch.pen` custom state): whether it is down, its color as
+ * Scratch's color, saturation, brightness and transparency (0 to 100), and what a renderer draws
+ * with, the RGBA color (each 0 to 1) and the diameter.
+ */
+export interface PenState {
+  down: boolean;
+  color: number;
+  saturation: number;
+  brightness: number;
+  transparency: number;
+  color4f: [number, number, number, number];
+  size: number;
+}
+
 export interface CostumeInfo {
   name: string;
   md5ext: string;
@@ -39,6 +54,8 @@ export class Target {
   bubble: { kind: "say" | "think"; text: string } | null = null;
   /** Whether a renderer would have the bubble drawn: it appeared on a visible sprite and is still up. */
   bubbleDrawn = false;
+  /** The pen, made by the first pen block that runs for the target (`@bytecat/runtime/pen`). */
+  pen: PenState | null = null;
 
   /** The target at `index` in project.json, or given a target, a clone of it. */
   constructor(source: TargetJson | Target, index = 0) {
@@ -62,6 +79,8 @@ export class Target {
       this.rotationStyle = parent.rotationStyle;
       this.draggable = parent.draggable;
       this.effects = { ...parent.effects };
+      // A clone gets its own copy of the pen, still down if its parent's was.
+      if (parent.pen) this.pen = { ...parent.pen, color4f: [...parent.pen.color4f] };
       return;
     }
     const json = source;
