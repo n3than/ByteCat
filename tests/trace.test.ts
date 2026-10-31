@@ -72,8 +72,9 @@ describe("trace oracle", () => {
   });
 
   describe("clones", () => {
-    // 310 clones asked for at once, then each moves twice, a frame apart.
-    const swarm = `sprite S:\n  costume c = circle "#ff0000"\n  var k = 0\n  define warp spawn():\n    repeat 310:\n      k += 1\n      create_clone("_myself_")\n  when flag:\n    spawn()\n  when cloned:\n    change_x(k)\n    wait(0)\n    change_x(1)\n`;
+    // 310 clones asked for at once, then each moves twice, a frame apart (by k / 2, so none reaches
+    // the fence).
+    const swarm = `sprite S:\n  costume c = circle "#ff0000"\n  var k = 0\n  define warp spawn():\n    repeat 310:\n      k += 1\n      create_clone("_myself_")\n  when flag:\n    spawn()\n  when cloned:\n    change_x(k / 2)\n    wait(0)\n    change_x(1)\n`;
     const cloneXs = (fields: Record<string, unknown>) => Object.keys(fields).filter((f) => /^S#\d+\.x$/.test(f));
 
     it("shows every clone on both engines, up to the 300 limit", async () => {
@@ -83,7 +84,7 @@ describe("trace oracle", () => {
         await engine.step();
         const { fields } = engine.snapshot(1);
         expect(cloneXs(fields), engine.name).toHaveLength(300);
-        expect(fields["S#300.x"], engine.name).toBe("300");
+        expect(fields["S#300.x"], engine.name).toBe("150");
         expect((fields.layers as string[]).slice(-2), engine.name).toEqual(["S#300", "S"]);
         engine.dispose();
       }
@@ -103,7 +104,7 @@ describe("trace oracle", () => {
         snapshot: (f: number) => bytecat.snapshot(f),
       });
       const r = await traceEngines(planted, await TurboWarpEngine.load(sb3), { frames: 20 });
-      expect(r.diff).toEqual({ frame: 1, field: "S#300.x", actual: "301", expected: "300" });
+      expect(r.diff).toEqual({ frame: 1, field: "S#300.x", actual: "151", expected: "150" });
     });
   });
 

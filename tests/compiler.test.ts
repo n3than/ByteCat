@@ -7,7 +7,8 @@ import { join } from "node:path";
 import { compile } from "@bytecat/compiler";
 import { compile as compilePseudo, compileToSb3 } from "@bytecat/pseudo";
 import { engines, runProject } from "@bytecat/reference";
-import { Runtime } from "@bytecat/runtime";
+import { Runtime, turbowarpCompat } from "@bytecat/runtime";
+import { costumeSizes } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
 
 const dir = join(import.meta.dirname, "..", "examples");
@@ -22,10 +23,11 @@ describe("compiler and runtime", () => {
 
     test(name, async () => {
       const source = readFileSync(join(dir, file), "utf8");
-      const json = compilePseudo(source, file).project.json;
+      const project = compilePseudo(source, file).project;
+      const json = project.json;
       const { program, warnings } = compile(json);
       expect(warnings).toEqual([]);
-      const rt = new Runtime(json, program, { clock: "virtual", turbo: true });
+      const rt = new Runtime(json, program, { ...turbowarpCompat, clock: "virtual", turbo: true, costumeSizes: costumeSizes(project) });
       const { finished } = rt.runUntilDone(5000);
       expect(finished, "project did not finish within 5 s").toBe(true);
 

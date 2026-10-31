@@ -1,4 +1,4 @@
-import type { ProjectJson, Target as TargetJson } from "@bytecat/sb3";
+import type { CostumeSizes, ProjectJson, Target as TargetJson } from "@bytecat/sb3";
 import type { Value } from "./ops.js";
 
 export interface CostumeInfo {
@@ -7,6 +7,37 @@ export interface CostumeInfo {
   rotationCenterX: number;
   rotationCenterY: number;
   bitmapResolution: number;
+  /**
+   * The costume's size at 100% in stage pixels and its rotation center in those units, as
+   * scratch-render sizes its skin: an SVG's viewBox, with the viewBox origin taken off the center;
+   * a bitmap's pixels divided by `bitmapResolution`. `width` is -1 when the image was not measured
+   * (`RuntimeOptions.costumeSizes`), and then nothing is fenced or clamped for it.
+   */
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+  /**
+   * The farthest a corner of the costume is from its rotation center at 100%, so that `setXY` can
+   * tell that a sprite is well inside the fence without asking the geometry. 0 when not measured.
+   */
+  radius: number;
+}
+
+/** A costume of project.json with the size of its image, if known. */
+function costumeInfo(c: TargetJson["costumes"][number], sizes: CostumeSizes | undefined): CostumeInfo {
+  const resolution = c.bitmapResolution ?? 1;
+  const info = { name: c.name, md5ext: c.md5ext, rotationCenterX: c.rotationCenterX, rotationCenterY: c.rotationCenterY, bitmapResolution: resolution };
+  const size = sizes?.[c.md5ext];
+  if (!size) return { ...info, width: -1, height: -1, centerX: 0, centerY: 0, radius: 0 };
+  // load-costume.js: an SVG skin takes the rotation center as it is, a bitmap skin divided by the resolution.
+  const svg = c.dataFormat === "svg";
+  const width = svg ? size.width : size.width / resolution;
+  const height = svg ? size.height : size.height / resolution;
+  const centerX = svg ? c.rotationCenterX - size.x : c.rotationCenterX / resolution;
+  const centerY = svg ? c.rotationCenterY - size.y : c.rotationCenterY / resolution;
+  const radius = Math.hypot(Math.max(Math.abs(centerX), Math.abs(width - centerX)), Math.max(Math.abs(centerY), Math.abs(height - centerY)));
+  return { ...info, width, height, centerX, centerY, radius };
 }
 
 /**
@@ -41,7 +72,7 @@ export class Target {
   bubbleDrawn = false;
 
   /** The target at `index` in project.json, or given a target, a clone of it. */
-  constructor(source: TargetJson | Target, index = 0) {
+  constructor(source: TargetJson | Target, index = 0, sizes?: CostumeSizes) {
     if (source instanceof Target) {
       const parent = source;
       // What TurboWarp's `makeClone` copies; the bubble and the threads stay behind.
@@ -71,13 +102,7 @@ export class Target {
     this.isOriginal = true;
     for (const [id, [, value]] of Object.entries(json.variables)) this.v[id] = value;
     for (const [id, [, items]] of Object.entries(json.lists)) this.l[id] = [...items];
-    this.costumes = json.costumes.map((c) => ({
-      name: c.name,
-      md5ext: c.md5ext,
-      rotationCenterX: c.rotationCenterX,
-      rotationCenterY: c.rotationCenterY,
-      bitmapResolution: c.bitmapResolution ?? 1,
-    }));
+    this.costumes = json.costumes.map((c) => costumeInfo(c, sizes));
     this.costume = json.currentCostume;
     this.layer = json.layerOrder;
     if (!json.isStage) {
@@ -94,10 +119,10 @@ export class Target {
   /**
    * Every target of the project, in project order. Their layers are renumbered 0, 1, 2, ... from
    * back to front, the stage first and ties in project order, so that every layer is distinct
-   * and a clone can be slotted in just behind its parent.
+   * and a clone can be slotted in just behind its parent. `sizes`: the costume images' sizes.
    */
-  static all(project: ProjectJson): Target[] {
-    const targets = project.targets.map((t, i) => new Target(t, i));
+  static all(project: ProjectJson, sizes?: CostumeSizes): Target[] {
+    const targets = project.targets.map((t, i) => new Target(t, i, sizes));
     const byLayer = [...targets].sort((a, b) => Number(b.isStage) - Number(a.isStage) || a.layer - b.layer || a.index - b.index);
     byLayer.forEach((t, i) => (t.layer = i));
     return targets;

@@ -143,6 +143,9 @@ importers:
 
   packages/reference:
     dependencies:
+      '@bytecat/sb3':
+        specifier: workspace:*
+        version: link:../sb3
       scratch-vm:
         specifier: ^5.0.300
         version: 5.0.300(scratch-render-fonts@1.0.252)

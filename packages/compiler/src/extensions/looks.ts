@@ -2,7 +2,6 @@ import { asName, numEx, strEx } from "../cast.js";
 import { menu, missing, reporter, statement, type Extension } from "./api.js";
 
 const LEGACY = "Scratch 2 leftover; a no-op in TurboWarp";
-const SIZE = "only clamps at 5%; TurboWarp clamps by costume and stage size";
 
 export const looks: Extension = {
   id: "looks",
@@ -24,8 +23,8 @@ export const looks: Extension = {
     looks_switchbackdropto: statement((b, g) => [`switchCostume(rt, S, ${asName(g.menu(b, "BACKDROP"))});`], { uses: ["switchCostume"] }),
     looks_switchbackdroptoandwait: missing("statement", "waits for the scripts its backdrop hat starts"),
     looks_nextbackdrop: statement(() => ["nextCostume(rt, S);"], { uses: ["nextCostume"] }),
-    looks_changesizeby: statement((b, g) => [`setSize(rt, t, t.size + ${g.num(b, "CHANGE")});`], { uses: ["setSize"], partial: SIZE }),
-    looks_setsizeto: statement((b, g) => [`setSize(rt, t, ${g.num(b, "SIZE")});`], { uses: ["setSize"], partial: SIZE }),
+    looks_changesizeby: statement((b, g) => [`setSize(rt, t, t.size + ${g.num(b, "CHANGE")});`], { uses: ["setSize"] }),
+    looks_setsizeto: statement((b, g) => [`setSize(rt, t, ${g.num(b, "SIZE")});`], { uses: ["setSize"] }),
     looks_changeeffectby: missing("statement", "no effect state or drawing yet"),
     looks_seteffectto: missing("statement", "no effect state or drawing yet"),
     looks_cleargraphiceffects: missing("statement", "no effect state or drawing yet"),

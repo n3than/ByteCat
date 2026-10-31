@@ -4,8 +4,8 @@
 import { compile } from "@bytecat/compiler";
 import type { RenderBackend } from "@bytecat/player";
 import { DEFAULT_DATE, flushPromises, mulberry32, withVirtualGlobals, type VirtualGlobals } from "@bytecat/reference/virtual";
-import { passClock, Runtime } from "@bytecat/runtime";
-import type { ProjectJson } from "@bytecat/sb3";
+import { passClock, Runtime, turbowarpCompat } from "@bytecat/runtime";
+import type { CostumeSizes, ProjectJson } from "@bytecat/sb3";
 import type { FrameOptions, LockstepEngine } from "./engine.js";
 import { cloneLabels, toSnapshot, type Snapshot, type StageState } from "./snapshot.js";
 
@@ -51,12 +51,13 @@ export class BytecatLockstep implements LockstepEngine {
   private readonly clock: ReturnType<typeof passClock>;
   private readonly env: VirtualGlobals;
 
-  constructor(project: ProjectJson, options: FrameOptions = {}) {
+  /** `costumeSizes`: the costume images' sizes, so that sprites are fenced and clamped (`RuntimeOptions`). */
+  constructor(project: ProjectJson, options: FrameOptions = {}, costumeSizes?: CostumeSizes) {
     const { fps = 30, turbo = false, passes = 50, seed = 1, date = DEFAULT_DATE } = options;
     const { program, warnings } = compile(project);
     for (const w of warnings) this.problems.push(`bytecat does not support ${w}`);
     this.clock = passClock(passes, fps);
-    const rt = new Runtime(project, program, { clock: "virtual", fps, turbo, schedulerClock: this.clock.read });
+    const rt = new Runtime(project, program, { ...turbowarpCompat, clock: "virtual", fps, turbo, schedulerClock: this.clock.read, costumeSizes });
     // One loop iteration per step, as in TurboWarp: `spin` (how many iterations a lone thread may
     // run without yielding) always reads 0 and ignores writes, so loops yield every iteration. This
     // is done here, on this instance only, so the scheduler's hot loop has no lockstep option.

@@ -3,14 +3,13 @@
 // `util/uid.js` for a counter (`turbowarpUidReplacement` in tw-ids.ts), as tw-ids.ts does in Node.
 import TurboWarpVM from "turbowarp-vm";
 import Timer from "turbowarp-vm/src/util/timer.js";
-import RenderedTarget from "turbowarp-vm/src/sprites/rendered-target.js";
 import Looks from "turbowarp-vm/src/blocks/scratch3_looks.js";
 import uid from "turbowarp-vm/src/util/uid.js";
 import type { TurboWarpModules } from "./tw-lockstep.js";
 
 export { TurboWarpVM };
 
-export const turbowarpModules: TurboWarpModules = { Timer, RenderedTarget, Looks };
+export const turbowarpModules: TurboWarpModules = { Timer, Looks };
 
 /** True when the bundle swapped TurboWarp's ids for the counter. */
 export function turbowarpUsesCounterIds(): boolean {

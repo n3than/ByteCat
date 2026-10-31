@@ -1,3 +1,4 @@
+import { keepInFence, type Geometry } from "../geometry.js";
 import * as ops from "../ops.js";
 import type { Value } from "../ops.js";
 import type { Runtime } from "../runtime.js";
@@ -8,9 +9,30 @@ import { SLEEP, WAIT } from "../thread.js";
 const STAGE_WIDTH = 480;
 const STAGE_HEIGHT = 360;
 
+/**
+ * Moves the sprite, as far as Scratch's fence lets it go (RenderedTarget's `setXY`). The fence
+ * keeps at least 15 pixels (or half the sprite) on the stage, so it lies at least 225 by 165 from
+ * the center: a sprite whose every corner is inside that box is not moved, whatever its direction,
+ * and the geometry is not asked. (One pixel of slack covers the renderer's float32 rounding.)
+ */
 export function setXY(rt: Runtime, t: Target, x: number, y: number): void {
+  if (rt.geometry !== null) {
+    const c = t.costumes[t.costume];
+    const r = c !== undefined && c.width >= 0 ? (c.radius * Math.abs(t.size)) / 100 + 1 : Infinity;
+    if (!(x < 225 - r && x > r - 225 && y < 165 - r && y > r - 165)) {
+      fencedXY(rt, rt.geometry, t, x, y);
+      return;
+    }
+  }
   t.x = x;
   t.y = y;
+  if (t.visible) rt.requestRedraw();
+}
+
+function fencedXY(rt: Runtime, geometry: Geometry, t: Target, x: number, y: number): void {
+  const p = geometry.fence(t, x, y);
+  t.x = p[0];
+  t.y = p[1];
   if (t.visible) rt.requestRedraw();
 }
 
@@ -111,13 +133,37 @@ export function* glide(rt: Runtime, t: Target, seconds: number, x: number, y: nu
   setXY(rt, t, x, y);
 }
 
+/**
+ * `if on edge, bounce` (TurboWarp's `_ifOnEdgeBounce`): once the sprite's bounds reach an edge, it
+ * points away from the nearest one and is moved back onto the stage. Without a geometry it does
+ * nothing, like TurboWarp without a renderer.
+ */
 export function bounce(rt: Runtime, t: Target): void {
-  // Approximation: treats the sprite as a point. Real bounds need the renderer.
-  let dir = t.direction;
-  if (t.x > 240 || t.x < -240) dir = -dir;
-  if (t.y > 180 || t.y < -180) dir = 180 - dir;
-  setXY(rt, t, Math.max(-240, Math.min(240, t.x)), Math.max(-180, Math.min(180, t.y)));
-  setDirection(rt, t, dir);
+  const g = rt.geometry;
+  const b = g?.bounds(t);
+  if (!g || !b) return;
+  // Distances to the edges, 0 once the sprite is past one.
+  const distLeft = Math.max(0, 240 + b.left);
+  const distTop = Math.max(0, 180 - b.top);
+  const distRight = Math.max(0, 240 - b.right);
+  const distBottom = Math.max(0, 180 + b.bottom);
+  let nearest = "";
+  let minDist = Infinity;
+  if (distLeft < minDist) (minDist = distLeft), (nearest = "left");
+  if (distTop < minDist) (minDist = distTop), (nearest = "top");
+  if (distRight < minDist) (minDist = distRight), (nearest = "right");
+  if (distBottom < minDist) (minDist = distBottom), (nearest = "bottom");
+  if (minDist > 0) return;
+  const radians = ((90 - t.direction) * Math.PI) / 180;
+  let dx = Math.cos(radians);
+  let dy = -Math.sin(radians);
+  if (nearest === "left") dx = Math.max(0.2, Math.abs(dx));
+  else if (nearest === "top") dy = Math.max(0.2, Math.abs(dy));
+  else if (nearest === "right") dx = 0 - Math.max(0.2, Math.abs(dx));
+  else if (nearest === "bottom") dy = 0 - Math.max(0.2, Math.abs(dy));
+  setDirection(rt, t, (Math.atan2(dy, dx) * 180) / Math.PI + 90);
+  const p = keepInFence(g, t, t.x, t.y);
+  if (p) setXY(rt, t, p[0], p[1]);
 }
 
 /** Scratch hides floating-point noise in x/y reporters. */

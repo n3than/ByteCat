@@ -1,7 +1,7 @@
 import { compile } from "@bytecat/compiler";
 import { runProject } from "@bytecat/reference";
-import { Runtime } from "@bytecat/runtime";
-import { writeSb3, type Project } from "@bytecat/sb3";
+import { Runtime, turbowarpCompat } from "@bytecat/runtime";
+import { costumeSizes, writeSb3, type Project } from "@bytecat/sb3";
 
 export interface EngineResult {
   /** The stage `log` list after the run. */
@@ -32,7 +32,7 @@ export const bytecat: Engine = {
     const t0 = performance.now();
     const { program } = compile(project.json);
     const compileMs = performance.now() - t0;
-    const rt = new Runtime(project.json, program, { clock: "virtual", turbo: true });
+    const rt = new Runtime(project.json, program, { ...turbowarpCompat, clock: "virtual", turbo: true, costumeSizes: costumeSizes(project) });
     const r = rt.runUntilDone(timeoutMs);
     return { log: rt.log(), finished: r.finished, runMs: r.elapsedMs, compileMs };
   },
