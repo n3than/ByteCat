@@ -67,6 +67,9 @@ function pickOverload(b: TargetBuilder, table: Record<string, Builtin[]>, name: 
 function applyBuiltin(b: TargetBuilder, id: string, builtin: Builtin, args: Expr[], pos: SourcePos): void {
   for (const [field, value] of Object.entries(builtin.fixed ?? {})) b.get(id).fields[field] = [value, null];
   builtin.slots.forEach((slot, i) => lowerSlot(b, id, slot, args[i]!, pos));
+  for (const slot of builtin.implicit ?? []) {
+    if (slot.kind === "menu") lowerSlot(b, id, slot, { kind: "string", value: slot.default, pos }, pos);
+  }
 }
 
 function lowerSlot(b: TargetBuilder, id: string, slot: Slot, arg: Expr, pos: SourcePos): void {

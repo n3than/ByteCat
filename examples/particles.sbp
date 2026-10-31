@@ -1,0 +1,52 @@
+# A particle fountain. The emitter (hidden) spawns 3 clones per frame. Each clone keeps its own
+# velocity and fade level in sprite variables, moves under gravity, dims through three costumes
+# as its fade level falls (a variable, not a graphic effect) and deletes itself at level zero.
+var spawned = 0
+var alive = 0
+var peak = 0
+
+sprite Spark:
+  costume bright = circle "#ffcc00"
+  costume dim = circle "#aa7700"
+  costume faint = circle "#553300"
+  position 0, -150
+  hidden
+  var id = 0
+  var vx = 0
+  var vy = 0
+  var fade = 100
+
+  when flag:
+    repeat 30:
+      repeat 3:
+        spawned += 1
+        # A repeatable pseudo-random spread: no random() so the log is the same every run.
+        vx = (spawned * 7 % 11) - 5
+        vy = 6 + spawned % 5
+        id = spawned
+        create_clone()
+      wait(0)
+    wait_until(alive = 0)
+    log(join("spawned ", spawned))
+    log(join("peak alive ", peak))
+    stop("all")
+
+  when cloned:
+    alive += 1
+    if alive > peak:
+      peak = alive
+    show()
+    switch_costume("bright")
+    repeat until fade <= 0:
+      change_x(vx)
+      change_y(vy)
+      vy -= 0.5
+      fade -= 4
+      if fade < 30:
+        switch_costume("faint")
+      elif fade < 60:
+        switch_costume("dim")
+    if id % 13 = 0:
+      log(join("particle ", join(id, join(" ended at ", join(round(x_position()), join(", ", round(y_position())))))))
+    alive -= 1
+    delete_clone()

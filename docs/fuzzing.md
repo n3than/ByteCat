@@ -61,6 +61,11 @@ there is no `random()`, `timer()`, input or `wait`.
   counts its depth.
 - **Threads.** Sometimes several `when flag` scripts in one target, and a `when receive "go"`
   script fed by `broadcast` or `broadcast_wait`, so loops that yield interleave.
+- **Clones.** In about 40% of programs, sprites run `create_clone()`, `create_clone("_myself_")`
+  or `create_clone("B")` and `delete_clone()` (under a random condition, or at the end of a script),
+  and one or two `when cloned` scripts change a sprite-local variable, log it and run ordinary
+  statements. A global counter `ncl`, which nothing else writes, caps the clones a program makes at
+  4 (every create sits under `if ncl < 4`), so clones of clones stay finite and deterministic.
 
 ## Known gaps in what it generates
 
