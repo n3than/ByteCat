@@ -1,0 +1,20 @@
+tick 1
+go
+tick 1
+go
+tick 1
+tick 1
+waiter done
+no wait
+tick 2
+bye 0
+bye 2
+bye loop
+bye 1
+tick 4
+bye 0
+bye 2
+bye 1
+tick 4
+tick 4
+waited
