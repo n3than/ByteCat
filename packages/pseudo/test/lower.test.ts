@@ -159,6 +159,15 @@ describe("lowering", () => {
     expect(errorOf(`sprite A:\n  when flag:\n    mvoe(10)\n`)).toMatch(/Did you mean 'move'/);
   });
 
+  it("lowers show and hide of a list", () => {
+    const json = project(`list items = [1]\nsprite A:\n  when flag:\n    items.show()\n    items.hide()\n`);
+    const ops = Object.values(json.targets[1]!.blocks).map((b) => b.opcode);
+    expect(ops).toEqual(expect.arrayContaining(["data_showlist", "data_hidelist"]));
+    const show = Object.values(json.targets[1]!.blocks).find((b) => b.opcode === "data_showlist")!;
+    expect(show.fields.LIST![0]).toBe("items");
+    expect(errorOf(`list items\nsprite A:\n  when flag:\n    items.show(1)\n`)).toMatch(/takes 0 argument/);
+  });
+
   it("rejects non-boolean conditions", () => {
     expect(errorOf(`var x = 0\nsprite A:\n  when flag:\n    if x:\n      move(1)\n`)).toMatch(/expected a condition/);
   });

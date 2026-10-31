@@ -1,4 +1,5 @@
 import type { Runtime, Target } from "@bytecat/runtime";
+import { drawListMonitors } from "./monitor.js";
 import { fenceFromBox, type Bounds, type RenderBackend } from "./backend.js";
 
 export const STAGE_WIDTH = 480;
@@ -11,7 +12,7 @@ export interface Costume {
 }
 
 /**
- * Draws the stage, sprites and speech bubbles onto a 2D canvas in Scratch's coordinate system. A
+ * Draws the stage, sprites, speech bubbles and list monitors onto a 2D canvas in Scratch's coordinate system. A
  * `RenderBackend` without pixel-exact collision: `bounds` and `touching` use the costume's box, and
  * `touchingColor` is always false. ScratchRenderBackend (scratch-render.ts) is exact.
  */
@@ -43,6 +44,7 @@ export class Renderer implements RenderBackend {
     const sprites = this.sprites();
     for (const t of sprites) if (t.visible) this.drawTarget(t);
     for (const t of sprites) if (t.visible && t.bubble) this.drawBubble(t);
+    drawListMonitors(ctx, this.rt);
   }
 
   /** Sprites from back to front. */

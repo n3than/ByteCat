@@ -28,13 +28,13 @@ describe("a bundled project", () => {
     // hello says a word and logs: looks is the only block module it imports.
     const hello = await bundleOf("hello");
     expect(hello.imports).toEqual([{ from: "@bytecat/runtime/looks", names: ["say"] }]);
-    // ops.ts for the toStr that say calls.
-    expect(runtimeLib(hello.shipped)).toEqual(["lib/looks.ts", "ops.ts", "runtime.ts", "scheduler.ts", "target.ts", "thread.ts"]);
+    // ops.ts for the toStr that say calls; monitor.ts because the runtime keeps the list monitors.
+    expect(runtimeLib(hello.shipped)).toEqual(["lib/looks.ts", "monitor.ts", "ops.ts", "runtime.ts", "scheduler.ts", "target.ts", "thread.ts"]);
     // No sound or pen code, and not the table of every module the full player carries.
     expect(hello.shipped.filter((p) => /sound|pen|audio|modules\.ts/i.test(p))).toEqual([]);
 
     const motion = await bundleOf("motion");
-    expect(runtimeLib(motion.shipped)).toEqual(["lib/looks.ts", "lib/motion.ts", "ops.ts", "runtime.ts", "scheduler.ts", "target.ts", "thread.ts"]);
+    expect(runtimeLib(motion.shipped)).toEqual(["lib/looks.ts", "lib/motion.ts", "monitor.ts", "ops.ts", "runtime.ts", "scheduler.ts", "target.ts", "thread.ts"]);
   });
 
   it("leaves out the functions of a shipped module that the program does not call", async () => {

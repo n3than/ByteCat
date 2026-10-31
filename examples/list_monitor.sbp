@@ -1,0 +1,14 @@
+# List monitors: show list / hide list draw the list on the stage, at the first free spot from the
+# top left; the box follows the list as it changes (see list_monitor.pixels).
+list shown = ["apple", "pear", "fig"]
+list other = ["y"]
+list gone = ["x"]
+
+sprite Main:
+  when flag:
+    shown.show()
+    other.show()
+    gone.show()
+    gone.hide()
+    shown.add("plum")
+    log(shown.length)
