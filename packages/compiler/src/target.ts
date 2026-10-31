@@ -221,7 +221,11 @@ export class TargetCodegen implements Gen {
         const ref = refs[Number(i)]!;
         return locals.get(ref) ?? ref;
       });
-      while (line.includes(CALL_OPEN)) line = line.replace(INNER_CALL, callExpr);
+      while (line.includes(CALL_OPEN)) {
+        const next = line.replace(INNER_CALL, callExpr);
+        if (next === line) throw new Error("internal error: unmatched call marker in generated line");
+        line = next;
+      }
       const at = line.indexOf(MARK);
       if (at < 0) {
         out.push(line);
