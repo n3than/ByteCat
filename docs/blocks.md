@@ -15,8 +15,8 @@ below but not counted.
 
 | Extension | Id | Compiled | Partial | Missing |
 | --- | --- | --- | --- | --- |
-| [Motion](#motion) | `motion` | 7 | 8 | 3 |
-| [Looks](#looks) | `looks` | 13 | 3 | 5 |
+| [Motion](#motion) | `motion` | 8 | 10 | 0 |
+| [Looks](#looks) | `looks` | 15 | 2 | 4 |
 | [Sound](#sound) | `sound` | 0 | 0 | 9 |
 | [Events](#event) | `event` | 7 | 0 | 2 |
 | [Control](#control) | `control` | 11 | 0 | 0 |
@@ -26,25 +26,25 @@ below but not counted.
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
 | [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **83** | **15** | **36** |
+| **All** | | **86** | **16** | **32** |
 
 <a id="motion"></a>
 
 ## Motion (`motion`)
 
-7 compiled, 8 partial, 8 missing, counting hidden blocks.
+8 compiled, 10 partial, 5 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
 | `motion_movesteps` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_turnright` | statement | Compiled | yes |  |
 | `motion_turnleft` | statement | Compiled | yes |  |
-| `motion_goto` | statement | Missing | yes | go to random position, mouse pointer or a sprite; needs the shared menu resolver |
+| `motion_goto` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_gotoxy` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
-| `motion_glideto` | statement | Missing | yes | glide to random position, mouse pointer or a sprite |
+| `motion_glideto` | statement, waits | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either; a glide to a random position draws its position once, while TurboWarp draws again on every frame (unused), so later `pick random` results under a seeded generator differ |
 | `motion_glidesecstoxy` | statement, waits | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_pointindirection` | statement | Compiled | yes |  |
-| `motion_pointtowards` | statement | Missing | yes | point towards mouse pointer or a sprite |
+| `motion_pointtowards` | statement | Compiled | yes |  |
 | `motion_changexby` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_setx` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
 | `motion_changeyby` | statement | Partial | yes | does not keep the sprite on the stage (fencing, Phase 2); headless TurboWarp, without a renderer, does not either |
@@ -67,7 +67,7 @@ below but not counted.
 
 ## Looks (`looks`)
 
-13 compiled, 3 partial, 8 missing, counting hidden blocks.
+15 compiled, 2 partial, 7 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
@@ -87,8 +87,8 @@ below but not counted.
 | `looks_cleargraphiceffects` | statement | Missing | yes | no effect state or drawing yet |
 | `looks_show` | statement | Compiled | yes |  |
 | `looks_hide` | statement | Compiled | yes |  |
-| `looks_gotofrontback` | statement | Partial | yes | front only; go to back layer is reported as unsupported |
-| `looks_goforwardbackwardlayers` | statement | Missing | yes | no layer list yet |
+| `looks_gotofrontback` | statement | Compiled | yes |  |
+| `looks_goforwardbackwardlayers` | statement | Compiled | yes |  |
 | `looks_costumenumbername` | reporter | Compiled | yes |  |
 | `looks_backdropnumbername` | reporter | Compiled | yes |  |
 | `looks_size` | reporter | Compiled | yes |  |

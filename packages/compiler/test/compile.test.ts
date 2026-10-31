@@ -33,9 +33,9 @@ describe("compileProject", () => {
     });
 
     it("leave out what a block declares but did not emit", () => {
-      // "go to back" declares goToFront but compiles to nothing (unsupported).
+      // "go to back" declares goToFront too, but only calls goToBack.
       const blocks = script(["looks_gotofrontback", { fields: { FRONT_BACK: ["back"] } }]);
-      expect(compileProject(project(target(blocks))).imports).toEqual([]);
+      expect(compileProject(project(target(blocks))).imports).toEqual([{ from: "@bytecat/runtime/looks", names: ["goToBack"] }]);
     });
 
     it("include a code generator helper only where the code calls it", () => {
@@ -59,9 +59,9 @@ describe("compileProject", () => {
   });
 
   it("reports unsupported statements and reporters once, sorted", () => {
-    const blocks = script(["sound_play"], ["sound_play"], ["looks_gotofrontback", { fields: { FRONT_BACK: ["back"] } }]);
+    const blocks = script(["sound_play"], ["sound_play"], ["looks_seteffectto"]);
     const { code, warnings } = compileProject(project(target(blocks)));
-    expect(warnings).toEqual(["looks_gotofrontback", "sound_play"]);
+    expect(warnings).toEqual(["looks_seteffectto", "sound_play"]);
     expect(code).toContain("/* unsupported: sound_play */");
   });
 

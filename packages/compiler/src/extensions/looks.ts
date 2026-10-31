@@ -31,11 +31,18 @@ export const looks: Extension = {
     looks_cleargraphiceffects: missing("statement", "no effect state or drawing yet"),
     looks_show: statement(() => ["setVisible(rt, t, true);"], { uses: ["setVisible"] }),
     looks_hide: statement(() => ["setVisible(rt, t, false);"], { uses: ["setVisible"] }),
-    looks_gotofrontback: statement((b, g) => (g.field(b, "FRONT_BACK") === "front" ? ["goToFront(rt, t);"] : undefined), {
-      uses: ["goToFront"],
-      partial: "front only; go to back layer is reported as unsupported",
+    looks_gotofrontback: statement((b, g) => [g.field(b, "FRONT_BACK") === "front" ? "goToFront(rt, t);" : "goToBack(rt, t);"], {
+      uses: ["goToFront", "goToBack"],
     }),
-    looks_goforwardbackwardlayers: missing("statement", "no layer list yet"),
+    // Backward is the negated number, so a literal stays a literal.
+    looks_goforwardbackwardlayers: statement(
+      (b, g) => {
+        const n = g.num(b, "NUM");
+        if (g.field(b, "FORWARD_BACKWARD") !== "backward") return [`moveLayers(rt, t, ${n});`];
+        return [`moveLayers(rt, t, ${/^\d[\d.]*$/.test(n) ? `-${n}` : `-(${n})`});`];
+      },
+      { uses: ["moveLayers"] },
+    ),
     looks_costumenumbername: reporter(
       (b, g) => (g.field(b, "NUMBER_NAME") === "name" ? strEx("costumeName(t)") : numEx("(t.costume + 1)")),
       { uses: ["costumeName"] },

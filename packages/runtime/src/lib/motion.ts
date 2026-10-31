@@ -1,7 +1,12 @@
 import * as ops from "../ops.js";
+import type { Value } from "../ops.js";
 import type { Runtime } from "../runtime.js";
 import type { Target } from "../target.js";
 import { SLEEP, WAIT } from "../thread.js";
+
+/** The stage is always this size (TurboWarp's default; custom stage sizes are not supported). */
+const STAGE_WIDTH = 480;
+const STAGE_HEIGHT = 360;
 
 export function setXY(rt: Runtime, t: Target, x: number, y: number): void {
   t.x = x;
@@ -14,9 +19,73 @@ export function move(rt: Runtime, t: Target, steps: number): void {
   setXY(rt, t, t.x + steps * Math.cos(rad), t.y + steps * Math.sin(rad));
 }
 
+/** A random position on the stage, as TurboWarp's `getTargetXY` draws it (x first, then y). */
+function randomX(): number {
+  return Math.round(STAGE_WIDTH * (Math.random() - 0.5));
+}
+function randomY(): number {
+  return Math.round(STAGE_HEIGHT * (Math.random() - 0.5));
+}
+
+/**
+ * The sprite a menu names, as TurboWarp's `getSpriteTargetByName` finds it: the first target that
+ * is not the stage, so the original, which comes before its clones. Anything else is undefined.
+ */
+function spriteNamed(rt: Runtime, name: Value): Target | undefined {
+  const s = ops.toStr(name);
+  return rt.targets.find((x) => !x.isStage && x.name === s);
+}
+
+/**
+ * Where a "go to" or "glide to" menu value, known only at run time, points: the mouse pointer, a
+ * random position, a sprite, or undefined for a name that is none of these.
+ */
+function placeOf(rt: Runtime, to: Value): [number, number] | undefined {
+  if (to === "_mouse_") return [rt.mouse.x, rt.mouse.y];
+  if (to === "_random_") return [randomX(), randomY()];
+  const s = spriteNamed(rt, to);
+  return s && [s.x, s.y];
+}
+
+/** "go to" a menu value known only at run time; a name that is no sprite does nothing. */
+export function goTo(rt: Runtime, t: Target, to: Value): void {
+  const p = placeOf(rt, to);
+  if (p) setXY(rt, t, p[0], p[1]);
+}
+
+/** "go to random position", the menu fixed at compile time. */
+export function goToRandom(rt: Runtime, t: Target): void {
+  setXY(rt, t, randomX(), randomY());
+}
+
+/** "glide to" a menu value known only at run time; the place is fixed when the glide starts. */
+export function* glideTo(rt: Runtime, t: Target, seconds: number, to: Value): Generator<unknown, void, unknown> {
+  const p = placeOf(rt, to);
+  if (p) yield* glide(rt, t, seconds, p[0], p[1]);
+}
+
+/** "glide to random position", the menu fixed at compile time. */
+export function* glideToRandom(rt: Runtime, t: Target, seconds: number): Generator<unknown, void, unknown> {
+  yield* glide(rt, t, seconds, randomX(), randomY());
+}
+
+/** Points at (x, y); the same as TurboWarp, which turns the angle `atan2` gives. */
+export function pointAt(rt: Runtime, t: Target, x: number, y: number): void {
+  setDirection(rt, t, 90 - (Math.atan2(y - t.y, x - t.x) * 180) / Math.PI);
+}
+
+/** "point towards" a menu value known only at run time. A random direction is a whole number. */
+export function pointTowards(rt: Runtime, t: Target, to: Value): void {
+  if (to === "_mouse_") return pointAt(rt, t, rt.mouse.x, rt.mouse.y);
+  if (to === "_random_") return setDirection(rt, t, Math.round(Math.random() * 360) - 180);
+  const s = spriteNamed(rt, to);
+  if (s) pointAt(rt, t, s.x, s.y);
+}
+
 export function setDirection(rt: Runtime, t: Target, dir: number): void {
   if (!Number.isFinite(dir)) return;
-  t.direction = ops.mod(dir + 179, 360) - 179;
+  // TurboWarp's `wrapClamp(dir, -179, 180)`; written this way it rounds the same for fractions.
+  t.direction = dir - Math.floor((dir + 179) / 360) * 360;
   if (t.visible) rt.requestRedraw();
 }
 

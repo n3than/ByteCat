@@ -1,0 +1,28 @@
+# go to, glide to and point towards the mouse pointer, with the menu fixed and held in a variable.
+# Needs goto_mouse.input to run, so the node-only test suites skip it.
+var target = "_mouse_"
+
+sprite Cat:
+  costume c = circle "#ffab19"
+  position -100, 70
+
+  when flag:
+    wait_until(mouse_x() == 100)
+    goto("_mouse_")
+    log(join(x_position(), join(",", y_position())))
+    point_towards("_mouse_")
+    log(direction())
+    goto(0, 0)
+    point_towards("_mouse_")
+    log(direction())
+    glide(0.5, "_mouse_")
+    log(join(x_position(), join(",", y_position())))
+
+    goto(0, 0)
+    point_towards(target)
+    log(direction())
+    goto(target)
+    log(join(x_position(), join(",", y_position())))
+    goto(0, 0)
+    glide(0.5, target)
+    log(join(x_position(), join(",", y_position())))

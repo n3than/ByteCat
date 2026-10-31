@@ -198,6 +198,6 @@ describe("lowering", () => {
   });
 
   it("rejects wrong argument counts", () => {
-    expect(errorOf(`sprite A:\n  when flag:\n    goto(1)\n`)).toMatch(/takes 2 argument/);
+    expect(errorOf(`sprite A:\n  when flag:\n    goto(1, 2, 3)\n`)).toMatch(/takes 2 or 1 argument/);
   });
 });

@@ -1,0 +1,3 @@
+// Move the mouse once the script waits for it.
+mouse 100 -50
+step 40

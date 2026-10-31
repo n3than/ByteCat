@@ -282,7 +282,11 @@ lists, position, direction, size, visibility, costume, rotation style, draggable
 effects, but no bubble and no threads. It shares its sprite's `index`, costumes and hats, and is
 listed in `rt.targets` after the originals, in the order the clones were made. Layers are
 distinct numbers (`Target.all` renumbers them at load), and a clone goes just behind its parent,
-as `goBehindOther` places it. At most `MAX_CLONES` (300) clones exist at once across all sprites,
+as `goBehindOther` places it. "go forward/backward n layers", "go to back layer" and "go to front
+layer" (`moveLayers`, `goToBack`, `goToFront` in `lib/looks.ts`) move a sprite in that order as
+TurboWarp's `moveExecutable` does: it swaps places with the targets in its way and stops in front of
+the stage and at the top; the stage never moves. A move renumbers the layers so they stay distinct.
+At most `MAX_CLONES` (300) clones exist at once across all sprites,
 counted as TurboWarp's `_cloneCounter` counts them; the stage cannot be cloned. The new clone's
 "when I start as a clone" scripts start for it alone, and a visible clone requests a redraw, as
 TurboWarp's renderer draws it at once. Clones hear broadcasts, keys and clicks like their
@@ -301,6 +305,15 @@ use `pop()` / `shift()` / `push()` / `unshift()` instead of `splice` when the po
 first or last. Strings and booleans take the general `listIndex` path. `ops.test.ts` compares every
 helper to a copy of the slow implementation for every kind of index, so the results must stay
 identical.
+
+### Go to, glide to and point towards
+
+These blocks take a menu (`_random_`, `_mouse_` or a sprite name) that `g.menu` resolves: a menu fixed
+at compile time becomes the operation itself (`setXY(rt, t, rt.mouse.x, rt.mouse.y)`, `goToRandom`),
+and a value known only at run time goes to `goTo`, `glideTo` or `pointTowards` in `lib/motion.ts`,
+which look at it when the block runs. A name that is no sprite does nothing, as in TurboWarp, and a
+sprite is looked up by name among the targets that are not the stage (so the original, which comes
+before its clones). `_random_` uses the 480 by 360 stage.
 
 ## Renderer
 

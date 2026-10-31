@@ -1,0 +1,58 @@
+# go to, glide to and point towards with every menu value: a sprite (named by a literal or by a
+# variable), an unknown name (does nothing) and a random position (only its range is logged).
+# goto_mouse.sbp covers the mouse pointer.
+var target = "Dog"
+
+sprite Dog:
+  costume d = circle "#885522"
+  position 60, -40
+
+sprite Cat:
+  costume c = circle "#ffab19"
+  position -100, 70
+
+  when flag:
+    goto("Dog")
+    log(join(x_position(), join(",", y_position())))
+    goto(-5, 5)
+    goto("Nobody")
+    log(join(x_position(), join(",", y_position())))
+    goto("_stage_")
+    log(join(x_position(), join(",", y_position())))
+    goto(target)
+    log(join(x_position(), join(",", y_position())))
+    goto(-100, 70)
+    target = "Cat"
+    goto(target)
+    log(join(x_position(), join(",", y_position())))
+
+    point_towards("Dog")
+    log(direction())
+    goto(0, 0)
+    point_towards("Dog")
+    log(direction())
+    point_towards("Nobody")
+    log(direction())
+    goto(0, 100)
+    point_towards("Dog")
+    log(direction())
+
+    glide(0.5, "Dog")
+    log(join(x_position(), join(",", y_position())))
+    glide(0.5, "Nobody")
+    glide(0.5, 0, 0)
+    log(join(x_position(), join(",", y_position())))
+
+    # A random position stays on the stage, whether the menu is fixed or comes from a variable.
+    target = "_random_"
+    repeat 20:
+      goto("_random_")
+      if x_position() < -240 or x_position() > 240 or y_position() < -180 or y_position() > 180:
+        log("random went off stage")
+      goto(target)
+      if x_position() < -240 or x_position() > 240 or y_position() < -180 or y_position() > 180:
+        log("variable random went off stage")
+    point_towards("_random_")
+    point_towards(target)
+    glide(0.1, target)
+    log("done")

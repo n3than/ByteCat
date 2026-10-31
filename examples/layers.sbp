@@ -1,0 +1,65 @@
+# Layer order, read through the order in which sprites hear a broadcast (the top layer first, the
+# stage last): go to back, go to front and moving forward or backward by n layers, including past
+# the ends, with a literal, a computed and a negative n. Sprites start in file order, A at the back.
+var order = ""
+var steps = 2
+
+stage:
+  when receive "order":
+    log(join("order: ", order))
+
+sprite A:
+  costume c = circle "#ff0000"
+  when receive "order":
+    order = join(order, "A")
+  when receive "reset":
+    order = ""
+
+sprite B:
+  costume c = circle "#00ff00"
+  when receive "order":
+    order = join(order, "B")
+
+sprite C:
+  costume c = circle "#0000ff"
+  when receive "order":
+    order = join(order, "C")
+
+sprite D:
+  costume c = circle "#ffff00"
+  when receive "order":
+    order = join(order, "D")
+
+  when flag:
+    # Start (front to back): D C B A
+    go_to_back()
+    broadcast_wait("order")
+    order = ""
+    go_to_front()
+    broadcast_wait("order")
+    order = ""
+    go_backward(1)
+    broadcast_wait("order")
+    order = ""
+    go_backward(steps)
+    broadcast_wait("order")
+    order = ""
+    go_forward(1)
+    broadcast_wait("order")
+    order = ""
+    go_forward(steps + 5)
+    broadcast_wait("order")
+    order = ""
+    go_backward(10)
+    broadcast_wait("order")
+    order = ""
+    go_forward(-1)
+    broadcast_wait("order")
+    order = ""
+    go_forward(0)
+    broadcast_wait("order")
+    order = ""
+    go_backward(-2)
+    broadcast_wait("order")
+    order = ""
+    stop("all")
