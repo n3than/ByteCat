@@ -11,6 +11,8 @@ export type Slot =
 export interface Builtin {
   opcode: string;
   slots: Slot[];
+  /** Menu slots filled with their default when the call leaves them out (an overload with fewer arguments). */
+  implicit?: Slot[];
   /** Fields that are always set to a fixed value, e.g. the mathop operator. */
   fixed?: Record<string, string>;
   /** Reporters only: whether the block is hexagonal (boolean) or round (value). */
@@ -88,6 +90,11 @@ export const STATEMENTS: Record<string, Builtin[]> = {
     opcode: "control_create_clone_of",
     slots: [{ kind: "menu", input: "CLONE_OPTION", shadow: "control_create_clone_of_menu", field: "CLONE_OPTION", default: "_myself_" }],
     doc: "create clone of (`_myself_` or a sprite name)",
+  }, {
+    opcode: "control_create_clone_of",
+    slots: [],
+    implicit: [{ kind: "menu", input: "CLONE_OPTION", shadow: "control_create_clone_of_menu", field: "CLONE_OPTION", default: "_myself_" }],
+    doc: "create clone of myself",
   }],
   delete_clone: [{ opcode: "control_delete_this_clone", slots: [], spriteOnly: true, doc: "delete this clone" }],
 

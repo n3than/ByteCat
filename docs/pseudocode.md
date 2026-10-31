@@ -209,6 +209,7 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `wait_until(condition)` | wait until <condition> | `control_wait_until` | any |
 | `stop(stop_option)` | stop ["all" \| "this script" \| "other scripts in sprite"] | `control_stop` | any |
 | `create_clone(clone_option)` | create clone of (`_myself_` or a sprite name) | `control_create_clone_of` | any |
+| `create_clone()` | create clone of myself | `control_create_clone_of` | any |
 | `delete_clone()` | delete this clone | `control_delete_this_clone` | sprite |
 | `incr_counter()` | increment counter (hidden) | `control_incr_counter` | any |
 | `clear_counter()` | clear counter (hidden) | `control_clear_counter` | any |

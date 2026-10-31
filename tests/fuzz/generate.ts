@@ -13,7 +13,10 @@
 // - `for` loops count over numeric literals and never write the counter; `while` and `repeat until`
 //   loops carry their own bound counter that nothing else writes;
 // - procedures only call lower-numbered procedures; the one recursive procedure stops at depth 3;
-// - there is no random(), timer(), input or wait.
+// - there is no random(), timer(), input or wait;
+// - clones: a global counter `ncl`, which nothing else writes, caps the clones a program creates at
+//   MAX_CLONES (every `create_clone` sits under `if ncl < MAX_CLONES`), so clones of clones stay
+//   bounded; `when cloned` scripts are as finite as any other script.
 //
 // String growth rule: a stored join (assigned, added to a list or passed as an argument) has at most
 // one operand that can hold a long string; the rest are literals or numbers. Without it
@@ -88,6 +91,9 @@ interface Proc {
   sets?: string;
   /** Parameter names of a recursive procedure: the depth counter is the last one. */
 }
+
+/** The most clones one generated program creates, counted by the global `ncl`. */
+const MAX_CLONES = 4;
 
 /** The place a script lives: the stage or a sprite. */
 interface Owner {
@@ -196,6 +202,9 @@ class Generator {
   private procId = 0;
   private broadcasts = 0;
   private hasReceiver = false;
+  /** This program uses clones: `create_clone`, `delete_clone` and `when cloned` scripts. */
+  private cloneMode = false;
+  private spriteNames: string[] = [];
   /** More than one script, so threads can interleave. */
 
   constructor(seed: number) {
@@ -475,8 +484,17 @@ class Generator {
       [sc.allowBroadcast && sc.loopDepth <= 1 ? 3 : 0, "broadcast"],
       [depth < 2 && sc.loopDepth === 0 && callable.some((p) => p.sets) ? 6 : 0, "guardcall"],
       [3, "setinf"],
+      [this.cloneMode && sc.owner !== this.stageOwner ? 7 : 0, "clone"],
+      [this.cloneMode && sc.owner !== this.stageOwner ? 4 : 0, "delete"],
     ]);
     switch (k) {
+      case "clone": {
+        const target = this.r.weighted<string>([[5, "create_clone()"], [3, 'create_clone("_myself_")'], [2, `create_clone("${this.r.pick(this.spriteNames)}")`]]);
+        return [`if ncl < ${MAX_CLONES}:`, ...indent(["ncl += 1", target])];
+      }
+      case "delete":
+        // The original ignores delete_clone(), so this only ends the scripts of clones.
+        return [`if ${this.bool(sc, 2)}:`, ...indent(["delete_clone()"])];
       case "setinf":
         return [`inftext = ${this.r.pick(INF_VALUES)}`];
       case "set": {
@@ -671,6 +689,12 @@ class Generator {
     for (let i = this.r.between(1, 3); i > 0 && names.length; i--) stmts.push([`log(${this.r.pick(names)})`]);
     const lists = [...this.globalLists, ...owner.lists];
     if (lists.length && this.r.chance(0.6)) stmts.push([`log(${this.r.pick(lists)})`]);
+    if (hat === "when cloned") {
+      // A clone starts with a copy of its parent's variables: change one of its own, then show it.
+      const own = owner.vars.length ? this.r.pick(owner.vars) : null;
+      if (own) stmts.unshift([`${own} ${this.r.pick(CHANGE_OPS)} ${this.litEx().s}`, `log(${own})`]);
+      if (this.r.chance(0.4)) stmts.push(["delete_clone()"]);
+    }
     return { hat, stmts };
   }
 
@@ -687,6 +711,8 @@ class Generator {
     this.globalVars = Array.from({ length: r.between(2, 5) }, (_, i) => `g${i}`);
     this.globalLists = Array.from({ length: r.weighted([[4, 0], [5, 1], [2, 2]]) }, (_, i) => `gl${i}`);
     const names = r.chance(0.7) ? ["A"] : ["A", "B"];
+    this.spriteNames = names;
+    this.cloneMode = r.chance(0.4);
     const sprites: Owner[] = names.map((name) => {
       const lower = name.toLowerCase();
       return {
@@ -700,7 +726,7 @@ class Generator {
     const stage = this.stageOwner;
     const stageHasScripts = r.chance(0.25);
 
-    const globalDecls = ['var inftext = "infinity"', ...this.globalVars.map(decl), ...this.globalLists.map(listDecl)];
+    const globalDecls = ['var inftext = "infinity"', ...(this.cloneMode ? ["var ncl = 0"] : []), ...this.globalVars.map(decl), ...this.globalLists.map(listDecl)];
     // Declare the globals under `stage:` or at the top level, whichever the dice say.
     const globalsInStage = r.chance(0.4);
 
@@ -718,6 +744,10 @@ class Generator {
       hats.push({ owner: r.pick(owners), hat: 'when receive "go"' });
     }
 
+    if (this.cloneMode) {
+      for (let n = r.weighted([[5, 1], [3, 2]]); n > 0; n--) hats.push({ owner: r.pick(sprites), hat: "when cloned" });
+    }
+
     // Procedures first, so that every script of a sprite can call all of them.
     const spriteProcs = new Map<string, string[]>();
     for (const sp of sprites) {
@@ -733,10 +763,9 @@ class Generator {
     const scriptText = new Map<Owner, Script[]>();
     const flagScripts: Script[] = [];
     for (const h of hats) {
-      const isReceiver = h.hat !== "when flag";
-      const text = this.script(h.owner, h.hat, this.hasReceiver && !isReceiver);
+      const text = this.script(h.owner, h.hat, this.hasReceiver && h.hat !== 'when receive "go"');
       scriptText.set(h.owner, [...(scriptText.get(h.owner) ?? []), text]);
-      if (!isReceiver) flagScripts.push(text);
+      if (h.hat === "when flag") flagScripts.push(text);
     }
     // A receiver needs a sender: when the dice never broadcast, put one in a flag script.
     if (this.hasReceiver && this.broadcasts === 0) {
