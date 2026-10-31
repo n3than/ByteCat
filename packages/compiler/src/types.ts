@@ -75,6 +75,13 @@ export type FieldRef = [string, string | null] | [string] | undefined;
 export interface Gen {
   /** The target being compiled. */
   readonly target: Target;
+  /** The stage in project.json. */
+  readonly stage: Target;
+  /**
+   * The sprite with this name in project.json and its index there, which is also its original's
+   * index in `rt.targets`; undefined when no sprite has the name. Never the stage.
+   */
+  sprite(name: string): { index: number; target: Target } | undefined;
   /** The custom block whose body is being compiled; undefined in a hat script. */
   readonly procedure: Proc | undefined;
   /** An input as an expression. Missing inputs are the empty string. */
@@ -97,6 +104,11 @@ export interface Gen {
   variable(field: FieldRef): string;
   /** Every type the variable can hold: its initial value and anything assigned anywhere in the project. */
   varType(field: FieldRef): TypeSet;
+  /**
+   * Keeps a variable in its storage for the whole function being compiled instead of a local,
+   * for code that reads it by name at run time (`attributeOf`), where a local would be stale.
+   */
+  unlocal(field: FieldRef): void;
   /** Records an assignment of a value of this type to the variable. */
   noteWrite(field: FieldRef, type: TypeSet): void;
   /** Every type an item of the list can have: its initial items and anything added anywhere. */

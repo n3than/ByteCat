@@ -33,13 +33,15 @@ export class TargetCodegen implements Gen {
   private hot = new Set<string>();
   /** The ones the function assigns. */
   private assigned = new Set<string>();
+  /** The ones that must stay in storage (`unlocal`). */
+  private cold = new Set<string>();
   /** How many loops the block being compiled is inside, in the current function. */
   private loopDepth = 0;
 
   constructor(
     readonly target: Target,
     private readonly index: number,
-    private readonly stage: Target,
+    readonly stage: Target,
     private readonly warnings: Set<string>,
     prelude: string[],
     private readonly env: TypeEnv,
@@ -52,6 +54,8 @@ export class TargetCodegen implements Gen {
      * `uses`, with its extension's `runtime` module (`programImports`).
      */
     private readonly declared: Map<string, string> = new Map(),
+    /** Every target in project.json, the stage first, for `sprite`. */
+    private readonly targets: readonly Target[] = [stage],
   ) {
     this.scope = new Scope(target, stage, prelude);
     this.blocks = target.blocks;
@@ -59,7 +63,9 @@ export class TargetCodegen implements Gen {
     this.procs = table.procs;
     // Settle which procedures are sync before compiling any call to them.
     analyzeSync(target, table, registry);
-    const effects = analyzeEffects(this.blocks, table, (field) => this.scope.variable(field));
+    const named = (name: string) =>
+      [target, stage].flatMap((owner) => Object.entries(owner.variables).filter(([, v]) => v[0] === name).map(([id]) => this.scope.variable([name, id])));
+    const effects = analyzeEffects(this.blocks, table, (field) => this.scope.variable(field), named);
     for (const [proccode, proc] of this.procs) {
       const e = effects.get(proccode);
       if (e) this.effects.set(proc.fn, e);
@@ -177,6 +183,7 @@ export class TargetCodegen implements Gen {
     this.refs = [];
     this.hot = new Set();
     this.assigned = new Set();
+    this.cold = new Set();
     this.loopDepth = 0;
     const body = [...compile(), ...end];
     const { refs, assigned } = this;
@@ -189,7 +196,7 @@ export class TargetCodegen implements Gen {
       }
     }
     const locals = new Map<string, string>();
-    for (const ref of refs) if (this.hot.has(ref)) locals.set(ref, `v${locals.size}`);
+    for (const ref of refs) if (this.hot.has(ref) && !this.cold.has(ref)) locals.set(ref, `v${locals.size}`);
     const stored = [...assigned].filter((ref) => locals.has(ref));
     const out = locals.size === 0 ? [] : [`let ${[...locals].map(([ref, local]) => `${local} = ${ref}`).join(", ")};`];
     // A sync callee only needs the variables it reads or writes (it may load a variable into a
@@ -320,12 +327,21 @@ export class TargetCodegen implements Gen {
     args.forEach((type, i) => this.env.note(TypeEnv.paramKey(proc.fn, i), type));
   }
 
+  sprite(name: string): { index: number; target: Target } | undefined {
+    const index = this.targets.findIndex((x) => !x.isStage && x.name === name);
+    return index < 0 ? undefined : { index, target: this.targets[index]! };
+  }
+
   variable(field: FieldRef): string {
     const ref = this.scope.variable(field);
     let i = this.refs.indexOf(ref);
     if (i < 0) i = this.refs.push(ref) - 1;
     if (this.loopDepth > 0) this.hot.add(ref);
     return `\u0002${i}\u0002`;
+  }
+
+  unlocal(field: FieldRef): void {
+    this.cold.add(this.scope.variable(field));
   }
 
   varType(field: FieldRef): TypeSet {
