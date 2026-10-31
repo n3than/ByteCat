@@ -6,6 +6,7 @@ export type Slot =
   | { kind: "bool"; input: string }
   | { kind: "menu"; input: string; shadow: string; field: string; default: string }
   | { kind: "broadcast"; input: string }
+  /** A field set from a string literal: one of `values`, or any text when `values` is empty. */
   | { kind: "field"; field: string; values: readonly string[] };
 
 export interface Builtin {
@@ -190,6 +191,15 @@ export const REPORTERS: Record<string, Builtin[]> = {
     returns: "bool",
     spriteOnly: true,
     doc: "<touching (sprite name, `_edge_` or `_mouse_`)?>",
+  }],
+  attribute_of: [{
+    opcode: "sensing_of",
+    slots: [
+      { kind: "field", field: "PROPERTY", values: [] },
+      { kind: "menu", input: "OBJECT", shadow: "sensing_of_object_menu", field: "OBJECT", default: "_stage_" },
+    ],
+    returns: "value",
+    doc: "[property] of (sprite name or `_stage_`): `\"x position\"`, `\"backdrop name\"`, a variable name, ...",
   }],
   days_since_2000: [{ opcode: "sensing_dayssince2000", slots: [], returns: "value", doc: "days since 2000" }],
   username: [{ opcode: "sensing_username", slots: [], returns: "value", doc: "username" }],

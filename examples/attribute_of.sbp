@@ -1,0 +1,67 @@
+# [property] of [object]: the backdrop and the stage's variables, another sprite's position,
+# direction, costume, size and variables, a sprite reading its own variable, a name that is no
+# sprite or no variable (0), and an object computed at run time. A clone reads its original's.
+var score = 7
+var who = "Dog"
+
+stage:
+  backdrop plain "#ffffff"
+  backdrop night "#000033"
+
+sprite Dog:
+  costume sit = circle "#885522"
+  costume run = circle "#aa7733"
+  position 60, -40
+  var mood = "happy"
+
+  when flag:
+    log(attribute_of("mood", "Dog"))
+    mood = "sleepy"
+    log(attribute_of("mood", "Dog"))
+    # Inside a loop the variable lives in a local; reading it through "of" still sees each change.
+    repeat 2:
+      mood = join(mood, "!")
+      log(attribute_of("mood", "Dog"))
+    create_clone("_myself_")
+
+  # A clone reads the original's variable, not its own.
+  when cloned:
+    mood = "clone"
+    log(attribute_of("mood", "Dog"))
+    delete_clone()
+
+sprite Cat:
+  costume c = circle "#ffab19"
+  var mood = "grumpy"
+
+  define show_score():
+    log(attribute_of("score", "_stage_"))
+
+  when flag:
+    wait(0.1)
+    switch_backdrop("night")
+    log(attribute_of("backdrop #", "_stage_"))
+    log(attribute_of("backdrop name", "_stage_"))
+    log(attribute_of("score", "_stage_"))
+    log(attribute_of("x position", "Dog"))
+    log(attribute_of("y position", "Dog"))
+    log(attribute_of("direction", "Dog"))
+    log(attribute_of("costume #", "Dog"))
+    log(attribute_of("costume name", "Dog"))
+    log(attribute_of("size", "Dog"))
+    log(attribute_of("mood", "Dog"))
+    log(attribute_of("mood", "Cat"))
+    log(attribute_of("score", "Dog"))
+    log(attribute_of("x position", "Nobody"))
+    log(attribute_of("x position", "_stage_"))
+    log(attribute_of("mood", who))
+    log(attribute_of("costume name", who))
+    who = "_stage_"
+    log(attribute_of("backdrop name", who))
+    log(attribute_of("score", who))
+    who = "Nobody"
+    log(attribute_of("mood", who))
+    # A custom block reads a variable its caller keeps in a local.
+    repeat 2:
+      score += 1
+      show_score()

@@ -20,13 +20,13 @@ below but not counted.
 | [Sound](#sound) | `sound` | 0 | 0 | 9 |
 | [Events](#event) | `event` | 7 | 0 | 2 |
 | [Control](#control) | `control` | 11 | 0 | 0 |
-| [Sensing](#sensing) | `sensing` | 10 | 0 | 8 |
+| [Sensing](#sensing) | `sensing` | 10 | 1 | 7 |
 | [Operators](#operator) | `operator` | 18 | 0 | 0 |
 | [Variables and lists](#data) | `data` | 13 | 4 | 0 |
 | [My Blocks](#procedures) | `procedures` | 2 | 0 | 0 |
 | [My Blocks: arguments](#argument) | `argument` | 2 | 0 | 0 |
 | [Pen](#pen) | `pen` | 0 | 0 | 9 |
-| **All** | | **97** | **5** | **32** |
+| **All** | | **97** | **6** | **31** |
 
 <a id="motion"></a>
 
@@ -171,7 +171,7 @@ below but not counted.
 
 ## Sensing (`sensing`)
 
-10 compiled, 0 partial, 11 missing, counting hidden blocks.
+10 compiled, 1 partial, 10 missing, counting hidden blocks.
 
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
@@ -189,7 +189,7 @@ below but not counted.
 | `sensing_loudness` | reporter | Missing | yes | no microphone; should report TurboWarp's value without one |
 | `sensing_timer` | reporter | Compiled | yes |  |
 | `sensing_resettimer` | statement | Compiled | yes |  |
-| `sensing_of` | reporter | Missing | yes | x, direction, costume, size, volume or a variable of another sprite or the stage |
+| `sensing_of` | reporter | Partial | yes | volume is always 100 (no sound yet) |
 | `sensing_current` | reporter | Missing | yes | year, month, date, weekday, hour, minute, second |
 | `sensing_dayssince2000` | reporter | Compiled | yes |  |
 | `sensing_username` | reporter | Compiled | yes |  |
@@ -275,7 +275,7 @@ below but not counted.
 | Opcode | Kind | Status | Palette | Notes |
 | --- | --- | --- | --- | --- |
 | `argument_reporter_string_number` | reporter | Compiled | yes |  |
-| `argument_reporter_boolean` | boolean | Compiled | yes | known fuzzer finding: an empty boolean slot reads as "" instead of false |
+| `argument_reporter_boolean` | boolean | Compiled | yes | outside a custom block, "is compiled?" and "is TurboWarp?" read true; known fuzzer finding: an empty boolean slot reads as "" instead of false |
 
 <a id="pen"></a>
 

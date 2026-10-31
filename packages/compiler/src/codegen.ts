@@ -42,7 +42,7 @@ function compilePass(project: ProjectJson, env: TypeEnv, registry: ExtensionRegi
   }
 
   project.targets.forEach((target, index) => {
-    const gen = new TargetCodegen(target, index, stage, warnings, prelude, env, assetNames, registry, declared);
+    const gen = new TargetCodegen(target, index, stage, warnings, prelude, env, assetNames, registry, declared, project.targets);
     procedures.push(...gen.procedures());
     hats.push(...gen.hats());
   });

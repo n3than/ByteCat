@@ -89,7 +89,8 @@ function lowerSlot(b: TargetBuilder, id: string, slot: Slot, arg: Expr, pos: Sou
       b.boolInput(id, slot.input, arg);
       return;
     case "field": {
-      if (arg.kind !== "string" || !slot.values.includes(arg.value)) {
+      if (arg.kind !== "string") throw b.error(slot.values.length ? `expected one of ${slot.values.map((v) => `"${v}"`).join(", ")}` : "expected a string literal", arg.pos ?? pos);
+      if (slot.values.length && !slot.values.includes(arg.value)) {
         throw b.error(`expected one of ${slot.values.map((v) => `"${v}"`).join(", ")}`, arg.pos ?? pos);
       }
       b.get(id).fields[slot.field] = [arg.value, null];
