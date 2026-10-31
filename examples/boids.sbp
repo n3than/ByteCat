@@ -1,0 +1,82 @@
+# Boids: ten clones that steer by their neighbours (alignment and cohesion), fly, and bounce off the
+# edges of the stage, sharing where they are through lists. Deterministic: no random, and each boid
+# takes one step per pass over the threads, so the run is the same however frames are cut. The
+# boids are visible, so headless (this log) they bounce off their costume's box; the browser oracle
+# traces them against TurboWarp bouncing off their drawn pixels.
+list bx
+list by
+list bd
+var steps = 0
+
+sprite Boid:
+  costume arrow = triangle "#3366ff"
+  size 50
+  var id = 0
+  var sx = 0
+  var sy = 0
+  var cx = 0
+  var cy = 0
+  var n = 0
+  var j = 0
+  var d = 0
+  var heading = 0
+
+  when flag:
+    hide()
+    bx.clear()
+    by.clear()
+    bd.clear()
+    steps = 0
+    for j = 1 to 10:
+      id = j
+      goto(j * 41 - 225, (j * 67) % 300 - 150)
+      point(j * 37)
+      bx.add(x_position())
+      by.add(y_position())
+      bd.add(direction())
+      create_clone()
+
+  when cloned:
+    show()
+    repeat 120:
+      # Average heading (as a vector) and center of the boids within 120 pixels.
+      sx = 0
+      sy = 0
+      cx = 0
+      cy = 0
+      n = 0
+      for j = 1 to 10:
+        d = sqrt((bx[j] - x_position()) * (bx[j] - x_position()) + (by[j] - y_position()) * (by[j] - y_position()))
+        if d < 120:
+          sx += sin(bd[j])
+          sy += cos(bd[j])
+          cx += bx[j]
+          cy += by[j]
+          n += 1
+      # The heading of (sx, sy), an atan2 from atan.
+      if sy = 0:
+        heading = direction()
+      else:
+        heading = atan(sx / sy)
+        if sy < 0:
+          heading += 180
+      # Turn a third of the way to the shared heading, then a little towards the center.
+      d = heading - direction()
+      d = (d + 540) % 360 - 180
+      turn_right(d / 3)
+      if cx / n - x_position() > 0:
+        turn_right(2)
+      else:
+        turn_left(2)
+      move(6)
+      bounce()
+      bx[id] = x_position()
+      by[id] = y_position()
+      bd[id] = direction()
+      if id = 1:
+        steps += 1
+    if id = 1:
+      log(join("steps ", steps))
+      for j = 1 to 10:
+        log(join(round(bx[j]), join(" ", join(round(by[j]), join(" ", round(bd[j]))))))
+      stop("all")

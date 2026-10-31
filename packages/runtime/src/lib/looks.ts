@@ -66,8 +66,22 @@ export function costumeName(t: Target): string {
   return t.costumes[t.costume]?.name ?? "";
 }
 
+/**
+ * RenderedTarget's `setSize`: with a geometry, the size is clamped to at most 1.5 times the stage
+ * and at least 0, or with `RuntimeOptions.minSize` (TurboWarp) at least 5 pixels wide or high (or
+ * the costume's own size, if smaller).
+ */
 export function setSize(rt: Runtime, t: Target, size: number): void {
-  t.size = Math.max(5, size);
+  const costumeSize = rt.geometry?.costumeSize(t);
+  if (costumeSize) {
+    const [w, h] = costumeSize;
+    // TurboWarp's minimum only with `minSize` (as with fencing off, the floor is then 0).
+    const minScale = rt.options.minSize ? Math.min(1, Math.max(5 / w, 5 / h)) : 0;
+    const maxScale = Math.min((1.5 * 480) / w, (1.5 * 360) / h);
+    t.size = Math.min(Math.max(size / 100, minScale), maxScale) * 100;
+  } else {
+    t.size = size;
+  }
   if (t.visible) rt.requestRedraw();
 }
 

@@ -1,0 +1,35 @@
+# Size limits: `set size` and `change size` keep a costume at most 1.5 stage widths wide and 1.5
+# stage heights high, measured on the current costume. (TurboWarp also keeps it at least 5 pixels
+# wide or high; Bytecat does that only with the `minSize` option, so this stays above that:
+# packages/runtime/test/lib.test.ts and tests/oracle/size_limits.sbp check the minimum.)
+sprite Ball:
+  costume ball = circle "#ff0000"
+  costume bar = bar "#00cc00"
+
+  when flag:
+    set_size(10.5)
+    log(join("ball 10.5: ", size()))
+    set_size(5000)
+    log(join("ball 5000: ", size()))
+    change_size(1)
+    log(join("ball +1: ", size()))
+    change_size(-1000)
+    log(join("ball -1000: ", size()))
+    switch_costume("bar")
+    log(join("bar keeps ", size()))
+    set_size(5000)
+    log(join("bar 5000: ", size()))
+    set_size(30)
+    log(join("bar 30: ", size()))
+    set_size(5000)
+    switch_costume("ball")
+    log(join("ball keeps ", size()))
+    change_size(0)
+    log(join("ball +0: ", size()))
+    create_clone()
+
+  when cloned:
+    log(join("clone ", size()))
+    set_size(99999)
+    log(join("clone 99999: ", size()))
+    delete_clone()

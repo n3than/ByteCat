@@ -1,0 +1,75 @@
+# Fencing: every block that moves a sprite (go to, move, change and set x or y, glide) keeps a bit
+# of it on the stage, worked out from its costume's box as scratch-render does: for different
+# shapes, sizes, directions and rotation styles. fence.pixels checks where they end up.
+stage:
+  backdrop sky "#224488"
+
+sprite Box:
+  costume box = square "#ff0000"
+
+  when flag:
+    goto(1000, 1000)
+    log(join("box goto ", join(x_position(), join(" ", y_position()))))
+    goto(-1000, -1000)
+    log(join("box goto ", join(x_position(), join(" ", y_position()))))
+    set_x(600)
+    change_y(900)
+    log(join("box set x, change y ", join(x_position(), join(" ", y_position()))))
+    change_x(-2000)
+    set_y(-300)
+    log(join("box change x, set y ", join(x_position(), join(" ", y_position()))))
+    point(45)
+    move(1000)
+    log(join("box move ", join(x_position(), join(" ", y_position()))))
+    set_size(250)
+    goto(0, -400)
+    log(join("box 250% ", join(x_position(), join(" ", y_position()))))
+    set_size(20)
+    goto(-400, 0)
+    log(join("box 20% ", join(x_position(), join(" ", y_position()))))
+    set_size(100)
+    point(90)
+    glide(0.2, 1000, 0)
+    log(join("box glide ", join(x_position(), join(" ", y_position()))))
+
+sprite Bar:
+  costume bar = bar "#00cc00"
+  position 0, -100
+
+  when flag:
+    goto(1000, 0)
+    log(join("bar right ", x_position()))
+    goto(-1000, 0)
+    log(join("bar left ", x_position()))
+    point(0)
+    goto(0, 1000)
+    log(join("bar up top ", y_position()))
+    goto(0, -1000)
+    log(join("bar up bottom ", y_position()))
+    point(30)
+    goto(1000, 1000)
+    log(join("bar 30 ", join(x_position(), join(" ", y_position()))))
+    rotation_style("left-right")
+    point(-90)
+    goto(1000, 0)
+    log(join("bar flipped right ", x_position()))
+    goto(-1000, 0)
+    log(join("bar flipped left ", x_position()))
+    rotation_style("don't rotate")
+    point(0)
+    goto(-1000, -1000)
+    log(join("bar don't rotate ", join(x_position(), join(" ", y_position()))))
+
+sprite Ball:
+  costume ball = circle "#ffff00"
+  position 0, 100
+
+  when flag:
+    set_size(150)
+    point(-30)
+    repeat 40:
+      move(15)
+    log(join("ball move ", join(x_position(), join(" ", y_position()))))
+    point(90)
+    goto(0, 1000)
+    log(join("ball top ", y_position()))

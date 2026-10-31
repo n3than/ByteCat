@@ -8,10 +8,8 @@
 // - the frame budget: the sequencer's work timer reports that time is up after exactly `passes`
 //   passes over the threads, instead of after 75% of the frame on the wall clock;
 // - Math.random, Date.now and setTimeout: see virtual.ts; ids: see tw-ids.ts;
-// - redraw requests: headless TurboWarp has no renderer, and only its renderer code paths request a
-//   redraw, so without help no frame would end on a redraw. `emulateRedraws` makes the targets of a
-//   lockstep VM request one exactly where they would with a renderer attached. A VM with a real
-//   renderer (the browser oracle) needs none of this.
+// - redraw requests: TurboWarp requests a redraw only in its renderer code paths, so the VM needs a
+//   renderer: TurboWarp's own in the browser oracle, the geometry renderer (tw-geometry.ts) in Node.
 //
 // This file has no Node imports and does not load TurboWarp itself: the caller passes the VM and
 // TurboWarp's modules in. lockstep.ts loads them in Node; the browser oracle bundles them
@@ -49,55 +47,28 @@ function domKey(key: string): string {
   return named[k] ?? key;
 }
 
-// ---- redraw requests as with a renderer ----
+// ---- patches ----
 
 interface TwRuntime {
   [key: string]: any;
 }
-interface TwTarget {
-  [key: string]: any;
-}
-
-const EMULATE = "bytecatEmulateRedraws";
-
-/**
- * For each RenderedTarget method that requests a redraw in its renderer branch: whether it would get
- * that far (the early returns before the branch). After the call, a visible target requests the
- * redraw, as `if (this.renderer) { ... if (this.visible) runtime.requestRedraw(); }` does.
- * Layer changes (`goToFront` and friends) never request one in TurboWarp.
- */
-const redrawingMethods: Record<string, (t: TwTarget, args: any[]) => boolean> = {
-  setXY: (t, [, , force]) => !t.isStage && !(t.dragging && !force),
-  setDirection: (t, [direction]) => !t.isStage && isFinite(direction),
-  setSize: (t) => !t.isStage,
-  setVisible: (t) => !t.isStage,
-  setEffect: (t, [name]) => Object.prototype.hasOwnProperty.call(t.effects, name),
-  clearEffects: () => true,
-  setCostume: () => true,
-  setRotationStyle: () => true,
-  dispose: () => true,
-  // A new clone's drawable (makeClone).
-  updateAllDrawableProperties: () => true,
-};
 
 let patched = false;
 
 /** The virtual clock of the lockstep VM whose frame is running, for TurboWarp's default Timer. */
 let activeClock: { now(): number } | null = null;
 
-/** The TurboWarp modules the driver patches: `src/util/timer`, `src/sprites/rendered-target` and `src/blocks/scratch3_looks`. */
+/** The TurboWarp modules the driver patches: `src/util/timer` and `src/blocks/scratch3_looks`. */
 export interface TurboWarpModules {
   Timer: any;
-  RenderedTarget: any;
   Looks: any;
 }
 
 /**
- * Patches TurboWarp once per process (or page): its Timer (see `activeClock`), and its
- * RenderedTarget and looks blocks so that a runtime with `bytecatEmulateRedraws` set requests
- * redraws the way it would with a renderer. Other VMs in the process (`runProject`) are unaffected.
+ * Patches TurboWarp once per process (or page): its Timer (see `activeClock`), and its `say for
+ * secs` blocks so that their timers are counted as running.
  */
-export function patchTurboWarp({ Timer, RenderedTarget, Looks }: TurboWarpModules): void {
+export function patchTurboWarp({ Timer, Looks }: TurboWarpModules): void {
   if (patched) return;
   patched = true;
   // TurboWarp's default Timer (glide, and the stack timers of interpreted blocks) reads Date.now. A
@@ -106,19 +77,6 @@ export function patchTurboWarp({ Timer, RenderedTarget, Looks }: TurboWarpModule
   const nowObj = Object.getOwnPropertyDescriptor(Timer, "nowObj")!.get!;
   Object.defineProperty(Timer, "nowObj", { configurable: true, get: () => activeClock ?? nowObj.call(Timer) });
 
-  for (const [name, reaches] of Object.entries(redrawingMethods)) {
-    const original = RenderedTarget.prototype[name];
-    RenderedTarget.prototype[name] = function (this: TwTarget, ...args: any[]) {
-      const emulate = !this.renderer && this.runtime?.[EMULATE] === true && reaches(this, args);
-      const result = original.apply(this, args);
-      if (emulate && this.visible) this.runtime.requestRedraw();
-      return result;
-    };
-  }
-
-  // Bubbles: with a renderer, showing a bubble on a visible target positions it (a redraw), and
-  // removing one that is drawn destroys its drawable (a redraw). `bytecatBubbleShown` stands in
-  // for the drawable.
   // The timer of a `say for secs` or `think for secs` clears the bubble even after its script
   // stopped, so the driver counts it as running. TurboWarp may set other timers; only these count.
   for (const name of ["sayforsecs", "thinkforsecs"]) {
@@ -127,32 +85,6 @@ export function patchTurboWarp({ Timer, RenderedTarget, Looks }: TurboWarpModule
       return withTimerLabel(BUBBLE_TIMER, () => original.apply(this, args));
     };
   }
-
-  const render = Looks.prototype._renderBubble;
-  const exit = Looks.prototype._onTargetWillExit;
-  Looks.prototype._onTargetWillExit = function (this: TwRuntime, target: TwTarget) {
-    if (!this.runtime.renderer && this.runtime[EMULATE] === true) {
-      const state = this._getBubbleState(target);
-      if (state.bytecatBubbleShown) {
-        state.bytecatBubbleShown = false;
-        this.runtime.requestRedraw();
-      }
-    }
-    return exit.call(this, target);
-  };
-  Looks.prototype._renderBubble = function (this: TwRuntime, target: TwTarget) {
-    if (!this.runtime.renderer && this.runtime[EMULATE] === true) {
-      const state = this._getBubbleState(target);
-      if (!target.visible || state.text === "") {
-        this._onTargetWillExit(target);
-      } else {
-        state.bytecatBubbleShown = true;
-        this.runtime.requestRedraw();
-      }
-      return;
-    }
-    return render.call(this, target);
-  };
 }
 
 // ---- the driver ----
@@ -175,11 +107,7 @@ export class TurboWarpLockstepCore {
   private readonly clock: { now(): number };
   private readonly env: Parameters<typeof withVirtualGlobals>[0];
 
-  /**
-   * `emulateRedraws`: request redraws where a renderer would (default true). Pass false for a VM
-   * with a renderer attached, which requests them itself.
-   */
-  constructor(readonly vm: TurboWarpVM, options: LockstepOptions, { emulateRedraws = true } = {}) {
+  constructor(readonly vm: TurboWarpVM, options: LockstepOptions) {
     const { fps = 30, turbo = false, passes = 50, random = Math.random, date = DEFAULT_DATE } = options;
     if (!(Number.isInteger(passes) && passes >= 1)) throw new Error(`passes must be a positive integer, got ${passes}`);
     this.fps = fps;
@@ -193,7 +121,6 @@ export class TurboWarpLockstepCore {
     vm.setCompilerOptions({ enabled: true, warpTimer: false });
     vm.setTurboMode(turbo);
     rt.currentStepTime = 1000 / fps;
-    rt[EMULATE] = emulateRedraws;
     rt.updateCurrentMSecs = () => {
       rt.currentMSecs = now();
     };

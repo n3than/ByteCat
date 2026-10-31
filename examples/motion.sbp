@@ -1,5 +1,5 @@
 # Sprite state: position, direction and costumes, read back with reporters.
-# (Size is left out: the headless reference VM has no renderer, so it cannot change size.)
+# (Size has its own example, size_limits.)
 sprite Ball:
   costume ball = circle "#ff4444"
   costume box = square

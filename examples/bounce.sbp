@@ -1,0 +1,46 @@
+# if on edge, bounce: once a sprite's bounds reach an edge it points away from the nearest one and
+# is moved back onto the stage. The sprites are hidden, because then TurboWarp's bounds are the
+# costume's box, which Bytecat computes headless too (for a visible sprite TurboWarp shrinks the box
+# to the drawn pixels; the browser oracle checks that, tests/oracle/bounce.sbp). Values are logged
+# to 3 decimals: the last digits of sin and cos differ between JavaScript engines.
+sprite Ball:
+  costume ball = circle "#ff0000"
+  hidden
+  var i = 0
+  direction 30
+
+  when flag:
+    i = 0
+    repeat 150:
+      move(9)
+      bounce()
+      i += 1
+      if i % 25 == 0:
+        log(join("ball ", join(round(x_position() * 1000) / 1000, join(" ", join(round(y_position() * 1000) / 1000, join(" ", round(direction() * 1000) / 1000))))))
+
+sprite Bar:
+  costume bar = bar "#00cc00"
+  hidden
+  var i = 0
+  direction 100
+  size 150
+
+  when flag:
+    i = 0
+    repeat 150:
+      move(11)
+      bounce()
+      i += 1
+      if i % 25 == 0:
+        log(join("bar ", join(round(x_position() * 1000) / 1000, join(" ", join(round(y_position() * 1000) / 1000, join(" ", round(direction() * 1000) / 1000))))))
+    rotation_style("left-right")
+    repeat 60:
+      move(13)
+      bounce()
+    log(join("bar left-right ", join(round(x_position() * 1000) / 1000, join(" ", join(round(y_position() * 1000) / 1000, join(" ", round(direction() * 1000) / 1000))))))
+    rotation_style("don't rotate")
+    point(-170)
+    repeat 60:
+      move(13)
+      bounce()
+    log(join("bar don't rotate ", join(round(x_position() * 1000) / 1000, join(" ", join(round(y_position() * 1000) / 1000, join(" ", round(direction() * 1000) / 1000))))))

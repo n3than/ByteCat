@@ -1,10 +1,11 @@
 // The browser oracle (docs/testing.md): the trace oracle in Chromium, where TurboWarp runs with its
 // real renderer (TurboWarp's scratch-render on WebGL) and Bytecat with its scratch-render backend.
-// It judges what headless TurboWarp cannot: fencing, touching, bounce against the costume's
-// bounds, the size limits and clicks on sprites.
+// It judges what headless TurboWarp cannot: touching, bounce against the tight bounds of a visible
+// costume, clicks on sprites, and fencing and the size limits as scratch-render itself works them out.
 //
 // - Every example and benchmark must agree, as in the Node oracle (tests/trace.test.ts). Here the
-//   renderer requests the redraws, so this also checks the Node oracle's redraw emulation.
+//   renderer requests the redraws and answers fencing, bounce and the size limits, so this also
+//   checks the Node oracle's geometry renderer (packages/reference/src/tw-geometry.ts).
 // - tests/oracle/*.sbp hold one renderer-dependent behaviour each. Where Bytecat does not match
 //   TurboWarp yet, the test pins the first difference the oracle reports (listed in
 //   docs/deviations.md, "Found by the browser oracle"); fixing it (Phase 2) makes the test fail
@@ -61,16 +62,18 @@ describe("browser oracle agrees with TurboWarp and its renderer", () => {
  * (Bytecat's value as `actual`, TurboWarp's as `expected`) and any problem it notes.
  */
 const KNOWN: Record<string, "agree" | { diff: FieldDiff; problems?: string[] }> = {
-  // Fencing: every block that moves a sprite through setXY.
-  fence_move: { diff: { frame: 25, field: "Mover.x", actual: "250", expected: "249" } },
-  fence_goto: { diff: { frame: 1, field: "Mover.x", actual: "1000", expected: "249" } },
-  fence_glide: { diff: { frame: 9, field: "Mover.y", actual: "213.33333333333334", expected: "189" } },
-  fence_change_x: { diff: { frame: 7, field: "Mover.x", actual: "-280", expected: "-249" } },
-  fence_set_x: { diff: { frame: 1, field: "Mover.x", actual: "300", expected: "249" } },
-  fence_change_y: { diff: { frame: 5, field: "Mover.y", actual: "200", expected: "189" } },
-  fence_set_y: { diff: { frame: 1, field: "Mover.y", actual: "-250", expected: "-189" } },
-  bounce: { diff: { frame: 7, field: "Ball.x", actual: "220", expected: "216.5" } },
-  size_limits: { diff: { frame: 1, field: "Stage.list.log", index: 0, actual: "5000", expected: "1125", lengths: [1, 1] } },
+  // Fencing: every block that moves a sprite through setXY. Bytecat asks its scratch-render backend
+  // (`Runtime.geometry`), so these match, as do bounce (the tight bounds of the visible costume)
+  // and the size limits.
+  fence_move: "agree",
+  fence_goto: "agree",
+  fence_glide: "agree",
+  fence_change_x: "agree",
+  fence_set_x: "agree",
+  fence_change_y: "agree",
+  fence_set_y: "agree",
+  bounce: "agree",
+  size_limits: "agree",
   touching: {
     diff: { frame: 8, field: "Stage.var.mouse", actual: "no", expected: "yes" },
     problems: ["bytecat does not support sensing_touchingobject"],
@@ -112,8 +115,9 @@ describe("browser oracle on renderer-dependent behaviour (tests/oracle)", () => 
 });
 
 describe("scratch-render backend", () => {
-  // Bounds, fenced positions, costume sizes, touching and what a click hits, after the green flag.
-  for (const path of ["tests/oracle/backend.sbp", "examples/render.sbp", "tests/oracle/click_sprites.sbp"]) {
+  // Bounds, fenced positions, costume sizes, touching and what a click hits, after the green flag,
+  // and the headless geometry's box, fence and costume sizes.
+  for (const path of ["tests/oracle/backend.sbp", "examples/render.sbp", "examples/fence.sbp", "examples/boids.sbp", "tests/oracle/click_sprites.sbp"]) {
     it(`places every sprite like TurboWarp's renderer: ${path}`, async () => {
       const sb3 = compileToSb3(readFileSync(join(root, path), "utf8"), path);
       expect(await oracle.compareBackend(sb3, 2)).toEqual([]);

@@ -11,6 +11,7 @@
     "./virtual": "./src/virtual.ts"
   },
   "dependencies": {
+    "@bytecat/sb3": "workspace:*",
     "scratch-vm": "^5.0.300",
     "turbowarp-vm": "github:TurboWarp/scratch-vm#f26ff67e951258a84d25cad3acaf8804eb202318"
   }
