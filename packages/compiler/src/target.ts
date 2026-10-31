@@ -39,7 +39,7 @@ export class TargetCodegen implements Gen {
   constructor(
     readonly target: Target,
     private readonly index: number,
-    private readonly stage: Target,
+    readonly stage: Target,
     private readonly warnings: Set<string>,
     prelude: string[],
     private readonly env: TypeEnv,
@@ -52,6 +52,8 @@ export class TargetCodegen implements Gen {
      * `uses`, with its extension's `runtime` module (`programImports`).
      */
     private readonly declared: Map<string, string> = new Map(),
+    /** Every target in project.json, the stage first, for `sprite`. */
+    private readonly targets: readonly Target[] = [stage],
   ) {
     this.scope = new Scope(target, stage, prelude);
     this.blocks = target.blocks;
@@ -59,7 +61,9 @@ export class TargetCodegen implements Gen {
     this.procs = table.procs;
     // Settle which procedures are sync before compiling any call to them.
     analyzeSync(target, table, registry);
-    const effects = analyzeEffects(this.blocks, table, (field) => this.scope.variable(field));
+    const named = (name: string) =>
+      [target, stage].flatMap((owner) => Object.entries(owner.variables).filter(([, v]) => v[0] === name).map(([id]) => this.scope.variable([name, id])));
+    const effects = analyzeEffects(this.blocks, table, (field) => this.scope.variable(field), named);
     for (const [proccode, proc] of this.procs) {
       const e = effects.get(proccode);
       if (e) this.effects.set(proc.fn, e);
@@ -318,6 +322,11 @@ export class TargetCodegen implements Gen {
 
   noteCall(proc: Proc, args: TypeSet[]): void {
     args.forEach((type, i) => this.env.note(TypeEnv.paramKey(proc.fn, i), type));
+  }
+
+  sprite(name: string): { index: number; target: Target } | undefined {
+    const index = this.targets.findIndex((x) => !x.isStage && x.name === name);
+    return index < 0 ? undefined : { index, target: this.targets[index]! };
   }
 
   variable(field: FieldRef): string {

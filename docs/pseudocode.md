@@ -261,6 +261,7 @@ Zero-argument reporters still need parentheses: `x_position()`, `timer()`.
 | `mouse_down()` | <mouse down?> (boolean) | `sensing_mousedown` | any |
 | `key_pressed(key_option)` | <key (name) pressed?> (boolean) | `sensing_keypressed` | any |
 | `touching(touchingobjectmenu)` | <touching (sprite name, `_edge_` or `_mouse_`)?> (boolean) | `sensing_touchingobject` | sprite |
+| `attribute_of(property, object)` | [property] of (sprite name or `_stage_`): `"x position"`, `"backdrop name"`, a variable name, ... | `sensing_of` | any |
 | `days_since_2000()` | days since 2000 | `sensing_dayssince2000` | any |
 | `username()` | username | `sensing_username` | any |
 
@@ -378,5 +379,5 @@ Unknown builtins suggest the closest name (`mvoe` → `move`).
 
 Sounds, pen, extensions, sensing that needs a renderer (`touching`, `distance to`,
 colors), graphic effects, layers beyond `go_to_front()`, `when backdrop switches`, `when timer >`,
-variable and list monitors, comments, and sprite-to-sprite property access (`[x position] of [Cat]`).
+variable and list monitors, and comments.
 New blocks are added in `packages/pseudo/src/builtins.ts`; see `AGENTS.md`.
