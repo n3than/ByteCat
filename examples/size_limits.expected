@@ -1,0 +1,11 @@
+ball 10.5: 11
+ball 5000: 1125
+ball +1: 1125
+ball -1000: 125
+bar keeps 125
+bar 5000: 750
+bar 30: 30
+ball keeps 750
+ball +0: 750
+clone 750
+clone 99999: 1125

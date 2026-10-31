@@ -29,7 +29,7 @@ export function stopOthers(rt: Runtime, t: Target, self: Thread): void {
 
 /**
  * "create clone of": a clone of `parent` (a sprite or a clone), unless `parent` is the stage or
- * `cloneLimit` clones exist (no limit by default; 300 with the TURBOWARP preset). It copies the variables, lists, position, look and layer, as
+ * `cloneLimit` clones exist (no limit by default; 300 with the turbowarpCompat preset). It copies the variables, lists, position, look and layer, as
  * TurboWarp's `makeClone` does, and its "when I start as a clone" scripts start.
  */
 export function createClone(rt: Runtime, parent: Target): void {

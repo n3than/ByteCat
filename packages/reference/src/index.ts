@@ -3,8 +3,11 @@ import "./tw-ids.js";
 import { silenced } from "./quiet.js";
 import ScratchVM from "scratch-vm";
 import TurboWarpVM from "turbowarp-vm";
+import { costumeSizes, readSb3 } from "@bytecat/sb3";
+import { attachGeometryRenderer } from "./tw-geometry.js";
 
 export { TurboWarpLockstep } from "./lockstep.js";
+export { attachGeometryRenderer, GeometryRenderer } from "./tw-geometry.js";
 export { patchTurboWarp, TurboWarpLockstepCore, type LockstepOptions, type TurboWarpModules } from "./tw-lockstep.js";
 export { DEFAULT_DATE, flushPromises, mulberry32, VirtualTimers, withTimerLabel, withVirtualGlobals, type VirtualGlobals } from "./virtual.js";
 export { turbowarpUidReplacement, turbowarpUsesCounterIds } from "./tw-ids.js";
@@ -97,6 +100,8 @@ async function runLoaded(sb3: Uint8Array, options: RunOptions): Promise<RunResul
   });
 
   await silenced(() => vm.loadProject(sb3));
+  // Fencing, bounce and the size limits need a renderer in both VMs.
+  attachGeometryRenderer(vm.runtime as never, costumeSizes(readSb3(sb3)));
   vm.setTurboMode(turbo);
   vm.start();
   const started = performance.now();

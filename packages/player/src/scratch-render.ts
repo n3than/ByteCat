@@ -109,24 +109,7 @@ export class ScratchRenderBackend implements RenderBackend {
   sync(): void {
     const { renderer } = this;
     if (this.rt.cloneCount > 0 || this.drawables.size !== this.rt.targets.length) this.syncClones();
-    for (const [t, d] of this.drawables) {
-      const skinId = d.skins[t.costume] ?? d.skins[0];
-      // RenderedTarget._getRenderedDirectionAndScale.
-      let direction = t.direction;
-      let scale: [number, number] = [t.size, t.size];
-      if (t.rotationStyle === "don't rotate") direction = 90;
-      else if (t.rotationStyle === "left-right") {
-        direction = 90;
-        scale = [(t.direction < 0 ? -1 : 1) * t.size, t.size];
-      }
-      renderer.updateDrawableProperties(d.drawable, {
-        ...(skinId === undefined ? {} : { skinId }),
-        position: [t.x, t.y],
-        direction: t.isStage ? 90 : direction,
-        scale: t.isStage ? [100, 100] : scale,
-        visible: t.visible,
-      });
-    }
+    for (const [t, d] of this.drawables) this.syncDrawable(t, d);
     // Layer order of the sprites, back to front; only touched when it changed.
     const order = this.rt.targets.filter((t) => !t.isStage).sort((a, b) => a.layer - b.layer);
     if (order.length !== this.order.length || order.some((t, i) => t !== this.order[i])) {
@@ -135,6 +118,40 @@ export class ScratchRenderBackend implements RenderBackend {
       this.order = order;
     }
     for (const [t, d] of this.drawables) this.syncBubble(t, d);
+  }
+
+  /** Copies one target into its drawable: costume, position, direction, scale and visibility. */
+  private syncDrawable(t: Target, d: TargetDrawable): void {
+    const skinId = d.skins[t.costume] ?? d.skins[0];
+    // RenderedTarget._getRenderedDirectionAndScale.
+    let direction = t.direction;
+    let scale: [number, number] = [t.size, t.size];
+    if (t.rotationStyle === "don't rotate") direction = 90;
+    else if (t.rotationStyle === "left-right") {
+      direction = 90;
+      scale = [(t.direction < 0 ? -1 : 1) * t.size, t.size];
+    }
+    this.renderer.updateDrawableProperties(d.drawable, {
+      ...(skinId === undefined ? {} : { skinId }),
+      position: [t.x, t.y],
+      direction: t.isStage ? 90 : direction,
+      scale: t.isStage ? [100, 100] : scale,
+      visible: t.visible,
+    });
+  }
+
+  /**
+   * The target's drawable brought up to date, for a `Geometry` query in the middle of a frame:
+   * only this target is synced (a clone made since the last `sync` gets its drawable now).
+   */
+  private current(t: Target): TargetDrawable | undefined {
+    let d = this.drawables.get(t);
+    if (!d && this.rt.targets.includes(t)) {
+      this.syncClones();
+      d = this.drawables.get(t);
+    }
+    if (d) this.syncDrawable(t, d);
+    return d;
   }
 
   /**
@@ -220,14 +237,14 @@ export class ScratchRenderBackend implements RenderBackend {
   }
 
   bounds(t: Target): Bounds | null {
-    const d = this.drawables.get(t);
+    const d = this.current(t);
     if (!d) return null;
     const b = this.renderer.getBounds(d.drawable);
     return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
   }
 
   fence(t: Target, x: number, y: number): [number, number] {
-    const d = this.drawables.get(t);
+    const d = this.current(t);
     return d ? this.renderer.getFencedPositionOfDrawable(d.drawable, [x, y]) : [x, y];
   }
 
@@ -247,9 +264,9 @@ export class ScratchRenderBackend implements RenderBackend {
     return d !== undefined && this.renderer.isTouchingColor(d.drawable, color, mask);
   }
 
-  costumeSize(t: Target): [number, number] {
-    const d = this.drawables.get(t);
-    return d ? this.renderer.getCurrentSkinSize(d.drawable) : [0, 0];
+  costumeSize(t: Target): [number, number] | null {
+    const d = this.current(t);
+    return d ? this.renderer.getCurrentSkinSize(d.drawable) : null;
   }
 
   pixel(x: number, y: number): [number, number, number, number] {

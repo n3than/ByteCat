@@ -1,4 +1,5 @@
-import type { ProjectJson } from "@bytecat/sb3";
+import type { CostumeSizes, ProjectJson } from "@bytecat/sb3";
+import { BoxGeometry, type Geometry } from "./geometry.js";
 import { Target } from "./target.js";
 import { Thread, type Hat, type HatKind, type ProgramFactory } from "./thread.js";
 import { tick } from "./scheduler.js";
@@ -15,23 +16,35 @@ export interface RuntimeOptions {
   /** The clock the scheduler reads, in milliseconds, to end frames on time. Tests inject one. */
   schedulerClock?: () => number;
   /**
+   * The size of every costume image, by asset file name (`costumeSizes` in @bytecat/sb3). With
+   * them the runtime has a `geometry` (BoxGeometry) and fences sprites, bounces them off the
+   * edge and clamps their size like TurboWarp with its renderer. Without them it does none of
+   * these, like TurboWarp without a renderer.
+   */
+  costumeSizes?: CostumeSizes;
+  /**
+   * TurboWarp's minimum size: `set size` keeps a costume at least 5 pixels wide or high. Default
+   * false: Bytecat lets a sprite shrink to any size (docs/deviations.md). The maximum, 1.5 times
+   * the stage, always applies. `turbowarpCompat` turns it on.
+   */
+  minSize?: boolean;
+  /**
    * The most clones that can exist at once, across all sprites. Default `Infinity`: no limit.
-   * TurboWarp's is 300 (the `TURBOWARP` preset).
+   * TurboWarp's is 300 (`turbowarpCompat`).
    */
   cloneLimit?: number;
 }
 
 /**
- * Compat presets: the options that make Bytecat copy a limit TurboWarp has where Bytecat's default
- * differs on purpose ("Intended Bytecat differences" in docs/deviations.md). Spread one into the
- * options: `new Runtime(json, program, { clock: "virtual", ...TURBOWARP })`.
+ * The options that make Bytecat do what TurboWarp does where Bytecat deliberately differs by
+ * default ("Intended Bytecat differences" in docs/deviations.md). The exact checks against
+ * TurboWarp run with them (`EXACT_COMPAT` in @bytecat/trace). Spread it into the options:
+ * `new Runtime(json, program, { ...turbowarpCompat, clock: "virtual" })`.
  */
-export const TURBOWARP: Readonly<RuntimeOptions> = {
-  cloneLimit: 300,
-};
+export const turbowarpCompat = { minSize: true, cloneLimit: 300 } as const satisfies RuntimeOptions;
 
 /** The compat presets by name, for `--compat NAME` and the player's `?compat=NAME`. */
-export const COMPAT_PRESETS: Readonly<Record<string, Readonly<RuntimeOptions>>> = { turbowarp: TURBOWARP };
+export const COMPAT_PRESETS: Readonly<Record<string, Readonly<RuntimeOptions>>> = { turbowarp: turbowarpCompat };
 
 export interface SayEvent {
   target: string;
@@ -93,9 +106,15 @@ export class Runtime {
   mouse = { x: 0, y: 0, down: false };
   readonly keys = new Set<string>();
   onAsk: ((question: string) => Promise<string>) | null = null;
+  /**
+   * Answers what Scratch asks its renderer (bounds, fence, costume size; `geometry.ts`), or null
+   * when there is nothing to ask, like TurboWarp without a renderer. A BoxGeometry when
+   * `costumeSizes` are given; the player puts its renderer backend here.
+   */
+  geometry: Geometry | null;
 
   /** @internal Read by the scheduler (`scheduler.ts`). */
-  readonly options: Required<Omit<RuntimeOptions, "answers" | "schedulerClock">>;
+  readonly options: Required<Omit<RuntimeOptions, "answers" | "schedulerClock" | "costumeSizes">>;
   /** @internal Queued answers for `ask` (`lib/sensing.ts`). */
   readonly answers: string[];
   /** @internal Read by the scheduler (`scheduler.ts`). */
@@ -137,16 +156,14 @@ export class Runtime {
   private topDown: Target[] | null = null;
 
   constructor(readonly project: ProjectJson, program: ProgramFactory, options: RuntimeOptions = {}) {
-    this.options = {
-      turbo: false,
-      fps: 30,
-      clock: "real",
-      ...options,
-      cloneLimit: options.cloneLimit ?? Infinity,
-    };
+    // A fixed set of fields, built in one go: the scheduler reads them every pass, and an options
+    // object made by spreading ...rest was measurably slower to read (arith +25%).
+    const { turbo = false, fps = 30, clock = "real", minSize = false, cloneLimit = Infinity, costumeSizes } = options;
+    this.options = { turbo, fps, clock, minSize, cloneLimit };
     this.answers = [...(options.answers ?? [])];
     this.schedulerClock = options.schedulerClock ?? (() => performance.now());
-    this.targets = Target.all(project);
+    this.targets = Target.all(project, costumeSizes);
+    this.geometry = costumeSizes ? new BoxGeometry() : null;
     this.stage = this.targets[0]!;
     this.originals = this.targets.length;
     this.hats = program(this);

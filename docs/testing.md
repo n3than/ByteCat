@@ -19,7 +19,7 @@ less before something shows is not a bug in a game. So there are two kinds of ch
 - **Relaxed** (the default): Bytecat runs with its own defaults and is compared at checkpoints
   with tolerances. Use it for every example and every real project, unless the example is about
   timing.
-- **Exact**: Bytecat runs with the `TURBOWARP` compat preset (`EXACT_COMPAT`), and the log or
+- **Exact**: Bytecat runs with the `turbowarpCompat` compat preset (`EXACT_COMPAT`), and the log or
   every frame must be the same. The fuzzer, the log comparisons with TurboWarp and scratch-vm in
   `tests/compiler.test.ts` and `tests/examples.test.ts`, the trace and the browser trace are
   exact. In `tests/trace.test.ts` only the scheduler-sensitive examples in `EXACT` are traced
@@ -184,16 +184,16 @@ So the oracle runs **both schedulers on a virtual cost clock**:
   at the end of every loop iteration, as in TurboWarp. `spin` exists only to save scheduler work. A
   thread running alone cannot observe it, except through how much fits in a frame, and that is
   now set by the pass budget. `packages/runtime/test/scheduler.test.ts` checks spin itself.
-- **Redraws as with a renderer.** Headless TurboWarp has no renderer, and TurboWarp only requests
-  a redraw inside its renderer code paths. Without help, no frame would ever end on a redraw. On
-  lockstep VMs, the driver patches `RenderedTarget` and the looks bubbles to request a redraw
-  exactly where the renderer branch would. Bytecat's blocks follow the same rules (see
-  [architecture.md](architecture.md#scheduler)). A new clone's drawable
-  (`updateAllDrawableProperties`) requests one too. Not emulated yet: the redraws from sound
-  and pen. Whoever adds those blocks must extend
-  the redraw patch in `packages/reference/src/tw-lockstep.ts`. The browser oracle (below) needs
-  no emulation, and every example agreeing there at 50 and 1 passes is the check that the
-  emulation requests redraws where the renderer does.
+- **A renderer, headless.** TurboWarp only requests a redraw, fences a sprite, bounces it off the
+  edge and clamps its size inside its renderer code paths. In Node the VM gets a stand-in renderer,
+  `GeometryRenderer` (`packages/reference/src/tw-geometry.ts`): scratch-render's geometry ported
+  line for line (drawables, skin sizes measured from the costume images, the AABB and the fence),
+  without drawing. So TurboWarp's own renderer branches run and request their redraws; Bytecat's
+  blocks follow the same rules (see [architecture.md](architecture.md#scheduler)). What it cannot
+  do (tight bounds of a visible costume, touching) is listed in
+  [deviations.md](deviations.md#headless-geometry). `runProject` attaches it too, for scratch-vm
+  and TurboWarp alike. The browser oracle (below) uses the real renderer, and every example
+  agreeing there at 50 and 1 passes is the check that the stand-in behaves like it.
 
 With these, a frame does the same work on both engines and ends at the same pass, whatever the
 machine. `tests/trace.test.ts` checks this on the scheduler-sensitive examples at 50, 7 and 1
@@ -243,13 +243,14 @@ boundaries) in Chromium through Playwright, with TurboWarp's real renderer:
 - In the page, TurboWarp's VM gets TurboWarp's scratch-render on a 480 by 360 canvas, and
   scratch-storage for its costumes. It is driven by the same lockstep driver as in Node
   (`TurboWarpLockstepCore` in `packages/reference/src/tw-lockstep.ts`), with the same fake
-  sequencer timer, virtual clock and seeded random, but **no redraw emulation**: the renderer
-  requests redraws itself. The bundle swaps TurboWarp's `util/uid.js` for the same counter as in
+  sequencer timer, virtual clock and seeded random, and the real renderer instead of the
+  stand-in. The bundle swaps TurboWarp's `util/uid.js` for the same counter as in
   Node.
 - Bytecat runs in the same page, on the same scheduler setup as in Node (`BytecatLockstep`), with
   its scratch-render backend (`ScratchRenderBackend`, see
-  [architecture.md](architecture.md#renderer)) on a second canvas. Clicks are hit-tested by the
-  backend, so a click on a sprite reaches that sprite on both engines.
+  [architecture.md](architecture.md#renderer)) on a second canvas, which is also its
+  `Runtime.geometry`: fencing, bounce and the size limits ask scratch-render. Clicks are
+  hit-tested by the backend, so a click on a sprite reaches that sprite on both engines.
 - Both engines wait until every costume image has loaded before the green flag, as in the editor.
   scratch-render loads SVG images a task later; a sprite whose image has not loaded sits with its
   top left corner on its position and cannot be clicked.

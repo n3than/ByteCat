@@ -2,7 +2,7 @@
 // and how it is removed (delete this clone, stop all, the green flag).
 import type { ProjectJson } from "@bytecat/sb3";
 import { describe, expect, it } from "vitest";
-import { RETIRE, Runtime, TURBOWARP, WAIT, type Hat, type RuntimeOptions, type Target } from "../src/index.js";
+import { RETIRE, Runtime, turbowarpCompat, WAIT, type Hat, type RuntimeOptions, type Target } from "../src/index.js";
 import { createClone, createCloneOf, deleteClone } from "../src/lib/control.js";
 import { broadcast } from "../src/lib/event.js";
 
@@ -66,7 +66,7 @@ describe("creating a clone", () => {
   });
 
   it("makes no clone of the stage, and none beyond the limit across all sprites", () => {
-    const { rt, a, b } = setup(undefined, TURBOWARP);
+    const { rt, a, b } = setup(undefined, turbowarpCompat);
     createClone(rt, rt.stage);
     createCloneOf(rt, rt.stage, "_myself_");
     expect(rt.cloneCount).toBe(0);

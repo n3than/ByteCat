@@ -1,5 +1,5 @@
-import type { Runtime, Target } from "@bytecat/runtime";
-import { fenceFromBox, type Bounds, type RenderBackend } from "./backend.js";
+import { BoxGeometry, type Runtime, type Target } from "@bytecat/runtime";
+import type { Bounds, RenderBackend } from "./backend.js";
 
 export const STAGE_WIDTH = 480;
 export const STAGE_HEIGHT = 360;
@@ -17,6 +17,8 @@ export interface Costume {
  */
 export class Renderer implements RenderBackend {
   private readonly ctx: CanvasRenderingContext2D;
+  /** The geometry queries: the costume's box, as the headless runtime computes it. */
+  private readonly box = new BoxGeometry();
   readonly scale: number;
 
   constructor(
@@ -115,12 +117,11 @@ export class Renderer implements RenderBackend {
 
   /** The costume's box on the stage (no pixel test). */
   bounds(t: Target): Bounds | null {
-    const b = this.canvasBounds(t);
-    return b && { left: b.left - STAGE_WIDTH / 2, right: b.right - STAGE_WIDTH / 2, top: STAGE_HEIGHT / 2 - b.top, bottom: STAGE_HEIGHT / 2 - b.bottom };
+    return this.box.bounds(t);
   }
 
   fence(t: Target, x: number, y: number): [number, number] {
-    return fenceFromBox(this.bounds(t), t, x, y);
+    return this.box.fence(t, x, y);
   }
 
   touching(t: Target, others: readonly Target[]): boolean {
@@ -141,10 +142,8 @@ export class Renderer implements RenderBackend {
     return false;
   }
 
-  costumeSize(t: Target): [number, number] {
-    const info = t.costumes[t.costume];
-    const costume = info && this.costumes.get(info.md5ext);
-    return info && costume ? [costume.image.width / info.bitmapResolution, costume.image.height / info.bitmapResolution] : [0, 0];
+  costumeSize(t: Target): [number, number] | null {
+    return this.box.costumeSize(t);
   }
 
   pixel(x: number, y: number): [number, number, number, number] {

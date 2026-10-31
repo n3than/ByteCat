@@ -61,7 +61,7 @@ Checks against TurboWarp come in two kinds (`docs/testing.md`, "Relaxed and exac
   `EXACT` list of `tests/trace.test.ts` use it. Add an example to `EXACT` when it tests the frame
   something happens in.
 
-An intended difference from TurboWarp is a runtime option with a `TURBOWARP` preset value, a row
+An intended difference from TurboWarp is a runtime option with a `turbowarpCompat` preset value, a row
 under "Intended Bytecat differences" in `docs/deviations.md`, an allowance in
 `packages/trace/src/compare.ts`, and `NAME.turbowarp.expected` for an example whose log shows it.
 

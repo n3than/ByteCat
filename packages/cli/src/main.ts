@@ -10,7 +10,7 @@ import { runProject } from "@bytecat/reference";
 import { COMPAT_PRESETS, Runtime, type RuntimeOptions } from "@bytecat/runtime";
 import { compareProject, describeCompare, describeTrace, parseInput, projectFiles, projectsIn, traceProject, type CompareResult } from "@bytecat/trace";
 import { buildWebApp } from "@bytecat/web";
-import { readSb3, writeSb3, type Project, type ProjectJson } from "@bytecat/sb3";
+import { costumeSizes, readSb3, writeSb3, type Project, type ProjectJson } from "@bytecat/sb3";
 
 const USAGE = `Usage: bytecat <command> [options]
 
@@ -233,10 +233,11 @@ switch (command) {
       }
       if (!result.finished) process.exitCode = 3;
     } else if (values.engine === "bytecat") {
-      const json = loadJson(files[0]!);
+      const project = loadProject(files[0]!);
+      const json = project.json;
       const compiled = compileToJs(json);
       const { program, warnings } = compiled;
-      const rt = new Runtime(json, program, { ...compatOption(), clock: "virtual", turbo: true, answers });
+      const rt = new Runtime(json, program, { ...compatOption(), clock: "virtual", turbo: true, answers, costumeSizes: costumeSizes(project) });
       const { finished, elapsedMs, frames } = rt.runUntilDone(timeoutMs);
       const log = rt.log();
       if (values.json) {

@@ -4,8 +4,8 @@ import { compile as compileToJs } from "@bytecat/compiler";
 import { compile as compilePseudo } from "@bytecat/pseudo";
 import { runProject } from "@bytecat/reference";
 import { Runtime } from "@bytecat/runtime";
+import { costumeSizes, readSb3, writeSb3, type Project } from "@bytecat/sb3";
 import { EXACT_COMPAT } from "@bytecat/trace";
-import { readSb3, writeSb3, type Project } from "@bytecat/sb3";
 import { generateProgram } from "./generate.js";
 
 export interface Diff {
@@ -54,7 +54,7 @@ function runBytecat(project: Project, timeoutMs: number, problems: string[]): st
   try {
     const { program } = compileToJs(project.json);
     // An exact log comparison, so Bytecat copies TurboWarp's limits (EXACT_COMPAT).
-    const rt = new Runtime(project.json, program, { ...EXACT_COMPAT, clock: "virtual", turbo: true });
+    const rt = new Runtime(project.json, program, { ...EXACT_COMPAT, clock: "virtual", turbo: true, costumeSizes: costumeSizes(project) });
     const { finished } = rt.runUntilDone(timeoutMs);
     if (!finished) problems.push(`bytecat did not finish within ${timeoutMs} ms`);
     return rt.log();

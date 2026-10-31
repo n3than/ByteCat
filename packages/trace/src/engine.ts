@@ -17,7 +17,7 @@ export interface FrameOptions {
   /** Date.now() at frame 0, in milliseconds since the epoch. Default 1 January 2026, 00:00 UTC. */
   date?: number;
   /**
-   * Bytecat's runtime options: a compat preset such as `TURBOWARP`, or `{}` for Bytecat's own
+   * Bytecat's runtime options: a compat preset such as `turbowarpCompat`, or `{}` for Bytecat's own
    * defaults. TurboWarp ignores it. Default `EXACT_COMPAT` (the exact trace); the relaxed
    * comparison (`compareEngines`) passes `{}`.
    */

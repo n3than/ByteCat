@@ -10,8 +10,8 @@ import { BitmapAdapter, RenderWebGL, ScratchRenderBackend, skinsLoaded } from "@
 import { TurboWarpVM, turbowarpModules, turbowarpUsesCounterIds } from "@bytecat/reference/browser";
 import { patchTurboWarp, TurboWarpLockstepCore } from "@bytecat/reference/lockstep";
 import { mulberry32 } from "@bytecat/reference/virtual";
-import type { Target } from "@bytecat/runtime";
-import { readSb3 } from "@bytecat/sb3";
+import { BoxGeometry, type Target } from "@bytecat/runtime";
+import { costumeSizes, readSb3 } from "@bytecat/sb3";
 import ScratchStorage from "scratch-storage";
 import { BytecatLockstep } from "../bytecat.js";
 import type { FrameOptions } from "../engine.js";
@@ -59,7 +59,7 @@ class TurboWarpRendered extends TurboWarpEngineCore {
     const canvas = stageCanvas("turbowarp");
     const renderer = new RenderWebGL(canvas);
     vm.attachRenderer(renderer);
-    const tw = new TurboWarpLockstepCore(vm, { ...rest, random: mulberry32(seed) }, { emulateRedraws: false });
+    const tw = new TurboWarpLockstepCore(vm, { ...rest, random: mulberry32(seed) });
     await vm.loadProject(sb3);
     // As in the editor, where the green flag comes after the costumes are on screen.
     await skinsLoaded(renderer);
@@ -92,10 +92,12 @@ async function open(sb3Base64: string, options: FrameOptions): Promise<Session> 
   const urls = Object.fromEntries(
     [...project.assets].map(([name, data]) => [name, URL.createObjectURL(new Blob([data as BlobPart], { type: mimeType(name) }))]),
   );
-  const bytecat = new BytecatLockstep(project.json, options);
+  const bytecat = new BytecatLockstep(project.json, options, costumeSizes(project));
   const canvas = stageCanvas("bytecat");
   const backend = await ScratchRenderBackend.create(canvas, bytecat.rt, urls);
   bytecat.renderer = backend;
+  // The blocks ask scratch-render where the fence is, what the bounds are and how large a costume is.
+  bytecat.rt.geometry = backend;
   const turbowarp = await TurboWarpRendered.load(sb3, options);
   return {
     bytecat,
@@ -158,11 +160,13 @@ async function compareBackend(sb3Base64: string, frames: number): Promise<string
     }
     backend.sync();
     const renderer = turbowarp.renderer;
+    const headless = new BoxGeometry();
     const problems: string[] = [];
     const check = (what: string, actual: unknown, expected: unknown) => {
       if (!same(actual, expected)) problems.push(`${what}: backend ${JSON.stringify(actual)} but turbowarp ${JSON.stringify(expected)}`);
     };
-    const sprites = bytecat.rt.targets.filter((t) => !t.isStage);
+    // The original sprites (TurboWarp's are found by name, and a clone has its sprite's name).
+    const sprites = bytecat.rt.targets.filter((t) => !t.isStage && t.isOriginal);
     const tw = (t: Target) => turbowarp.sprite(t.name)!;
     const box = (b: { left: number; right: number; top: number; bottom: number } | null) => b && [b.left, b.right, b.top, b.bottom].map(round);
     for (const t of sprites) {
@@ -170,6 +174,14 @@ async function compareBackend(sb3Base64: string, frames: number): Promise<string
       check(`${t.name} costume size`, backend.costumeSize(t), renderer.getCurrentSkinSize(tw(t).drawableID));
       for (const [x, y] of [[1000, 1000], [-1000, 30], [5, -1000]] as const) {
         check(`${t.name} fenced at ${x}, ${y}`, backend.fence(t, x, y), renderer.getFencedPositionOfDrawable(tw(t).drawableID, [x, y]));
+      }
+      // The headless geometry (BoxGeometry, from the measured costume sizes) gives the same fence,
+      // costume size and box: the AABB that the fence uses, which is also a hidden sprite's bounds.
+      const id = tw(t).drawableID;
+      check(`${t.name} headless costume size`, headless.costumeSize(t), renderer.getCurrentSkinSize(id));
+      check(`${t.name} headless box`, box(headless.bounds(t)), box(renderer._allDrawables[id]!.getAABB()));
+      for (const [x, y] of [[1000, 1000], [-1000, 30], [5, -1000], [250, -170], [-235, 175]] as const) {
+        check(`${t.name} headless fence at ${x}, ${y}`, headless.fence(t, x, y), renderer.getFencedPositionOfDrawable(id, [x, y]));
       }
       for (const o of sprites) {
         if (o !== t) check(`${t.name} touching ${o.name}`, backend.touching(t, [o]), tw(t).isTouchingSprite(o.name));

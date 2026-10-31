@@ -9,7 +9,8 @@ import { join } from "node:path";
 import { compile } from "@bytecat/compiler";
 import { compile as compilePseudo, compileToSb3 } from "@bytecat/pseudo";
 import { engines, runProject } from "@bytecat/reference";
-import { Runtime, TURBOWARP } from "@bytecat/runtime";
+import { Runtime, turbowarpCompat } from "@bytecat/runtime";
+import { costumeSizes } from "@bytecat/sb3";
 import { EXACT_COMPAT } from "@bytecat/trace";
 import { describe, expect, it } from "vitest";
 
@@ -30,15 +31,17 @@ describe("compiler and runtime", () => {
 
     test(name, async () => {
       const source = readFileSync(join(dir, file), "utf8");
-      const json = compilePseudo(source, file).project.json;
+      const project = compilePseudo(source, file).project;
+      const json = project.json;
       const { program, warnings } = compile(json);
       expect(warnings).toEqual([]);
-      const rt = new Runtime(json, program, { clock: "virtual", turbo: true });
+      const sizes = costumeSizes(project);
+      const rt = new Runtime(json, program, { clock: "virtual", turbo: true, costumeSizes: sizes });
       const { finished } = rt.runUntilDone(5000);
       expect(finished, "project did not finish within 5 s").toBe(true);
       expect(rt.log()).toEqual(lines(join(dir, `${name}.expected`)));
 
-      const exact = new Runtime(json, program, { ...EXACT_COMPAT, clock: "virtual", turbo: true });
+      const exact = new Runtime(json, program, { ...EXACT_COMPAT, clock: "virtual", turbo: true, costumeSizes: sizes });
       expect(exact.runUntilDone(5000).finished, "project did not finish within 5 s with EXACT_COMPAT").toBe(true);
       const turbowarpPath = join(dir, `${name}.turbowarp.expected`);
       if (existsSync(turbowarpPath)) expect(exact.log(), "differs from its .turbowarp.expected").toEqual(lines(turbowarpPath));
@@ -65,8 +68,8 @@ describe("clone limit", () => {
     expect(run({})).toContain("alive after spawning: 402");
   });
 
-  it("is 300 with the TURBOWARP preset (--compat turbowarp)", () => {
-    expect(run(TURBOWARP)).toContain("alive after spawning: 300");
+  it("is 300 with the turbowarpCompat preset (--compat turbowarp)", () => {
+    expect(run(turbowarpCompat)).toContain("alive after spawning: 300");
     const cli = (...args: string[]) =>
       execFileSync("pnpm", ["exec", "tsx", "packages/cli/src/main.ts", "run", "examples/clones_limit.sbp", ...args], { cwd: join(dir, ".."), stdio: "pipe" }).toString();
     expect(cli("--compat", "turbowarp")).toContain("alive after spawning: 300");

@@ -6,9 +6,10 @@ difference is always a decision, never an accident.
 
 ## Intended Bytecat differences
 
-Limits TurboWarp has and Bytecat leaves out by default, on purpose. Each one has a compat preset
-behaviour: the `TURBOWARP` preset in `@bytecat/runtime` (`--compat turbowarp` on the CLI,
-`compat: TURBOWARP` or `?compat=turbowarp` in the player) copies TurboWarp. The exact checks (the
+Limits TurboWarp has and Bytecat leaves out by default, on purpose (Nathan's decision: a limit the
+project did not ask for is not forced on it). Each one has a compat preset
+behaviour: the `turbowarpCompat` preset in `@bytecat/runtime` (`--compat turbowarp` on the CLI,
+`compat: turbowarpCompat` or `?compat=turbowarp` in the player) copies TurboWarp. The exact checks (the
 frame-by-frame trace, the fuzzer and the log comparisons in `tests/compiler.test.ts`) run with
 that preset (`EXACT_COMPAT` in `packages/trace/src/bytecat.ts`), and the relaxed comparison lets
 each difference through by a named allowance (`ALLOWANCES` in `packages/trace/src/compare.ts`). An
@@ -19,9 +20,8 @@ file is listed here.
 | Difference | Default | Compat preset (`turbowarp`) | Allowance | Pinned by |
 | --- | --- | --- | --- | --- |
 | Clone limit. TurboWarp (and scratch-vm) let at most 300 clones exist at once, counted across all sprites, and `create clone` does nothing beyond that. | No limit (`cloneLimit: Infinity`). | `cloneLimit: 300`. | `clone-limit`: once TurboWarp has 300 clones and Bytecat more, the clones' fields, the clone count and the layer order are not compared. | `examples/clones_limit.expected` and `examples/clones_limit.turbowarp.expected`, `examples/clones_trace.turbowarp.expected`, "has no clone limit by default" in `packages/runtime/test/clones.test.ts`, "clone limit" in `tests/compiler.test.ts`. |
+| Minimum size. `set size` and `change size` have no minimum but 0 in Bytecat: a sprite can shrink until it is gone. TurboWarp keeps a costume at least 5 pixels wide or high (10.42% of a 48 pixel costume). Both keep it at most 1.5 times the stage. | No minimum (`minSize: false`). | `minSize: true`. | `min-size`: a size below TurboWarp's, where TurboWarp's is 100% or less. | "fences, bounces and clamps the size with a geometry" and "keeps TurboWarp's minimum size with minSize" in `packages/runtime/test/lib.test.ts`; `tests/oracle/size_limits.sbp` with the preset. |
 
-The relaxed comparison also has a `min-size` allowance (Bytecat smaller than TurboWarp, which
-keeps a costume at least 5 pixels wide or tall) for the minimum size, which Bytecat does not force.
 
 ## From scratch-vm
 
@@ -92,7 +92,7 @@ Values below are Bytecat's, then TurboWarp's.
 ## Found by the browser oracle
 
 Places where Bytecat and TurboWarp with its renderer still disagree, found by
-[the browser oracle](testing.md#the-browser-oracle). These are Bytecat bugs, to fix in Phase 2.
+[the browser oracle](testing.md#the-browser-oracle). These are Bytecat bugs.
 Each has a program in `tests/oracle/`, and `tests/browser-oracle.test.ts` pins its first
 difference, so a fix makes that test fail until its entry says `agree`. Run one with
 `pnpm bytecat trace tests/oracle/NAME.sbp --browser`. Values below are Bytecat's, then
@@ -100,16 +100,26 @@ TurboWarp's; the sprite is the generated 48 pixel square or circle.
 
 | Difference | Program | First difference |
 | --- | --- | --- |
-| No fencing. TurboWarp keeps at least 15 pixels of a sprite's bounds on the stage whenever `setXY` moves it (`getFencedPositionOfDrawable`); Bytecat moves it anywhere. This affects every block that moves a sprite: `move`, `go to x: y:`, `glide`, `change x by`, `set x to`, `change y by`, `set y to` (and `go to` a target, which can only reach the stage, and dragging). | `fence_move` | frame 25, `Mover.x`: `250` / `249` |
-| | `fence_goto` (`goto(1000, -1000)`) | frame 1, `Mover.x`: `1000` / `249` |
-| | `fence_glide` (`glide(0.5, 0, 400)`) | frame 9, `Mover.y`: `213.33333333333334` / `189` |
-| | `fence_change_x` | frame 7, `Mover.x`: `-280` / `-249` |
-| | `fence_set_x` (`set_x(300)`) | frame 1, `Mover.x`: `300` / `249` |
-| | `fence_change_y` | frame 5, `Mover.y`: `200` / `189` |
-| | `fence_set_y` (`set_y(-250)`) | frame 1, `Mover.y`: `-250` / `-189` |
-| `if on edge, bounce` treats the sprite as a point. TurboWarp bounces once the costume's bounds touch the edge and moves the sprite back inside. | `bounce` | frame 7, `Ball.x`: `220` / `216.5` (and `Ball.direction`: `90` / `-90`) |
-| `set size` only has a floor of 5%. TurboWarp limits the costume to between 5 pixels and 1.5 times the stage size, so a 48 pixel costume goes from 10.42% to 1125%. | `size_limits` (`set_size(5000)`) | frame 1, `log`: `["5000"]` / `["1125"]` |
 | `touching` (`sensing_touchingobject`) is not supported: the compiler warns and the block reads as false. | `touching` (with `touching.input`) | frame 8, `mouse`: `no` / `yes`, problem "bytecat does not support sensing_touchingobject" |
 
 Clicks on sprites agree (`tests/oracle/click_sprites.sbp`): both of Bytecat's renderer backends
-send a click to the topmost sprite with an opaque pixel under the mouse.
+send a click to the topmost sprite with an opaque pixel under the mouse. Fencing (`fence_*`),
+`if on edge, bounce` (`bounce`) and the size limits (`size_limits`) agree too: the blocks ask
+`Runtime.geometry`, which in the browser oracle is the scratch-render backend.
+
+## Headless geometry
+
+Without a browser, the runtime answers the renderer's questions itself (`BoxGeometry` in
+`packages/runtime/src/geometry.ts`, from the costume sizes measured when the project loads), and
+the headless reference gives TurboWarp and scratch-vm a stand-in renderer that does the same
+(`GeometryRenderer` in `packages/reference/src/tw-geometry.ts`), so that the two agree. Fencing
+and the size limits are exact: TurboWarp fences with the costume's box (`getFenceBounds` is the
+AABB) and clamps with the skin size, and `tests/browser-oracle.test.ts` checks the headless box,
+fence and costume size against scratch-render bit for bit. What headless cannot match:
+
+| Difference | Why | Where it shows |
+| --- | --- | --- |
+| The bounds of a visible sprite are its costume's box. scratch-render shrinks them to the convex hull of the costume's opaque pixels, so `if on edge, bounce` turns a few pixels later and puts the sprite back a few pixels further out. A hidden sprite's bounds are the box in TurboWarp too. | The hull needs the decoded pixels. | Headless runs and the Canvas 2D player; the player with `ScratchRenderBackend` and the browser oracle are exact. `examples/bounce` bounces hidden sprites, so its log is TurboWarp's. |
+| An SVG without a `viewBox` is sized by its `width` and `height` attributes. scratch-svg-renderer measures the drawing (`getBBox`) instead. | Measuring needs a browser. | Costumes from outside the Scratch editor, which always writes a viewBox. |
+| Without measured costume sizes (`RuntimeOptions.costumeSizes`), nothing is fenced, bounced or clamped, as in TurboWarp without a renderer. | A runtime made from project.json alone has no images. | Only code that builds a `Runtime` by hand; the CLI, the player, the benchmarks, the fuzzer and the oracles all pass the sizes. |
+| In the headless reference, touching a sprite or a color is false and a click hits the stage. | The stand-in renderer draws nothing. | Nothing compiled yet: Bytecat does not support `touching`. |

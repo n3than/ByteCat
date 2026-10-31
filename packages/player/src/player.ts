@@ -1,5 +1,5 @@
 import { Runtime, type ProgramFactory, type RuntimeOptions } from "@bytecat/runtime";
-import type { ProjectJson } from "@bytecat/sb3";
+import { imageSize, type CostumeSizes, type ImageSize, type ProjectJson } from "@bytecat/sb3";
 import type { RenderBackend } from "./backend.js";
 import { loadCostumes, Renderer, STAGE_HEIGHT, STAGE_WIDTH } from "./renderer.js";
 
@@ -17,10 +17,12 @@ export interface PlayerOptions {
   /** Turbo mode: a redraw does not end the frame. Defaults to `test`. */
   turbo?: boolean;
   answers?: string[];
+  /** The size of each costume image by md5ext (`costumeSizes` in @bytecat/sb3). Default: measured from `assets`. */
+  costumeSizes?: CostumeSizes;
   /**
-   * Runtime options that copy TurboWarp's limits, usually a compat preset such as `TURBOWARP`
+   * Runtime options that copy TurboWarp's limits, usually a compat preset such as `turbowarpCompat`
    * from @bytecat/runtime (`?compat=turbowarp` on a standalone page). Default: Bytecat's own
-   * behaviour, with no clone limit.
+   * behaviour, with no clone limit and no minimum size.
    */
   compat?: Readonly<RuntimeOptions>;
   /** Called with the name of each costume image the browser cannot decode (it is skipped). */
@@ -74,11 +76,14 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
     ...options.compat,
     clock: test ? "virtual" : "real",
     turbo,
+    costumeSizes: options.costumeSizes ?? (await measureAssets(options.assets)),
     ...(options.answers ? { answers: options.answers } : {}),
   });
   const renderer = options.backend
     ? await options.backend(canvas, rt, options.assets)
     : new Renderer(canvas, rt, await loadCostumes(options.assets, options.onAssetError), test ? 1 : Math.min(2, window.devicePixelRatio || 1));
+  // The blocks ask the renderer how far a sprite reaches (fencing, bounce, size limits), as in TurboWarp.
+  rt.geometry = renderer;
   let timer: ReturnType<typeof setInterval> | null = null;
   const listeners = new AbortController();
 
@@ -139,6 +144,22 @@ export async function createPlayer(options: PlayerOptions): Promise<Player> {
   if (!test) attachInput(player, listeners.signal);
   render();
   return player;
+}
+
+/** The size of each costume image, read from its data or blob URL. */
+async function measureAssets(assets: Record<string, string>): Promise<CostumeSizes> {
+  const sizes: Record<string, ImageSize> = {};
+  await Promise.all(
+    Object.entries(assets).map(async ([name, url]) => {
+      try {
+        const size = imageSize(name, new Uint8Array(await (await fetch(url)).arrayBuffer()));
+        if (size) sizes[name] = size;
+      } catch {
+        // An image that cannot be read has no size: its sprite is neither fenced nor clamped.
+      }
+    }),
+  );
+  return sizes;
 }
 
 function attachInput(player: Player, signal: AbortSignal): void {
