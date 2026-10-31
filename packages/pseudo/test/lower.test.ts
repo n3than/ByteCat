@@ -97,6 +97,14 @@ describe("lowering", () => {
     expect(errorOf(`stage:\n  when flag:\n    delete_clone()\n`)).toMatch(/only available in sprites/);
   });
 
+  it("lets create_clone() with no argument clone myself", () => {
+    const json = project(`sprite A:\n  when flag:\n    create_clone()\n`);
+    const create = blocksOf(json).find((b) => b.opcode === "control_create_clone_of")!;
+    const menu = json.targets[1]!.blocks[(create.inputs.CLONE_OPTION as [number, string])[1]]!;
+    expect([menu.opcode, menu.shadow, menu.fields.CLONE_OPTION]).toEqual(["control_create_clone_of_menu", true, ["_myself_", null]]);
+    expect(errorOf(`sprite A:\n  when flag:\n    create_clone("A", "B")\n`)).toMatch(/takes 1 or 0 argument/);
+  });
+
   it("registers broadcasts on the stage", () => {
     const json = project(`sprite A:\n  when receive "go":\n    broadcast("stop")\n`);
     expect(Object.values(json.targets[0].broadcasts).sort()).toEqual(["go", "stop"]);

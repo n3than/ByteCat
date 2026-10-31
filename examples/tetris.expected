@@ -1,0 +1,35 @@
+locked piece 1 kind 3 at 1,0
+locked piece 2 kind 1 at 1,2
+locked piece 3 kind 0 at 1,4
+locked piece 4 kind 2 at 3,5
+locked piece 5 kind 2 at 0,5
+cleared row 5
+locked piece 6 kind 3 at 2,6
+locked piece 7 kind 0 at 1,8
+locked piece 8 kind 1 at 1,9
+locked piece 9 kind 2 at 3,9
+locked piece 10 kind 2 at 0,11
+locked piece 11 kind 2 at 0,13
+locked piece 12 kind 3 at 3,11
+cleared row 11
+locked piece 13 kind 0 at 1,13
+locked piece 14 kind 3 at 2,14
+game over after 14 pieces
+board, top row first:
+000100
+001110
+111110
+111000
+100010
+011100
+011111
+011110
+000100
+001110
+100100
+011110
+011000
+011000
+001000
+011100
+lines 2

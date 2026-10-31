@@ -1,0 +1,147 @@
+# A scripted Tetris on a 6 x 16 board: no input, no random(). A seeded linear congruential
+# generator picks each piece and its column, a piece is a clone that falls one row per frame,
+# locks into the board list as four cell clones, and full rows are cleared. The log reports every
+# lock and every cleared row, and the final board. The piece clones and cell clones are the same
+# sprite: `role` (copied into each clone when it is made) says which one a clone is.
+var gw = 6
+var gh = 16
+var seed = 4242
+var busy = 0
+var over = 0
+var lines = 0
+var cleared_row = 0
+var locked = 0
+list board = []
+# Piece shapes, 4 cells each as (dx, dy) from the piece's origin: I, O, L, T.
+list sx = [0, 1, 2, 3, 0, 1, 0, 1, 0, 1, 2, 0, 0, 1, 2, 1]
+list sy = [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1]
+# Width of each shape, to keep the piece inside the board.
+list sw = [4, 2, 3, 3]
+
+sprite Block:
+  costume cell = square "#33aaff"
+  hidden
+  size 20
+  var role = 0
+  var kind = 0
+  var px = 0
+  var py = 0
+  var cx = 0
+  var cy = 0
+  var ok = 0
+  var i = 0
+  var r = 0
+  var c = 0
+  var full = 0
+
+  # ok = 1 when the piece fits with its origin dy rows below where it is now.
+  define warp fits(dy):
+    ok = 1
+    for i = 1 to 4:
+      cx = px + sx[kind * 4 + i]
+      cy = py + dy + sy[kind * 4 + i]
+      if cx < 0 or cx >= gw or cy < 0:
+        ok = 0
+      elif cy < gh:
+        if board[cy * gw + cx + 1] != 0:
+          ok = 0
+
+  define warp lock_piece():
+    for i = 1 to 4:
+      cx = px + sx[kind * 4 + i]
+      cy = py + sy[kind * 4 + i]
+      if cy < gh:
+        board[cy * gw + cx + 1] = 1
+      role = 2
+      create_clone()
+      role = 1
+    locked += 1
+    log(join("locked piece ", join(locked, join(" kind ", join(kind, join(" at ", join(px, join(",", py))))))))
+
+  # Moves every row above r down by one and empties the top row.
+  define warp drop_rows(row):
+    for r = row to gh - 2:
+      for c = 0 to gw - 1:
+        board[r * gw + c + 1] = board[(r + 1) * gw + c + 1]
+    for c = 0 to gw - 1:
+      board[(gh - 1) * gw + c + 1] = 0
+
+  define clear_full_rows():
+    r = 0
+    while r < gh:
+      full = 1
+      for c = 0 to gw - 1:
+        if board[r * gw + c + 1] = 0:
+          full = 0
+      if full = 1:
+        lines += 1
+        log(join("cleared row ", r))
+        drop_rows(r)
+        cleared_row = r
+        broadcast_wait("row cleared")
+      else:
+        r += 1
+
+  define draw_board():
+    log("board, top row first:")
+    r = gh - 1
+    while r >= 0:
+      full = ""
+      for c = 0 to gw - 1:
+        full = join(full, board[r * gw + c + 1])
+      log(full)
+      r -= 1
+
+  when flag:
+    repeat gw * gh:
+      board.add(0)
+    repeat 28:
+      seed = (seed * 75 + 74) % 65537
+      kind = floor(seed / 5) % 4
+      px = floor(seed / 11) % (gw - sw[kind + 1] + 1)
+      py = gh - 2
+      role = 1
+      busy = 1
+      create_clone()
+      role = 0
+      wait_until(busy = 0)
+      if over = 1:
+        log(join("game over after ", join(locked, " pieces")))
+        draw_board()
+        log(join("lines ", lines))
+        stop("all")
+    draw_board()
+    log(join("lines ", lines))
+    stop("all")
+
+  when cloned:
+    if role = 1:
+      fits(0)
+      if ok = 0:
+        over = 1
+        busy = 0
+        delete_clone()
+      goto(px * 10 - 25, py * 10 - 80)
+      show()
+      fits(-1)
+      while ok = 1:
+        py -= 1
+        change_y(-10)
+        wait(0)
+        fits(-1)
+      lock_piece()
+      wait(0)
+      clear_full_rows()
+      busy = 0
+      delete_clone()
+    else:
+      goto(cx * 10 - 25, cy * 10 - 80)
+      show()
+
+  when receive "row cleared":
+    if role = 2:
+      if cy = cleared_row:
+        delete_clone()
+      elif cy > cleared_row:
+        cy -= 1
+        change_y(-10)

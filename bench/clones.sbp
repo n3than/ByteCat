@@ -1,0 +1,31 @@
+# Benchmark: a spawner makes 10 clones per frame and each clone runs a 20 step loop over its own
+# variables (a loop yield per step), then deletes itself. About 200 clones are alive at once.
+var alive = 0
+var made = 0
+var total = 0
+
+sprite Dot:
+  costume c = circle "#ff8800"
+  var id = 0
+  var acc = 0
+  var step = 0
+
+  when flag:
+    repeat 3000:
+      repeat 10:
+        create_clone()
+      wait(0)
+    wait_until(alive == 0)
+    log(made)
+    log(total)
+
+  when cloned:
+    made += 1
+    alive += 1
+    id = made
+    repeat 20:
+      step += 1
+      acc += (id + step) % 7
+    total += acc
+    alive -= 1
+    delete_clone()

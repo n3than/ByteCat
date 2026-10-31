@@ -29,6 +29,7 @@ takes roughly 0.3 to 1.5 seconds in scratch-vm.
 | `sieve` | Sieve of Eratosthenes over a 150000 item list (kept under scratch-vm's 200000 item list cap). List reads and writes in nested loops. |
 | `strings` | Building a 100000 character string with `join` and `letter`, then scanning it. String concatenation and indexing. |
 | `yield_loop` | A plain `repeat` in a `when flag` script, not in warp mode, so every iteration ends in a loop yield. TurboWarp and scratch-vm go through their scheduler each time; Bytecat skips the yield while a thread runs alone (`rt.spin`, see [architecture.md](architecture.md#scheduler)). Scheduler overhead. |
+| `clones` | A spawner makes 10 clones per frame for 3000 frames; each clone runs a 20 step loop over its own variables (a loop yield per step) and deletes itself, with about 200 clones alive at once. Clone creation, clone threads and deletion. |
 | `pingpong` | Two sprites exchanging `broadcast_wait` messages 400000 times. Event dispatch and thread start/wait. |
 
 ## How timing works
@@ -141,6 +142,7 @@ steadier).
 | benchmark | bytecat (ms) | scratch-vm (ms) | turbowarp (ms) | bytecat speedup | scratch-vm speedup |
 | --- | --- | --- | --- | --- | --- |
 | arith | 19.1 | 926.0 | 41.4 | 2.2x | 0.045x |
+| clones | 59.9 | 1375.0 | 770.2 | 12.9x | 0.56x |
 | pingpong | 118.3 | 1070.7 | 1978.5 | 16.7x | 1.8x |
 | recursion | 35.4 | 1200.6 | 41.0 | 1.2x | 0.034x |
 | sieve | 27.0 | 904.6 | 54.0 | 2.0x | 0.060x |
